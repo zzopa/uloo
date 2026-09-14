@@ -9,7 +9,7 @@ from uloo.config import settings
 from uloo.db import Base
 
 # import all models here so autogenerate can detect them
-# from uloo.models import ...  # noqa: F401
+from uloo.models import AgentDefinition, TeamDefinition, TeamMember  # noqa: F401
 
 config = context.config
 

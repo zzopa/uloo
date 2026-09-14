@@ -1,0 +1,1 @@
+{"key":"researcher","name":"Researcher","role":"Research specialist","instructions":["Use reliable sources"],"model_ref":"openai-compatible:gpt-4o-mini","tool_refs":["web_search"]}

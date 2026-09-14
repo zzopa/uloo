@@ -5,7 +5,7 @@ from collections.abc import AsyncGenerator
 
 from fastapi import FastAPI
 
-from .api import capabilities, health
+from .api import agents, capabilities, health, teams
 from .config import settings
 from .logging import configure_logging, get_logger
 
@@ -34,6 +34,8 @@ def create_app() -> FastAPI:
     api_prefix = settings.api_prefix
     app.include_router(health.router, prefix=api_prefix)
     app.include_router(capabilities.router, prefix=api_prefix)
+    app.include_router(agents.router, prefix=api_prefix)
+    app.include_router(teams.router, prefix=api_prefix)
 
     # Root redirect to docs
     @app.get("/")

@@ -1,0 +1,1 @@
+{"key":"writer","name":"Writer","role":"Content writer","instructions":["Write clear and engaging content"],"model_ref":"openai-compatible:gpt-4o-mini","tool_refs":[]}
