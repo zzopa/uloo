@@ -1,0 +1,49 @@
+# ULOO V2 - Development Compose
+# PostgreSQL+pgvector and Redis use existing Docker containers (external).
+# Only plugin_daemon is managed here.
+# Usage: docker compose -f deploy/compose.dev.yaml --env-file deploy/.env up -d
+
+services:
+  # Dify Plugin Daemon (official image allowed per plan)
+  # Connects to external PostgreSQL and Redis via host.docker.internal
+  plugin_daemon:
+    image: langgenius/dify-plugin-daemon:0.6.3-local
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      LOG_OUTPUT_FORMAT: text
+      DB_HOST: host.docker.internal
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME:-lightrag}
+      DB_PASSWORD: ${DB_PASSWORD:-lightrag123}
+      DB_DATABASE: ${DB_PLUGIN_DATABASE:-dify_plugin}
+      DB_SSL_MODE: disable
+      REDIS_HOST: host.docker.internal
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      SERVER_PORT: 5002
+      SERVER_KEY: ${PLUGIN_DAEMON_KEY:-lYkiYYT6owG+71oLerGzA7GXCgOT++6ovaezWAjpCjf+Sjc3ZtU+qUEi}
+      MAX_PLUGIN_PACKAGE_SIZE: 52428800
+      PPROF_ENABLED: "false"
+      DIFY_INNER_API_URL: http://host.docker.internal:5001
+      DIFY_INNER_API_KEY: ${PLUGIN_DIFY_INNER_API_KEY:-QaHbTe77CtuXmsfyhR7+vRjI/+XbV1AaFy691iy+kGDv2Jvy0/eAh8Y1}
+      PLUGIN_REMOTE_INSTALLING_HOST: 0.0.0.0
+      PLUGIN_REMOTE_INSTALLING_PORT: 5003
+      PLUGIN_WORKING_PATH: /app/storage/cwd
+      PYTHON_ENV_INIT_TIMEOUT: 120
+      PLUGIN_MAX_EXECUTION_TIMEOUT: 600
+      PLUGIN_STORAGE_TYPE: local
+      PLUGIN_STORAGE_LOCAL_ROOT: /app/storage
+      PLUGIN_INSTALLED_PATH: plugin
+      PLUGIN_PACKAGE_CACHE_PATH: plugin_packages
+      PLUGIN_MEDIA_CACHE_PATH: assets
+      FORCE_VERIFYING_SIGNATURE: "false"
+    ports:
+      - "5002:5002"
+      - "5003:5003"
+    volumes:
+      - plugin_daemon_data:/app/storage
+
+volumes:
+  plugin_daemon_data:
