@@ -15,7 +15,10 @@ dependencies = [
     "structlog>=24.4.0,<25.0.0",
     "httpx>=0.28.0,<1.0.0",
     "python-dotenv>=1.0.0,<2.0.0",
-    "agno>=1.0.0,<2.0.0",
+    # Agno is the only Team scheduler, and ULOO's accepted Team modes are pinned
+    # to the runtime's Literal (see src/uloo/constants.py). Keep this range tight
+    # so a silent minor upgrade cannot change mode semantics underneath us.
+    "agno>=1.8.4,<1.9.0",
 ]
 
 [project.optional-dependencies]
@@ -35,6 +38,8 @@ packages = ["src/uloo"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 
 [tool.ruff]
 line-length = 120

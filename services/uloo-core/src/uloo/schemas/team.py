@@ -5,6 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
+from ..constants import TEAM_MODES, TEAM_MODES_REQUIRING_LEADER
+
 
 class MemoryPolicy(BaseModel):
     read_scopes: list[str] = Field(default_factory=list)
@@ -21,8 +23,10 @@ class TeamBase(BaseModel):
     key: str = Field(..., max_length=128, description="Unique stable key")
     name: str = Field(..., max_length=256)
     description: str | None = None
-    mode: str = Field(..., description="coordinate, tasks, or collaborate")
-    leader_agent_id: str | None = Field(None, description="Required for coordinate/tasks")
+    mode: str = Field(..., description=f"One of: {', '.join(TEAM_MODES)}")
+    leader_agent_id: str | None = Field(
+        None, description=f"Required for {', '.join(sorted(TEAM_MODES_REQUIRING_LEADER))}"
+    )
     member_agent_ids: list[str] = Field(default_factory=list)
     instructions: list[str] = Field(default_factory=list)
     memory_policy: MemoryPolicy = Field(default_factory=MemoryPolicy)
@@ -30,7 +34,9 @@ class TeamBase(BaseModel):
 
     @model_validator(mode="after")
     def validate_mode_leader(self):
-        if self.mode in ("coordinate", "tasks") and not self.leader_agent_id:
+        if self.mode not in TEAM_MODES:
+            raise ValueError(f"unsupported mode '{self.mode}', must be one of {list(TEAM_MODES)}")
+        if self.mode in TEAM_MODES_REQUIRING_LEADER and not self.leader_agent_id:
             raise ValueError(f"mode '{self.mode}' requires leader_agent_id")
         if self.leader_agent_id and self.leader_agent_id not in self.member_agent_ids:
             raise ValueError("leader_agent_id must be in member_agent_ids")

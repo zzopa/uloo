@@ -1,1 +1,26 @@
-1.16.1
+# ULOO vendor baseline record.
+#
+# vendor/dify is a NESTED git repository with its own .git directory, deliberately
+# excluded by the root .gitignore. It is NOT a submodule, so a fresh clone of this
+# repository does not contain Dify source at all -- the root repo only tracks this
+# file. Everything below is what a new machine needs in order to recreate it.
+#
+# Recreate (the pinned ref was not verifiable offline, confirm it once against
+# upstream before relying on it):
+#
+#   git clone --depth 1 --branch <upstream_ref> <upstream> vendor/dify
+#   git -C vendor/dify checkout -b <integration_branch>
+#   git -C vendor/dify remote add origin <your-fork>   # see note below
+#   git -C vendor/dify cherry-pick <uloo patch commits>
+#
+# Remote convention (implementation plan section 2.1): `origin` must point at the
+# team's own fork and `upstream` at the official repository. Only `upstream` is
+# configured here, because the fork URL is not recorded anywhere in this project.
+# Do not add an `origin` that points at the official repository -- that makes
+# `git push origin` look legitimate while targeting someone else's repo.
+
+dify_version = 1.16.1
+upstream = https://github.com/langgenius/dify.git
+upstream_ref = 1.16.1
+integration_branch = uloo/integration
+# Keep dify_version in sync with vendor/dify/web/package.json.

@@ -3,7 +3,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_db
@@ -65,7 +65,7 @@ async def list_agents(
     if q:
         pattern = f"%{q}%"
         stmt = stmt.where(
-            func.or_(
+            or_(
                 AgentDefinition.name.ilike(pattern),
                 AgentDefinition.key.ilike(pattern),
                 AgentDefinition.role.ilike(pattern),

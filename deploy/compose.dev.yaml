@@ -2,6 +2,17 @@
 # PostgreSQL+pgvector and Redis use existing Docker containers (external).
 # Only plugin_daemon is managed here.
 # Usage: docker compose -f deploy/compose.dev.yaml --env-file deploy/.env up -d
+#
+# plugin_daemon is pinned to 0.6.3-local because that is the version Dify 1.16.1
+# itself pins in vendor/dify/docker/docker-compose-template.yaml. Do not bump it
+# independently of the vendored Dify source.
+#
+# ULOO Core is a host process, not a compose service (plan section 2.2). The
+# canonical port is 8200, and it must match ULOO_CORE_URL seen by the Dify API,
+# whose BFF defaults to http://localhost:8200.
+#
+#   cd services/uloo-core
+#   .venv/Scripts/python.exe -m uvicorn uloo.main:app --host 0.0.0.0 --port 8200 --reload
 
 services:
   # Dify Plugin Daemon (official image allowed per plan)

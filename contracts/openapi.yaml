@@ -1,0 +1,990 @@
+components:
+  schemas:
+    AgentCreate:
+      properties:
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        enabled:
+          default: true
+          title: Enabled
+          type: boolean
+        instructions:
+          items:
+            type: string
+          title: Instructions
+          type: array
+        key:
+          description: Unique stable key
+          maxLength: 128
+          title: Key
+          type: string
+        knowledge_refs:
+          items:
+            type: string
+          title: Knowledge Refs
+          type: array
+        model_ref:
+          description: e.g. openai-compatible:gpt-5-mini
+          title: Model Ref
+          type: string
+        name:
+          maxLength: 256
+          title: Name
+          type: string
+        output_schema:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Output Schema
+        role:
+          maxLength: 256
+          title: Role
+          type: string
+        tool_refs:
+          items:
+            type: string
+          title: Tool Refs
+          type: array
+      required:
+      - key
+      - name
+      - role
+      - model_ref
+      title: AgentCreate
+      type: object
+    AgentResponse:
+      properties:
+        created_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Created At
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        enabled:
+          title: Enabled
+          type: boolean
+        id:
+          title: Id
+          type: string
+        instructions:
+          items:
+            type: string
+          title: Instructions
+          type: array
+        key:
+          description: Unique stable key
+          maxLength: 128
+          title: Key
+          type: string
+        knowledge_refs:
+          items:
+            type: string
+          title: Knowledge Refs
+          type: array
+        model_ref:
+          description: e.g. openai-compatible:gpt-5-mini
+          title: Model Ref
+          type: string
+        name:
+          maxLength: 256
+          title: Name
+          type: string
+        output_schema:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Output Schema
+        role:
+          maxLength: 256
+          title: Role
+          type: string
+        tool_refs:
+          items:
+            type: string
+          title: Tool Refs
+          type: array
+        updated_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Updated At
+        version:
+          title: Version
+          type: integer
+      required:
+      - key
+      - name
+      - role
+      - model_ref
+      - id
+      - enabled
+      - version
+      title: AgentResponse
+      type: object
+    AgentUpdate:
+      properties:
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        enabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Enabled
+        expected_version:
+          description: Optimistic lock version
+          title: Expected Version
+          type: integer
+        instructions:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Instructions
+        knowledge_refs:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Knowledge Refs
+        model_ref:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model Ref
+        name:
+          anyOf:
+          - maxLength: 256
+            type: string
+          - type: 'null'
+          title: Name
+        output_schema:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Output Schema
+        role:
+          anyOf:
+          - maxLength: 256
+            type: string
+          - type: 'null'
+          title: Role
+        tool_refs:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Tool Refs
+      required:
+      - expected_version
+      title: AgentUpdate
+      type: object
+    AgentValidateResponse:
+      properties:
+        errors:
+          items:
+            type: string
+          title: Errors
+          type: array
+        valid:
+          title: Valid
+          type: boolean
+      required:
+      - valid
+      title: AgentValidateResponse
+      type: object
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          title: Detail
+          type: array
+      title: HTTPValidationError
+      type: object
+    MemoryPolicy:
+      properties:
+        read_scopes:
+          items:
+            type: string
+          title: Read Scopes
+          type: array
+        write_scope:
+          default: team
+          title: Write Scope
+          type: string
+      title: MemoryPolicy
+      type: object
+    TeamCreate:
+      properties:
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        enabled:
+          default: true
+          title: Enabled
+          type: boolean
+        instructions:
+          items:
+            type: string
+          title: Instructions
+          type: array
+        key:
+          description: Unique stable key
+          maxLength: 128
+          title: Key
+          type: string
+        leader_agent_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Required for coordinate, route
+          title: Leader Agent Id
+        limits:
+          $ref: '#/components/schemas/TeamLimits'
+        member_agent_ids:
+          items:
+            type: string
+          title: Member Agent Ids
+          type: array
+        memory_policy:
+          $ref: '#/components/schemas/MemoryPolicy'
+        mode:
+          description: 'One of: coordinate, route, collaborate'
+          title: Mode
+          type: string
+        name:
+          maxLength: 256
+          title: Name
+          type: string
+      required:
+      - key
+      - name
+      - mode
+      title: TeamCreate
+      type: object
+    TeamLimits:
+      properties:
+        max_iterations:
+          default: 8
+          title: Max Iterations
+          type: integer
+        max_tokens:
+          default: 20000
+          title: Max Tokens
+          type: integer
+        timeout_seconds:
+          default: 120
+          title: Timeout Seconds
+          type: integer
+      title: TeamLimits
+      type: object
+    TeamResponse:
+      properties:
+        created_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Created At
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        enabled:
+          title: Enabled
+          type: boolean
+        id:
+          title: Id
+          type: string
+        instructions:
+          items:
+            type: string
+          title: Instructions
+          type: array
+        key:
+          description: Unique stable key
+          maxLength: 128
+          title: Key
+          type: string
+        leader_agent_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Required for coordinate, route
+          title: Leader Agent Id
+        limits:
+          $ref: '#/components/schemas/TeamLimits'
+        member_agent_ids:
+          items:
+            type: string
+          title: Member Agent Ids
+          type: array
+        memory_policy:
+          $ref: '#/components/schemas/MemoryPolicy'
+        mode:
+          description: 'One of: coordinate, route, collaborate'
+          title: Mode
+          type: string
+        name:
+          maxLength: 256
+          title: Name
+          type: string
+        updated_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Updated At
+        version:
+          title: Version
+          type: integer
+      required:
+      - key
+      - name
+      - mode
+      - id
+      - enabled
+      - version
+      title: TeamResponse
+      type: object
+    TeamUpdate:
+      properties:
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        enabled:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Enabled
+        expected_version:
+          description: Optimistic lock version
+          title: Expected Version
+          type: integer
+        instructions:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Instructions
+        leader_agent_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Leader Agent Id
+        limits:
+          anyOf:
+          - $ref: '#/components/schemas/TeamLimits'
+          - type: 'null'
+        member_agent_ids:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Member Agent Ids
+        memory_policy:
+          anyOf:
+          - $ref: '#/components/schemas/MemoryPolicy'
+          - type: 'null'
+        mode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mode
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+      required:
+      - expected_version
+      title: TeamUpdate
+      type: object
+    TeamValidateResponse:
+      properties:
+        errors:
+          items:
+            type: string
+          title: Errors
+          type: array
+        valid:
+          title: Valid
+          type: boolean
+      required:
+      - valid
+      title: TeamValidateResponse
+      type: object
+    ValidationError:
+      properties:
+        ctx:
+          title: Context
+          type: object
+        input:
+          title: Input
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          title: Location
+          type: array
+        msg:
+          title: Message
+          type: string
+        type:
+          title: Error Type
+          type: string
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+      type: object
+info:
+  title: ULOO Core
+  version: 0.1.0
+openapi: 3.1.0
+paths:
+  /:
+    get:
+      operationId: root__get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+      summary: Root
+  /api/v1/agents:
+    get:
+      description: List and search agents.
+      operationId: list_agents_api_v1_agents_get
+      parameters:
+      - description: Search in name/key/role
+        in: query
+        name: q
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Search in name/key/role
+          title: Q
+      - in: query
+        name: enabled
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Enabled
+      - in: query
+        name: model_ref
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Model Ref
+      - in: query
+        name: offset
+        required: false
+        schema:
+          default: 0
+          minimum: 0
+          title: Offset
+          type: integer
+      - in: query
+        name: limit
+        required: false
+        schema:
+          default: 20
+          maximum: 100
+          minimum: 1
+          title: Limit
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/AgentResponse'
+                title: Response List Agents Api V1 Agents Get
+                type: array
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: List Agents
+      tags:
+      - agents
+    post:
+      description: Create a new Agent definition.
+      operationId: create_agent_api_v1_agents_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Create Agent
+      tags:
+      - agents
+  /api/v1/agents/{agent_id}:
+    delete:
+      description: Soft delete agent. Fails if agent is used by an enabled team.
+      operationId: delete_agent_api_v1_agents__agent_id__delete
+      parameters:
+      - in: path
+        name: agent_id
+        required: true
+        schema:
+          format: uuid
+          title: Agent Id
+          type: string
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Delete Agent
+      tags:
+      - agents
+    get:
+      description: Get agent details by ID.
+      operationId: get_agent_api_v1_agents__agent_id__get
+      parameters:
+      - in: path
+        name: agent_id
+        required: true
+        schema:
+          format: uuid
+          title: Agent Id
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Get Agent
+      tags:
+      - agents
+    patch:
+      description: Update agent with optimistic locking.
+      operationId: update_agent_api_v1_agents__agent_id__patch
+      parameters:
+      - in: path
+        name: agent_id
+        required: true
+        schema:
+          format: uuid
+          title: Agent Id
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentUpdate'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Update Agent
+      tags:
+      - agents
+  /api/v1/agents/{agent_id}/test-runs:
+    post:
+      description: Execute a single agent test run with real model. (Stage 3)
+      operationId: test_run_agent_api_v1_agents__agent_id__test_runs_post
+      parameters:
+      - in: path
+        name: agent_id
+        required: true
+        schema:
+          format: uuid
+          title: Agent Id
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Test Run Agent
+      tags:
+      - agents
+  /api/v1/agents/{agent_id}/validate:
+    post:
+      description: Validate agent model and tool configuration without creating a Run.
+      operationId: validate_agent_api_v1_agents__agent_id__validate_post
+      parameters:
+      - in: path
+        name: agent_id
+        required: true
+        schema:
+          format: uuid
+          title: Agent Id
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentValidateResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Validate Agent
+      tags:
+      - agents
+  /api/v1/capabilities:
+    get:
+      description: Return supported modes, models, tools, and streaming capability.
+      operationId: get_capabilities_api_v1_capabilities_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                title: Response Get Capabilities Api V1 Capabilities Get
+                type: object
+          description: Successful Response
+      summary: Get Capabilities
+      tags:
+      - capabilities
+  /api/v1/health/live:
+    get:
+      description: Process is alive.
+      operationId: liveness_api_v1_health_live_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                title: Response Liveness Api V1 Health Live Get
+                type: object
+          description: Successful Response
+      summary: Liveness
+      tags:
+      - health
+  /api/v1/health/ready:
+    get:
+      description: All dependencies are ready. Returns 503 if any dependency is down.
+      operationId: readiness_api_v1_health_ready_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                title: Response Readiness Api V1 Health Ready Get
+                type: object
+          description: Successful Response
+      summary: Readiness
+      tags:
+      - health
+  /api/v1/teams:
+    get:
+      description: List and search teams.
+      operationId: list_teams_api_v1_teams_get
+      parameters:
+      - in: query
+        name: q
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Q
+      - in: query
+        name: mode
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mode
+      - in: query
+        name: enabled
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Enabled
+      - in: query
+        name: offset
+        required: false
+        schema:
+          default: 0
+          minimum: 0
+          title: Offset
+          type: integer
+      - in: query
+        name: limit
+        required: false
+        schema:
+          default: 20
+          maximum: 100
+          minimum: 1
+          title: Limit
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/TeamResponse'
+                title: Response List Teams Api V1 Teams Get
+                type: array
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: List Teams
+      tags:
+      - teams
+    post:
+      description: Create a new Team definition.
+      operationId: create_team_api_v1_teams_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Create Team
+      tags:
+      - teams
+  /api/v1/teams/by-key/{team_key}:
+    get:
+      description: Get team by stable key (used by plugin).
+      operationId: get_team_by_key_api_v1_teams_by_key__team_key__get
+      parameters:
+      - in: path
+        name: team_key
+        required: true
+        schema:
+          title: Team Key
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Get Team By Key
+      tags:
+      - teams
+  /api/v1/teams/{team_id}:
+    delete:
+      description: Soft delete team.
+      operationId: delete_team_api_v1_teams__team_id__delete
+      parameters:
+      - in: path
+        name: team_id
+        required: true
+        schema:
+          format: uuid
+          title: Team Id
+          type: string
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Delete Team
+      tags:
+      - teams
+    get:
+      description: Get team details by ID.
+      operationId: get_team_api_v1_teams__team_id__get
+      parameters:
+      - in: path
+        name: team_id
+        required: true
+        schema:
+          format: uuid
+          title: Team Id
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Get Team
+      tags:
+      - teams
+    patch:
+      description: Update team with optimistic locking.
+      operationId: update_team_api_v1_teams__team_id__patch
+      parameters:
+      - in: path
+        name: team_id
+        required: true
+        schema:
+          format: uuid
+          title: Team Id
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TeamUpdate'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Update Team
+      tags:
+      - teams
+  /api/v1/teams/{team_id}/validate:
+    post:
+      description: 'Validate team: leader, members, model, tools, limits.'
+      operationId: validate_team_api_v1_teams__team_id__validate_post
+      parameters:
+      - in: path
+        name: team_id
+        required: true
+        schema:
+          format: uuid
+          title: Team Id
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamValidateResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Validate Team
+      tags:
+      - teams

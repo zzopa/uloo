@@ -5,6 +5,7 @@ from typing import Any
 from fastapi import APIRouter
 
 from ..config import settings
+from ..constants import TEAM_MODES
 
 router = APIRouter(prefix="/capabilities", tags=["capabilities"])
 
@@ -14,7 +15,7 @@ async def get_capabilities() -> dict[str, Any]:
     """Return supported modes, models, tools, and streaming capability."""
     return {
         "version": "0.1.0",
-        "modes": ["coordinate", "tasks", "collaborate"],
+        "modes": list(TEAM_MODES),
         "streaming": True,
         "memory": True,
         "models": {

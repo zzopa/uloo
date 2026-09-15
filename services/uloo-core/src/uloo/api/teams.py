@@ -3,9 +3,10 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..constants import TEAM_MODES, TEAM_MODES_REQUIRING_LEADER
 from ..db import get_db
 from ..logging import get_logger
 from ..models.agent import AgentDefinition
@@ -20,14 +21,14 @@ from ..schemas.team import (
 router = APIRouter(prefix="/teams", tags=["teams"])
 logger = get_logger(__name__)
 
-VALID_MODES = {"coordinate", "tasks", "collaborate"}
+VALID_MODES = frozenset(TEAM_MODES)
 
 
 @router.post("", response_model=TeamResponse, status_code=status.HTTP_201_CREATED)
 async def create_team(body: TeamCreate, db: AsyncSession = Depends(get_db)):
     """Create a new Team definition."""
     if body.mode not in VALID_MODES:
-        raise HTTPException(status_code=422, detail=f"Invalid mode: {body.mode}. Must be one of {VALID_MODES}")
+        raise HTTPException(status_code=422, detail=f"Invalid mode: {body.mode}. Must be one of {list(TEAM_MODES)}")
 
     existing = await db.execute(
         select(TeamDefinition).where(
@@ -92,7 +93,7 @@ async def list_teams(
     if q:
         pattern = f"%{q}%"
         stmt = stmt.where(
-            func.or_(
+            or_(
                 TeamDefinition.name.ilike(pattern),
                 TeamDefinition.key.ilike(pattern),
             )
@@ -146,7 +147,7 @@ async def update_team(
 
     update_data = body.model_dump(exclude={"expected_version"}, exclude_none=True)
 
-    if "mode" in update_data and update_data["mode"] not in VALID_MODES:
+    if update_data.get("mode") is not None and update_data["mode"] not in VALID_MODES:
         raise HTTPException(status_code=422, detail=f"Invalid mode: {update_data['mode']}")
 
     # Handle member updates
@@ -211,7 +212,10 @@ async def validate_team(team_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     team = await _get_team_or_404(team_id, db)
     errors: list[str] = []
 
-    if team.mode in ("coordinate", "tasks") and not team.leader_agent_id:
+    if team.mode not in VALID_MODES:
+        errors.append(f"mode '{team.mode}' is not supported by the Agno runtime (allowed: {list(TEAM_MODES)})")
+
+    if team.mode in TEAM_MODES_REQUIRING_LEADER and not team.leader_agent_id:
         errors.append(f"mode '{team.mode}' requires leader_agent_id")
 
     if team.leader_agent_id:

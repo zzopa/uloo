@@ -17,3 +17,6 @@ tmp/
 vendor/dify/
 *.tar.gz
 
+# Local agent session state and memory notes, not part of the product source.
+.workbuddy/
+

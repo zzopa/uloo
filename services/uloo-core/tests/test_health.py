@@ -1,18 +1,5 @@
 """Tests for health endpoints."""
 
-import pytest
-from httpx import ASGITransport, AsyncClient
-
-from uloo.main import app
-
-
-@pytest.fixture
-async def client():
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
-        yield ac
-
 
 async def test_liveness(client):
     resp = await client.get("/api/v1/health/live")

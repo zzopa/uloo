@@ -1,67 +1,80 @@
-"""Tests for Agent and Team CRUD operations."""
+"""Tests for Agent and Team CRUD operations.
 
-import pytest
-from httpx import ASGITransport, AsyncClient
+Every test builds its own fixtures with unique keys, so the suite is unaffected
+by rows left behind by earlier runs (see ``conftest.py`` for the rollback-based
+isolation that keeps it that way).
+"""
 
-from uloo.main import app
+import uuid
 
 
-@pytest.fixture
-async def client():
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
-        yield ac
+def unique(prefix: str) -> str:
+    """A key that cannot collide with anything already in the database."""
+    return f"{prefix}-{uuid.uuid4().hex[:8]}"
+
+
+async def create_agent(client, **overrides) -> dict:
+    """Create an agent and return the response body, asserting it succeeded."""
+    payload = {
+        "key": unique("agent"),
+        "name": "Agent",
+        "role": "test",
+        "model_ref": "test-model",
+    }
+    payload.update(overrides)
+
+    resp = await client.post("/api/v1/agents", json=payload)
+    assert resp.status_code == 201, resp.text
+    return resp.json()
 
 
 async def test_create_and_get_agent(client):
     """Create an agent and retrieve it by ID."""
-    resp = await client.post("/api/v1/agents", json={
-        "key": "test-researcher",
-        "name": "Test Researcher",
-        "role": "Research specialist",
-        "model_ref": "openai-compatible:gpt-4o-mini",
-        "tool_refs": ["web_search"],
-    })
-    assert resp.status_code == 201
-    data = resp.json()
-    assert data["key"] == "test-researcher"
-    assert data["version"] == 1
-    agent_id = data["id"]
+    created = await create_agent(client, name="Test Researcher", role="Research specialist")
+    assert created["version"] == 1
 
-    # Get by ID
-    resp = await client.get(f"/api/v1/agents/{agent_id}")
+    resp = await client.get(f"/api/v1/agents/{created['id']}")
     assert resp.status_code == 200
     assert resp.json()["name"] == "Test Researcher"
 
 
-async def test_list_agents(client):
-    """List agents with search."""
-    resp = await client.get("/api/v1/agents", params={"q": "test"})
+async def test_list_agents_search(client):
+    """Search finds the agent this test just created."""
+    key = unique("searchable")
+    await create_agent(client, key=key, name=f"Searchable {key}")
+
+    resp = await client.get("/api/v1/agents", params={"q": key})
     assert resp.status_code == 200
-    data = resp.json()
-    assert len(data) >= 1
+
+    keys = [a["key"] for a in resp.json()]
+    assert keys == [key]
+
+
+async def test_duplicate_agent_key_conflicts(client):
+    """The same key cannot be created twice."""
+    key = unique("dupe")
+    await create_agent(client, key=key)
+
+    resp = await client.post("/api/v1/agents", json={
+        "key": key,
+        "name": "Second",
+        "role": "test",
+        "model_ref": "test-model",
+    })
+    assert resp.status_code == 409
 
 
 async def test_update_agent_optimistic_lock(client):
     """Update agent with correct and incorrect version."""
-    # Create agent
-    resp = await client.post("/api/v1/agents", json={
-        "key": "test-lock",
-        "name": "Lock Test",
-        "role": "test",
-        "model_ref": "test-model",
-    })
-    agent_id = resp.json()["id"]
+    created = await create_agent(client)
+    agent_id = created["id"]
 
-    # Wrong version -> 409
     resp = await client.patch(f"/api/v1/agents/{agent_id}", json={
         "name": "Updated",
         "expected_version": 99,
     })
     assert resp.status_code == 409
 
-    # Correct version -> 200
     resp = await client.patch(f"/api/v1/agents/{agent_id}", json={
         "name": "Updated",
         "expected_version": 1,
@@ -72,52 +85,48 @@ async def test_update_agent_optimistic_lock(client):
 
 
 async def test_create_team_with_members(client):
-    """Create a team with two agents."""
-    # Create two agents
-    a1 = await client.post("/api/v1/agents", json={
-        "key": "team-leader",
-        "name": "Leader",
-        "role": "leader",
-        "model_ref": "test-model",
-    })
-    a2 = await client.post("/api/v1/agents", json={
-        "key": "team-member",
-        "name": "Member",
-        "role": "member",
-        "model_ref": "test-model",
-    })
-    a1_id = a1.json()["id"]
-    a2_id = a2.json()["id"]
+    """Create a team with two agents and read it back."""
+    leader = await create_agent(client, name="Leader", role="leader")
+    member = await create_agent(client, name="Member", role="member")
 
-    # Create team
+    team_key = unique("team")
     resp = await client.post("/api/v1/teams", json={
-        "key": "test-team",
+        "key": team_key,
         "name": "Test Team",
         "mode": "coordinate",
-        "leader_agent_id": a1_id,
-        "member_agent_ids": [a1_id, a2_id],
+        "leader_agent_id": leader["id"],
+        "member_agent_ids": [leader["id"], member["id"]],
     })
-    assert resp.status_code == 201
+    assert resp.status_code == 201, resp.text
     data = resp.json()
     assert data["mode"] == "coordinate"
     assert len(data["member_agent_ids"]) == 2
     assert data["version"] == 1
 
-    # Get by key
-    resp = await client.get("/api/v1/teams/by-key/test-team")
+    resp = await client.get(f"/api/v1/teams/by-key/{team_key}")
     assert resp.status_code == 200
-    assert resp.json()["key"] == "test-team"
+    assert resp.json()["key"] == team_key
 
-    # Validate
     resp = await client.post(f"/api/v1/teams/{data['id']}/validate")
     assert resp.status_code == 200
-    assert resp.json()["valid"] is True
+    assert resp.json()["valid"] is True, resp.text
+
+
+async def test_create_team_rejects_unknown_member(client):
+    """A team cannot reference an agent that does not exist."""
+    resp = await client.post("/api/v1/teams", json={
+        "key": unique("team"),
+        "name": "Ghost Team",
+        "mode": "collaborate",
+        "member_agent_ids": ["00000000-0000-0000-0000-00000000dead"],
+    })
+    assert resp.status_code == 404
 
 
 async def test_team_mode_validation(client):
     """coordinate mode requires leader_agent_id."""
     resp = await client.post("/api/v1/teams", json={
-        "key": "bad-team",
+        "key": unique("bad-team"),
         "name": "Bad Team",
         "mode": "coordinate",
         "member_agent_ids": ["00000000-0000-0000-0000-000000000001"],
@@ -127,28 +136,26 @@ async def test_team_mode_validation(client):
 
 async def test_delete_agent_blocked_by_team(client):
     """Cannot delete agent used by enabled team."""
-    a1 = await client.post("/api/v1/agents", json={
-        "key": "blocked-agent",
-        "name": "Blocked",
-        "role": "test",
-        "model_ref": "test-model",
-    })
-    a2 = await client.post("/api/v1/agents", json={
-        "key": "other-agent",
-        "name": "Other",
-        "role": "test",
-        "model_ref": "test-model",
-    })
-    a1_id = a1.json()["id"]
-    a2_id = a2.json()["id"]
+    first = await create_agent(client, name="Blocked")
+    second = await create_agent(client, name="Other")
 
-    await client.post("/api/v1/teams", json={
-        "key": "blocking-team",
+    resp = await client.post("/api/v1/teams", json={
+        "key": unique("blocking-team"),
         "name": "Blocking Team",
         "mode": "collaborate",
-        "member_agent_ids": [a1_id, a2_id],
+        "member_agent_ids": [first["id"], second["id"]],
     })
+    assert resp.status_code == 201, resp.text
 
-    # Delete should fail with 409
-    resp = await client.delete(f"/api/v1/agents/{a1_id}")
+    resp = await client.delete(f"/api/v1/agents/{first['id']}")
     assert resp.status_code == 409
+
+
+async def test_delete_agent_without_team_succeeds(client):
+    """An agent not referenced by an enabled team is soft deleted."""
+    agent = await create_agent(client, name="Unused")
+
+    resp = await client.delete(f"/api/v1/agents/{agent['id']}")
+    assert resp.status_code == 204
+
+    assert (await client.get(f"/api/v1/agents/{agent['id']}")).status_code == 404
