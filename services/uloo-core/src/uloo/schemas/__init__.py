@@ -3,9 +3,11 @@
 from .agent import (
     AgentCreate,
     AgentResponse,
+    AgentTestRunResponse,
     AgentUpdate,
     AgentValidateResponse,
 )
+from .common import CapabilitiesResponse, ErrorResponse, FeatureCapabilities
 from .team import (
     TeamCreate,
     TeamResponse,
@@ -16,8 +18,12 @@ from .team import (
 __all__ = [
     "AgentCreate",
     "AgentResponse",
+    "AgentTestRunResponse",
     "AgentUpdate",
     "AgentValidateResponse",
+    "CapabilitiesResponse",
+    "ErrorResponse",
+    "FeatureCapabilities",
     "TeamCreate",
     "TeamResponse",
     "TeamUpdate",

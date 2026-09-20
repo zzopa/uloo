@@ -24,4 +24,21 @@ async def test_capabilities(client):
     data = resp.json()
     assert "version" in data
     assert "modes" in data
-    assert "streaming" in data
+    assert data["features"] == {
+        "agents": True,
+        "teams": True,
+        "agent_test_runs": False,
+        "team_runs": False,
+        "streaming": False,
+        "memory": False,
+    }
+
+
+async def test_validation_errors_use_stable_envelope(client):
+    resp = await client.get("/api/v1/agents/not-a-uuid")
+    assert resp.status_code == 422
+    data = resp.json()
+    assert data["code"] == "VALIDATION_ERROR"
+    assert data["message"] == "Request validation failed"
+    assert data["request_id"] == resp.headers["X-Request-ID"]
+    assert data["trace_id"] == resp.headers["X-Trace-ID"]

@@ -7,11 +7,13 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_db
+from ..errors import ApiError
 from ..logging import get_logger
 from ..models.agent import AgentDefinition
 from ..schemas.agent import (
     AgentCreate,
     AgentResponse,
+    AgentTestRunResponse,
     AgentUpdate,
     AgentValidateResponse,
 )
@@ -160,17 +162,16 @@ async def validate_agent(agent_id: uuid.UUID, db: AsyncSession = Depends(get_db)
     return AgentValidateResponse(valid=len(errors) == 0, errors=errors)
 
 
-@router.post("/{agent_id}/test-runs")
+@router.post("/{agent_id}/test-runs", response_model=AgentTestRunResponse)
 async def test_run_agent(agent_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-    """Execute a single agent test run with real model. (Stage 3)"""
-    agent = await _get_agent_or_404(agent_id, db)
-    return {
-        "status": "not_implemented",
-        "runtime_type": "agno",
-        "is_mock": False,
-        "agent_id": str(agent.id),
-        "message": "Test runs will be implemented in Stage 3",
-    }
+    """Execute a real single-agent run once the Stage 3 runtime is available."""
+    await _get_agent_or_404(agent_id, db)
+    raise ApiError(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        code="NOT_IMPLEMENTED",
+        message="Real Agno agent test runs are not implemented yet",
+        details={"required_stage": 3},
+    )
 
 
 async def _get_agent_or_404(agent_id: uuid.UUID, db: AsyncSession) -> AgentDefinition:

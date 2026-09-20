@@ -3,15 +3,15 @@
 本文件是 `docs/ULOO_V2_IMPLEMENTATION_PLAN.md` 第 8 节要求的阶段状态记录：列出每个阶段的
 修改文件、验证命令和未完成项。**未完成项一律标为未完成，不用"骨架可用"冒充业务可用。**
 
-最后更新：2026-09-15
+最后更新：2026-09-20
 
 ## 1. 当前位置
 
 | 阶段 | 状态 | 说明 |
 |---|---|---|
-| Stage 0 干净源码基线 | 已完成 | Dify 1.16.1 源码 + 独立 git 仓库，见第 3 节的可复现性说明 |
-| Stage 1 ULOO Core 最小骨架 | 已完成 | health / capabilities / Alembic / structlog |
-| Stage 2 Agent 与 Team 配置闭环 | 后端已完成，BFF 已接线，**Dify 前端页面未开始** | 见第 4 节 |
+| Stage 0 干净源码基线 | 部分完成，未过验收门 | Dify 1.16.1 本机源码存在，但不是 submodule/subtree，ULOO patch 未提交且全新 clone 无法取得 |
+| Stage 1 ULOO Core 最小骨架 | 已完成 | health / truthful capabilities / Alembic / structlog / 标准错误信封 |
+| Stage 2 Agent 与 Team 配置闭环 | 部分完成 | CRUD 与 BFF 已有；仍缺 workspace 隔离、并发正确性和全部 Dify 前端页面 |
 | Stage 3 真实 Agno 单次执行 | 未开始 | 无 Agent/Team factory，无 Run 表，无事件映射 |
 | Stage 4 Dify Studio 插件闭环 | 未开始 | `extensions/dify-agno-strategy/` 不存在 |
 | Stage 5 Runs 可观测性 | 未开始 | 无 `runs` / `events` 表与接口 |
@@ -117,7 +117,7 @@ cd vendor/dify/api && .venv/Scripts/python.exe -m pytest tests/unit_tests/contro
 - `services/uloo-core/tests/test_health.py`：移除各自重复的 `client` fixture
 - `services/uloo-core/pyproject.toml`：设置 asyncio session 级 loop scope
 
-**验证**：连续三次 `pytest -q` 均为 `20 passed`。
+**验证**：此前连续三次 `pytest -q` 均为 `20 passed`；2026-09-20 增加真实性测试后为 `22 passed`。
 
 ### 4.4 Dify Console BFF 重写并接入
 
@@ -174,7 +174,7 @@ GET/POST/PATCH/PUT/DELETE，与方案 5.2 的 `/console/api/uloo/**` 一致。
 
 ## 5. 验证证据
 
-`services/uloo-core` 测试：`20 passed`（连续三次一致）。
+`services/uloo-core` 测试：`22 passed`；OpenAPI contract 单独执行 `3 passed`。
 
 Dify BFF 单测：`26 passed`。
 
@@ -208,3 +208,16 @@ Dify BFF 单测：`26 passed`。
 6. `vendor/dify` 的 `api/.venv` 未安装 `pytest-cov`，而 `api/pytest.ini` 的 `addopts`
    默认带 `--cov`，因此跑 Dify 测试需追加 `-o addopts=""`。
 7. Stage 3 起全部未开始：无 Run/Event/Memory 表、无 Agno factory、无插件、无 SSE 事件映射。
+
+## 7. 2026-09-20 真实性与错误契约修正
+
+- 新增根目录 `TODO.md`，以 P0～P7、任务 ID、接口、效果和验收门管理后续优化。
+- `GET /api/v1/capabilities` 改为有类型的能力响应；当前明确报告 agent/team CRUD 可用，
+  agent test run、team run、streaming 和 memory 不可用。
+- `POST /agents/{id}/test-runs` 不再用 `is_mock=false` 包装占位结果；现返回
+  `501 NOT_IMPLEMENTED`，待真实 Agno Runtime 完成后再开放。
+- 所有 Core 错误统一为 `code/message/request_id/trace_id/details`，并把 request/trace ID
+  写入响应头。请求校验错误也使用相同信封。
+- 新增 `CapabilitiesResponse`、`FeatureCapabilities`、`ErrorResponse` schema，并重新生成
+  `contracts/openapi.yaml`。
+- 验证：Core `22 passed`，OpenAPI contract `3 passed`，重新导出 OpenAPI 为 `unchanged`。

@@ -159,3 +159,13 @@ async def test_delete_agent_without_team_succeeds(client):
     assert resp.status_code == 204
 
     assert (await client.get(f"/api/v1/agents/{agent['id']}")).status_code == 404
+
+
+async def test_agent_test_run_is_honestly_unavailable(client):
+    agent = await create_agent(client, name="No Runtime Yet")
+    resp = await client.post(f"/api/v1/agents/{agent['id']}/test-runs")
+    assert resp.status_code == 501
+    data = resp.json()
+    assert data["code"] == "NOT_IMPLEMENTED"
+    assert data["details"] == {"required_stage": 3}
+    assert "is_mock" not in data
