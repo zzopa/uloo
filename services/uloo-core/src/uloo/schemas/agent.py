@@ -7,12 +7,18 @@ from pydantic import BaseModel, Field
 
 
 class AgentBase(BaseModel):
-    key: str = Field(..., max_length=128, description="Unique stable key")
-    name: str = Field(..., max_length=256)
+    key: str = Field(
+        ...,
+        min_length=1,
+        max_length=128,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*$",
+        description="Unique stable key",
+    )
+    name: str = Field(..., min_length=1, max_length=256)
     description: str | None = None
-    role: str = Field(..., max_length=256)
+    role: str = Field(..., min_length=1, max_length=256)
     instructions: list[str] = Field(default_factory=list)
-    model_ref: str = Field(..., description="e.g. openai-compatible:gpt-5-mini")
+    model_ref: str = Field(..., min_length=1, max_length=256, description="e.g. openai-compatible:gpt-5-mini")
     tool_refs: list[str] = Field(default_factory=list)
     knowledge_refs: list[str] = Field(default_factory=list)
     output_schema: dict[str, Any] | None = None
@@ -23,16 +29,16 @@ class AgentCreate(AgentBase):
 
 
 class AgentUpdate(BaseModel):
-    name: str | None = Field(None, max_length=256)
+    name: str | None = Field(None, min_length=1, max_length=256)
     description: str | None = None
-    role: str | None = Field(None, max_length=256)
+    role: str | None = Field(None, min_length=1, max_length=256)
     instructions: list[str] | None = None
-    model_ref: str | None = None
+    model_ref: str | None = Field(None, min_length=1, max_length=256)
     tool_refs: list[str] | None = None
     knowledge_refs: list[str] | None = None
     output_schema: dict[str, Any] | None = None
     enabled: bool | None = None
-    expected_version: int = Field(..., description="Optimistic lock version")
+    expected_version: int = Field(..., ge=1, description="Optimistic lock version")
 
 
 class AgentResponse(AgentBase):

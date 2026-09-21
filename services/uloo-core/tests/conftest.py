@@ -29,6 +29,9 @@ from uloo.main import app
 from uloo.models import AgentDefinition, TeamDefinition, TeamMember  # noqa: F401
 
 REQUIRED_TABLES = ("agent_definitions", "team_definitions", "team_members")
+TEST_API_TOKEN = "uloo-test-service-token"
+TEST_WORKSPACE_ID = "10000000-0000-0000-0000-000000000001"
+settings.api_token = TEST_API_TOKEN
 
 
 @pytest.fixture(scope="session")
@@ -40,6 +43,13 @@ async def engine():
         async with eng.connect() as conn:
             await conn.execute(text("SELECT 1"))
             tables = set(await conn.run_sync(lambda sync_conn: inspect(sync_conn).get_table_names()))
+            columns = await conn.run_sync(
+                lambda sync_conn: {
+                    table: {column["name"] for column in inspect(sync_conn).get_columns(table)}
+                    for table in REQUIRED_TABLES
+                    if table in tables
+                }
+            )
     except Exception as exc:
         await eng.dispose()
         pytest.fail(
@@ -53,6 +63,12 @@ async def engine():
         pytest.fail(
             f"missing tables {missing} in database '{settings.db_database}'. "
             "Migrations are the source of truth for the schema -- run: alembic upgrade head"
+        )
+    missing_workspace = [table for table in REQUIRED_TABLES if "workspace_id" not in columns[table]]
+    if missing_workspace:
+        await eng.dispose()
+        pytest.fail(
+            f"workspace migration missing on tables {missing_workspace}; run: alembic upgrade head"
         )
 
     yield eng
@@ -89,7 +105,14 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides[get_db] = _override_get_db
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+            headers={
+                "Authorization": f"Bearer {TEST_API_TOKEN}",
+                "X-ULOO-Workspace": TEST_WORKSPACE_ID,
+            },
+        ) as ac:
             yield ac
     finally:
         app.dependency_overrides.pop(get_db, None)

@@ -7,6 +7,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -23,14 +24,19 @@ class TeamDefinition(Base):
     """Team definition - a group of agents working together."""
 
     __tablename__ = "team_definitions"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "key", name="uq_team_workspace_key"),
+        Index("ix_team_workspace_created", "workspace_id", "created_at"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    key: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    key: Mapped[str] = mapped_column(String(128), nullable=False)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    mode: Mapped[str] = mapped_column(String(64), nullable=False)  # coordinate, tasks, collaborate
+    mode: Mapped[str] = mapped_column(String(64), nullable=False)
     leader_agent_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("agent_definitions.id"), nullable=True
     )
@@ -90,6 +96,7 @@ class TeamMember(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     team_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("team_definitions.id", ondelete="CASCADE"), nullable=False
     )

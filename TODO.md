@@ -8,14 +8,14 @@
 
 ## 0. 当前结论
 
-当前项目处于“基础后端可测试、产品闭环尚未形成”的阶段，整体约完成 **15%–20%**。
+当前项目处于“基础后端已加固、产品闭环尚未形成”的阶段，整体约完成 **20%–25%**。
 
 | 能力 | 当前状态 | 是否可供最终用户使用 |
 |---|---|---|
-| Dify 1.16.1 源码基线 | 本机存在嵌套仓库；ULOO BFF 改动已暂存但未提交，根仓库新 clone 无法取得该源码 | 否 |
+| Dify 1.16.1 源码基线 | 本机嵌套仓库已提交 ULOO BFF；因尚无团队 fork/submodule，根仓库新 clone 仍无法取得 patch | 否 |
 | ULOO Core 健康检查 | 已实现；未配置模型时 ready 正确返回 503 | 部分 |
-| Agent/Team CRUD | 已实现并有数据库测试；仍缺 workspace 隔离、原子乐观锁和完整 PATCH 校验 | 仅 API 可试用 |
-| Dify Console BFF | 代码与 26 个单测已存在；改动未提交 | 部分 |
+| Agent/Team CRUD | 已实现服务认证、workspace 隔离、并发锁、完整 PATCH 校验和分页 | 仅 API 可试用 |
+| Dify Console BFF | 已提交到 Dify `uloo/integration`，26 个单测通过；尚无 Web 页面调用 | 部分 |
 | Dify ULOO 页面 | 未开始 | 否 |
 | 真实 Agno 执行 | 未开始；`test-runs` 仍为占位响应 | 否 |
 | Dify Studio Team 节点 | 未开始 | 否 |
@@ -25,7 +25,7 @@
 
 已验证基线：
 
-- [x] ULOO Core：`20 passed`
+- [x] ULOO Core：`30 passed`
 - [x] OpenAPI：重新生成结果为 `unchanged`
 - [x] Dify BFF：`26 passed`
 - [x] Dify API：`uv lock --check` 通过
@@ -48,10 +48,10 @@
 
 ### ULOO-001 固化 Dify 源码与改动
 
-- [ ] 在 `vendor/dify` 提交当前已暂存的 BFF/config/test/lock 改动。
+- [x] 在 `vendor/dify` 提交 BFF/config/test/lock 改动：`1430403eb56d5dae197127a8276b96a9d7fc9da6`。
 - [ ] 为团队 fork 配置 `origin`，保留官方仓库为 `upstream`。
 - [ ] 推荐将 `vendor/dify` 转为指向团队 fork 固定 commit 的 Git submodule；若决定使用 subtree，则必须把完整源码纳入根仓库，不能继续仅靠 `.gitignore` 中的本机目录。
-- [ ] 根仓库记录确切 Dify commit，不只记录版本字符串 `1.16.1`。
+- [x] 根仓库 `vendor/DIFY_VERSION` 记录确切 ULOO patch commits，不只记录版本字符串 `1.16.1`。
 - [ ] 在全新目录执行 clone/checkout，确认能取得带 ULOO BFF 的 Dify 源码。
 - [ ] 保存 Dify API/Web 源码启动命令和热更新证据。
 
@@ -70,28 +70,28 @@
 
 验收效果：前端和运维看到的状态与真实功能完全一致，不会把占位接口误认为真实 Agno 运行。
 
-### ULOO-003 完成服务边界和 workspace 隔离
+### ULOO-003 完成服务边界和 workspace 隔离（已完成）
 
-- [ ] ULOO Core 校验 BFF 注入的服务令牌；令牌缺失或错误返回 401/403。
-- [ ] 读取并校验 `X-ULOO-Workspace`，但不创建额外用户表或登录系统。
-- [ ] `agent_definitions`、`team_definitions`、后续 run/event/memory 表增加 `workspace_id`。
-- [ ] 唯一键改为 `(workspace_id, key)`；所有查询、更新、删除必须带 workspace 条件。
-- [ ] 防止用户通过请求体覆盖 workspace；workspace 只能来自可信服务头。
-- [ ] BFF 继续复用 Dify 登录和 workspace，上游 token 不暴露给浏览器。
-- [ ] 添加跨 workspace 不可读、不可改、不可引用的集成测试。
+- [x] ULOO Core 校验 BFF 注入的服务令牌；令牌缺失或错误返回 401/403。
+- [x] 读取并校验 `X-ULOO-Workspace`，但不创建额外用户表或登录系统。
+- [x] `agent_definitions`、`team_definitions`、`team_members` 增加 `workspace_id`；后续 run/event/memory 建表时沿用。
+- [x] 唯一键改为 `(workspace_id, key)`；所有查询、更新、删除必须带 workspace 条件。
+- [x] 防止用户通过请求体覆盖 workspace；workspace 只能来自可信服务头。
+- [x] BFF 继续复用 Dify 登录和 workspace，上游 token 不暴露给浏览器。
+- [x] 添加跨 workspace 不可读、不可改、不可引用的集成测试。
 
 验收效果：忽略自建用户体系，但不同 Dify workspace 的 Agent、Team 和运行数据不会串库。
 
-### ULOO-004 修复 CRUD 一致性
+### ULOO-004 修复 CRUD 一致性（已完成）
 
-- [ ] 把 Agent/Team 乐观锁改为数据库原子条件更新：`WHERE id=? AND version=?`，并以受影响行数判定 409。
-- [ ] Team PATCH 合并“数据库现值 + 请求变更”后执行完整校验，禁止无成员、Leader 不在成员中、mode/Leader 不匹配。
-- [ ] schema 中成员和 Leader 使用 UUID 类型，非法 UUID 稳定返回 422，不能抛 500。
-- [ ] 禁止重复成员 ID，返回业务错误而不是数据库唯一约束 500。
-- [ ] `limits` 增加合理上下界；`memory_policy` 使用枚举约束 scope。
-- [ ] 决定软删除后 key 是否可复用，并让数据库唯一约束与 API 行为一致。
-- [ ] Agent/Team 列表返回统一分页对象：`items/total/offset/limit`，避免前端猜测总数。
-- [ ] 添加并发更新、非法 PATCH、重复成员、软删除 key、边界值测试。
+- [x] Agent/Team 更新使用 PostgreSQL `SELECT ... FOR UPDATE` 串行化版本检查；并发相同版本只有一个请求成功，另一个返回 409。
+- [x] Team PATCH 合并“数据库现值 + 请求变更”后执行完整校验，禁止无成员、Leader 不在成员中、mode/Leader 不匹配。
+- [x] schema 中成员和 Leader 使用 UUID 类型，非法 UUID 稳定返回 422，不能抛 500。
+- [x] 禁止重复成员 ID，返回业务错误而不是数据库唯一约束 500。
+- [x] `limits` 增加合理上下界；`memory_policy` 使用枚举约束 scope。
+- [x] 软删除后的稳定 key 不可复用，避免历史 Run 和插件引用产生歧义；数据库唯一约束与 API 一致。
+- [x] Agent/Team 列表返回统一分页对象：`items/total/offset/limit`，避免前端猜测总数。
+- [x] 添加并发更新、非法 PATCH、重复成员、软删除 key、跨 workspace 和边界值测试。
 
 验收效果：并发编辑不会静默覆盖，任何可保存的 Team 都满足执行前置条件。
 
@@ -289,6 +289,6 @@ P6 验收门：一条 release compose 命令启动的是修改后的源码产品
 ## 3. 下一步立即执行
 
 - [x] 已完成 ULOO-002：停止能力虚报并补齐错误契约（Core `22 passed`，OpenAPI contract `3 passed`）。
-- [ ] 接着完成 ULOO-003/004：workspace 边界与 CRUD 数据正确性。
+- [x] 已完成 ULOO-003/004：服务认证、workspace 边界与 CRUD 数据正确性（Core `30 passed`）。
 - [ ] 同时等待团队 fork URL，用于关闭 ULOO-001 的可复现性阻断。
 - [ ] P0 全绿后开始 Dify Agents/Teams 页面；不提前堆 Run UI、Memory UI 或 NATS。

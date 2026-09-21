@@ -19,6 +19,8 @@ components:
         key:
           description: Unique stable key
           maxLength: 128
+          minLength: 1
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._-]*$
           title: Key
           type: string
         knowledge_refs:
@@ -28,10 +30,13 @@ components:
           type: array
         model_ref:
           description: e.g. openai-compatible:gpt-5-mini
+          maxLength: 256
+          minLength: 1
           title: Model Ref
           type: string
         name:
           maxLength: 256
+          minLength: 1
           title: Name
           type: string
         output_schema:
@@ -42,6 +47,7 @@ components:
           title: Output Schema
         role:
           maxLength: 256
+          minLength: 1
           title: Role
           type: string
         tool_refs:
@@ -83,6 +89,8 @@ components:
         key:
           description: Unique stable key
           maxLength: 128
+          minLength: 1
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._-]*$
           title: Key
           type: string
         knowledge_refs:
@@ -92,10 +100,13 @@ components:
           type: array
         model_ref:
           description: e.g. openai-compatible:gpt-5-mini
+          maxLength: 256
+          minLength: 1
           title: Model Ref
           type: string
         name:
           maxLength: 256
+          minLength: 1
           title: Name
           type: string
         output_schema:
@@ -106,6 +117,7 @@ components:
           title: Output Schema
         role:
           maxLength: 256
+          minLength: 1
           title: Role
           type: string
         tool_refs:
@@ -191,6 +203,7 @@ components:
           title: Enabled
         expected_version:
           description: Optimistic lock version
+          minimum: 1.0
           title: Expected Version
           type: integer
         instructions:
@@ -209,12 +222,15 @@ components:
           title: Knowledge Refs
         model_ref:
           anyOf:
-          - type: string
+          - maxLength: 256
+            minLength: 1
+            type: string
           - type: 'null'
           title: Model Ref
         name:
           anyOf:
           - maxLength: 256
+            minLength: 1
             type: string
           - type: 'null'
           title: Name
@@ -227,6 +243,7 @@ components:
         role:
           anyOf:
           - maxLength: 256
+            minLength: 1
             type: string
           - type: 'null'
           title: Role
@@ -355,14 +372,74 @@ components:
       properties:
         read_scopes:
           items:
+            enum:
+            - project
+            - team
+            - agent
             type: string
           title: Read Scopes
           type: array
         write_scope:
           default: team
+          enum:
+          - project
+          - team
+          - agent
           title: Write Scope
           type: string
       title: MemoryPolicy
+      type: object
+    Page_AgentResponse_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/AgentResponse'
+          title: Items
+          type: array
+        limit:
+          minimum: 1.0
+          title: Limit
+          type: integer
+        offset:
+          minimum: 0.0
+          title: Offset
+          type: integer
+        total:
+          minimum: 0.0
+          title: Total
+          type: integer
+      required:
+      - items
+      - total
+      - offset
+      - limit
+      title: Page[AgentResponse]
+      type: object
+    Page_TeamResponse_:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/TeamResponse'
+          title: Items
+          type: array
+        limit:
+          minimum: 1.0
+          title: Limit
+          type: integer
+        offset:
+          minimum: 0.0
+          title: Offset
+          type: integer
+        total:
+          minimum: 0.0
+          title: Total
+          type: integer
+      required:
+      - items
+      - total
+      - offset
+      - limit
+      title: Page[TeamResponse]
       type: object
     TeamCreate:
       properties:
@@ -383,11 +460,14 @@ components:
         key:
           description: Unique stable key
           maxLength: 128
+          minLength: 1
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._-]*$
           title: Key
           type: string
         leader_agent_id:
           anyOf:
-          - type: string
+          - format: uuid
+            type: string
           - type: 'null'
           description: Required for coordinate, route
           title: Leader Agent Id
@@ -395,6 +475,7 @@ components:
           $ref: '#/components/schemas/TeamLimits'
         member_agent_ids:
           items:
+            format: uuid
             type: string
           title: Member Agent Ids
           type: array
@@ -406,6 +487,7 @@ components:
           type: string
         name:
           maxLength: 256
+          minLength: 1
           title: Name
           type: string
       required:
@@ -418,14 +500,20 @@ components:
       properties:
         max_iterations:
           default: 8
+          maximum: 100.0
+          minimum: 1.0
           title: Max Iterations
           type: integer
         max_tokens:
           default: 20000
+          maximum: 2000000.0
+          minimum: 1.0
           title: Max Tokens
           type: integer
         timeout_seconds:
           default: 120
+          maximum: 3600.0
+          minimum: 1.0
           title: Timeout Seconds
           type: integer
       title: TeamLimits
@@ -457,11 +545,14 @@ components:
         key:
           description: Unique stable key
           maxLength: 128
+          minLength: 1
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._-]*$
           title: Key
           type: string
         leader_agent_id:
           anyOf:
-          - type: string
+          - format: uuid
+            type: string
           - type: 'null'
           description: Required for coordinate, route
           title: Leader Agent Id
@@ -469,6 +560,7 @@ components:
           $ref: '#/components/schemas/TeamLimits'
         member_agent_ids:
           items:
+            format: uuid
             type: string
           title: Member Agent Ids
           type: array
@@ -480,6 +572,7 @@ components:
           type: string
         name:
           maxLength: 256
+          minLength: 1
           title: Name
           type: string
         updated_at:
@@ -514,6 +607,7 @@ components:
           title: Enabled
         expected_version:
           description: Optimistic lock version
+          minimum: 1.0
           title: Expected Version
           type: integer
         instructions:
@@ -525,7 +619,8 @@ components:
           title: Instructions
         leader_agent_id:
           anyOf:
-          - type: string
+          - format: uuid
+            type: string
           - type: 'null'
           title: Leader Agent Id
         limits:
@@ -535,6 +630,7 @@ components:
         member_agent_ids:
           anyOf:
           - items:
+              format: uuid
               type: string
             type: array
           - type: 'null'
@@ -550,7 +646,9 @@ components:
           title: Mode
         name:
           anyOf:
-          - type: string
+          - maxLength: 256
+            minLength: 1
+            type: string
           - type: 'null'
           title: Name
       required:
@@ -694,15 +792,28 @@ paths:
           minimum: 1
           title: Limit
           type: integer
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
       responses:
         '200':
           content:
             application/json:
               schema:
-                items:
-                  $ref: '#/components/schemas/AgentResponse'
-                title: Response List Agents Api V1 Agents Get
-                type: array
+                $ref: '#/components/schemas/Page_AgentResponse_'
           description: Successful Response
         '400':
           content:
@@ -770,6 +881,23 @@ paths:
     post:
       description: Create a new Agent definition.
       operationId: create_agent_api_v1_agents_post
+      parameters:
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
       requestBody:
         content:
           application/json:
@@ -858,6 +986,22 @@ paths:
           format: uuid
           title: Agent Id
           type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
       responses:
         '204':
           description: Successful Response
@@ -935,6 +1079,22 @@ paths:
           format: uuid
           title: Agent Id
           type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
       responses:
         '200':
           content:
@@ -1016,6 +1176,22 @@ paths:
           format: uuid
           title: Agent Id
           type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
       requestBody:
         content:
           application/json:
@@ -1104,6 +1280,22 @@ paths:
           format: uuid
           title: Agent Id
           type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
       responses:
         '200':
           content:
@@ -1186,6 +1378,22 @@ paths:
           format: uuid
           title: Agent Id
           type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
       responses:
         '200':
           content:
@@ -1528,15 +1736,28 @@ paths:
           minimum: 1
           title: Limit
           type: integer
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
       responses:
         '200':
           content:
             application/json:
               schema:
-                items:
-                  $ref: '#/components/schemas/TeamResponse'
-                title: Response List Teams Api V1 Teams Get
-                type: array
+                $ref: '#/components/schemas/Page_TeamResponse_'
           description: Successful Response
         '400':
           content:
@@ -1604,6 +1825,23 @@ paths:
     post:
       description: Create a new Team definition.
       operationId: create_team_api_v1_teams_post
+      parameters:
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
       requestBody:
         content:
           application/json:
@@ -1691,6 +1929,22 @@ paths:
         schema:
           title: Team Key
           type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
       responses:
         '200':
           content:
@@ -1773,6 +2027,22 @@ paths:
           format: uuid
           title: Team Id
           type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
       responses:
         '204':
           description: Successful Response
@@ -1850,6 +2120,22 @@ paths:
           format: uuid
           title: Team Id
           type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
       responses:
         '200':
           content:
@@ -1931,6 +2217,22 @@ paths:
           format: uuid
           title: Team Id
           type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
       requestBody:
         content:
           application/json:
@@ -2019,6 +2321,22 @@ paths:
           format: uuid
           title: Team Id
           type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
       responses:
         '200':
           content:

@@ -2,9 +2,12 @@
 
 Unified Logic Orchestration & Operations：以 Dify 源码作为唯一可视化产品壳，以 Agno 作为唯一多 Agent 协同运行时，以 ULOO Core 管理 Agent、Team、Run、Event 与跨 Agent Memory。
 
-当前状态：规划与干净基线阶段，尚未宣称任何业务能力完成。
+当前状态：ULOO Core 的 Agent/Team 后端与 Dify Console BFF 已具备测试基线；服务认证、
+workspace 隔离和 CRUD 一致性已完成。Dify 可视化页面、真实 Agno Run、Studio 插件和 Memory
+尚未完成，因此当前仍不是可交付产品。
 
 实施与接口定义见 [docs/ULOO_V2_IMPLEMENTATION_PLAN.md](docs/ULOO_V2_IMPLEMENTATION_PLAN.md)。
+当前任务与验收进度见 [TODO.md](TODO.md) 和 [docs/STAGE_STATUS.md](docs/STAGE_STATUS.md)。
 
 ## 不可变原则
 
@@ -14,4 +17,3 @@ Unified Logic Orchestration & Operations：以 Dify 源码作为唯一可视化�
 - FakeModel 只允许存在于自动化测试，生产和手工验收不得静默使用假模型。
 - MVP 不先引入 NATS、MinIO、独立 Worker 等非必要组件；主链路通过后再按可靠性需求增加。
 - 不开发第二套 Workflow Canvas，不扩展独立用户体系，复用 Dify 的登录与 workspace 上下文。
-

@@ -1,7 +1,5 @@
 """ULOO Core configuration."""
 
-from typing import Literal
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -35,6 +33,7 @@ class Settings(BaseSettings):
 
     # API
     api_prefix: str = "/api/v1"
+    api_token: str = ""
 
     # Agno
     agno_enabled: bool = True

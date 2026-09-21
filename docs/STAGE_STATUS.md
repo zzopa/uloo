@@ -9,9 +9,9 @@
 
 | 阶段 | 状态 | 说明 |
 |---|---|---|
-| Stage 0 干净源码基线 | 部分完成，未过验收门 | Dify 1.16.1 本机源码存在，但不是 submodule/subtree，ULOO patch 未提交且全新 clone 无法取得 |
+| Stage 0 干净源码基线 | 部分完成，未过验收门 | Dify patch 已本地提交，但不是 submodule/subtree 且无团队 fork，全新 clone 无法取得 patch |
 | Stage 1 ULOO Core 最小骨架 | 已完成 | health / truthful capabilities / Alembic / structlog / 标准错误信封 |
-| Stage 2 Agent 与 Team 配置闭环 | 部分完成 | CRUD 与 BFF 已有；仍缺 workspace 隔离、并发正确性和全部 Dify 前端页面 |
+| Stage 2 Agent 与 Team 配置闭环 | 后端已加固，前端未开始 | CRUD/BFF、服务认证、workspace 隔离、并发正确性已完成；仍缺全部 Dify 页面 |
 | Stage 3 真实 Agno 单次执行 | 未开始 | 无 Agent/Team factory，无 Run 表，无事件映射 |
 | Stage 4 Dify Studio 插件闭环 | 未开始 | `extensions/dify-agno-strategy/` 不存在 |
 | Stage 5 Runs 可观测性 | 未开始 | 无 `runs` / `events` 表与接口 |
@@ -174,7 +174,7 @@ GET/POST/PATCH/PUT/DELETE，与方案 5.2 的 `/console/api/uloo/**` 一致。
 
 ## 5. 验证证据
 
-`services/uloo-core` 测试：`22 passed`；OpenAPI contract 单独执行 `3 passed`。
+`services/uloo-core` 测试：`30 passed`；OpenAPI contract 包含在完整测试中。
 
 Dify BFF 单测：`26 passed`。
 
@@ -198,8 +198,8 @@ Dify BFF 单测：`26 passed`。
 ## 6. 已知未完成 / 待决
 
 1. **Dify 前端五个 ULOO 页面全部未建**，Stage 2 的用户可见闭环尚未达成。
-2. **未提交任何 Git commit**：本轮的 vendor 与根仓库改动都还在工作区，方案第 8 节
-   "每阶段必须有真实 Git commit"尚未满足。
+2. Dify BFF 已提交为 `1430403eb56d5dae197127a8276b96a9d7fc9da6`；但在团队 fork 可用前，
+   该 commit 仍只存在本机，不能视为远程可复现。
 3. `vendor/dify` 的团队 fork URL 未记录，`origin` remote 待配置。
 4. `vendor/DIFY_VERSION` 中 pin 的上游 ref 未经联网核对（本机无网络访问）。
 5. 开发库中存在历史脏数据：`agent_definitions` 8 行、`team_definitions` 3 行，
@@ -221,3 +221,18 @@ Dify BFF 单测：`26 passed`。
 - 新增 `CapabilitiesResponse`、`FeatureCapabilities`、`ErrorResponse` schema，并重新生成
   `contracts/openapi.yaml`。
 - 验证：Core `22 passed`，OpenAPI contract `3 passed`，重新导出 OpenAPI 为 `unchanged`。
+
+## 8. 2026-09-21 服务边界与 CRUD 加固
+
+- 增加 Bearer 服务认证；数据接口必须由持有 `ULOO_API_TOKEN` 的 BFF/插件调用。
+- `X-ULOO-Workspace` 必须是 Dify tenant UUID。未新增用户系统，仍复用 Dify 登录与 workspace。
+- migration `9f3c2a1d7b6e` 为 Agent、Team、TeamMember 增加 workspace，key 唯一约束改为
+  `(workspace_id, key)`；旧数据迁移到 legacy workspace。
+- 所有 Agent/Team 读写、成员解析和删除引用检查均加入 workspace 条件。
+- Agent/Team 更新使用数据库行锁保护版本检查；并发相同版本更新实测仅一个成功。
+- Team PATCH 现在验证合并后的完整配置；UUID、重复成员、Leader、mode、limits 和 memory scope
+  均在写库前校验。
+- 列表统一返回 `items/total/offset/limit`；软删除后的稳定 key 明确不可复用。
+- BFF 自身产生的超时/不可用错误也使用 Core 的标准错误信封和 correlation headers。
+- migration 已通过 `upgrade → downgrade → upgrade`，`alembic check` 无漂移。
+- 验证：Core `30 passed`，Dify BFF `26 passed`，Dify `uv lock --check` 通过。

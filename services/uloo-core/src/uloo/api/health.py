@@ -43,6 +43,9 @@ async def readiness(response: Response) -> dict[str, Any]:
     # Model config check (at least one provider configured)
     checks["model_config"] = len(settings.model_providers) > 0
 
+    # Service authentication must be configured before data APIs are usable.
+    checks["service_auth"] = bool(settings.api_token)
+
     all_ready = all(checks.values())
 
     if not all_ready:

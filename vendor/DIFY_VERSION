@@ -23,4 +23,5 @@ dify_version = 1.16.1
 upstream = https://github.com/langgenius/dify.git
 upstream_ref = 1.16.1
 integration_branch = uloo/integration
+uloo_patch_commits = 9415c3ebff434eb443a492382fc80e60e3de1d06,1430403eb56d5dae197127a8276b96a9d7fc9da6
 # Keep dify_version in sync with vendor/dify/web/package.json.

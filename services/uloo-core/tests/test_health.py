@@ -16,6 +16,7 @@ async def test_readiness_structure(client):
     assert "database" in data["checks"]
     assert "agno" in data["checks"]
     assert "model_config" in data["checks"]
+    assert data["checks"]["service_auth"] is True
 
 
 async def test_capabilities(client):
