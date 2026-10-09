@@ -25,11 +25,12 @@ async def test_capabilities(client):
     data = resp.json()
     assert "version" in data
     assert "modes" in data
+    assert data["tools"] == ["web-search"]
     assert data["features"] == {
         "agents": True,
         "teams": True,
-        "agent_test_runs": False,
-        "team_runs": False,
+        "agent_test_runs": True,
+        "team_runs": True,
         "streaming": False,
         "memory": False,
     }

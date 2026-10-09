@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "ULOO Core API - Agent, Team, Run, Event, Memory"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "fastapi>=0.115.0,<1.0.0",
+    "fastapi>=0.121.0,<1.0.0",
     "uvicorn[standard]>=0.30.0,<1.0.0",
     "pydantic>=2.10.0,<3.0.0",
     "pydantic-settings>=2.6.0,<3.0.0",
@@ -19,6 +19,9 @@ dependencies = [
     # to the runtime's Literal (see src/uloo/constants.py). Keep this range tight
     # so a silent minor upgrade cannot change mode semantics underneath us.
     "agno>=1.8.4,<1.9.0",
+    "jsonschema>=4.23,<5",
+    "openai>=1.109.1,<2",
+    "ddgs>=9,<10",
 ]
 
 [project.optional-dependencies]
@@ -26,6 +29,12 @@ dev = [
     "pytest>=8.0.0,<9.0.0",
     "pytest-asyncio>=0.24.0,<1.0.0",
     "httpx>=0.28.0,<1.0.0",
+    "types-jsonschema>=4.26.0.20261006",
+    "ruff>=0.16.10",
+    "mypy>=2.4.0",
+    "pytest-cov>=7.1.0",
+    "pyyaml>=6.0.3",
+    "types-pyyaml>=6.0.12.20260906",
 ]
 
 [build-system]
@@ -44,3 +53,6 @@ asyncio_default_test_loop_scope = "session"
 [tool.ruff]
 line-length = 120
 target-version = "py312"
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query"]

@@ -30,9 +30,7 @@ async def require_service_context(
         )
 
     scheme, _, credential = (authorization or "").partition(" ")
-    if scheme.lower() != "bearer" or not credential or not secrets.compare_digest(
-        credential, settings.api_token
-    ):
+    if scheme.lower() != "bearer" or not credential or not secrets.compare_digest(credential, settings.api_token):
         raise ApiError(
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="UNAUTHORIZED",

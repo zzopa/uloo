@@ -11,6 +11,7 @@ Usage (from services/uloo-core)::
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -31,10 +32,21 @@ def render_contract() -> str:
 
 
 def main() -> int:
-    rendered = render_contract()
-    CONTRACT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    parser = argparse.ArgumentParser(description="Export or verify the locked ULOO OpenAPI contract")
+    parser.add_argument("--check", action="store_true", help="fail without writing when the contract is stale")
+    args = parser.parse_args()
 
+    rendered = render_contract()
     previous = CONTRACT_PATH.read_text(encoding="utf-8") if CONTRACT_PATH.exists() else None
+
+    if args.check:
+        if previous != rendered:
+            print(f"stale {CONTRACT_PATH.relative_to(REPO_ROOT)}", file=sys.stderr)
+            return 1
+        print(f"unchanged {CONTRACT_PATH.relative_to(REPO_ROOT)}")
+        return 0
+
+    CONTRACT_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONTRACT_PATH.write_text(rendered, encoding="utf-8", newline="\n")
 
     if previous is None:

@@ -1,13 +1,13 @@
 """ULOO Core FastAPI application."""
 
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 import re
 import uuid
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 
-from .api import agents, capabilities, health, teams
+from .api import agents, capabilities, health, resources, runs, tasks, teams
 from .config import settings
 from .errors import ERROR_RESPONSES, register_exception_handlers
 from .logging import configure_logging, get_logger
@@ -58,7 +58,10 @@ def create_app() -> FastAPI:
     app.include_router(health.router, prefix=api_prefix)
     app.include_router(capabilities.router, prefix=api_prefix)
     app.include_router(agents.router, prefix=api_prefix)
+    app.include_router(resources.router, prefix=api_prefix)
     app.include_router(teams.router, prefix=api_prefix)
+    app.include_router(tasks.router, prefix=api_prefix)
+    app.include_router(runs.router, prefix=api_prefix)
 
     # Root redirect to docs
     @app.get("/")

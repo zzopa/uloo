@@ -19,6 +19,7 @@ from collections.abc import AsyncGenerator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from pydantic import SecretStr
 from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -26,12 +27,14 @@ from sqlalchemy.pool import NullPool
 from uloo.config import settings
 from uloo.db import get_db
 from uloo.main import app
-from uloo.models import AgentDefinition, TeamDefinition, TeamMember  # noqa: F401
+from uloo.models import AgentDefinition, Run, RunEvent, TeamDefinition, TeamMember  # noqa: F401
 
-REQUIRED_TABLES = ("agent_definitions", "team_definitions", "team_members")
+REQUIRED_TABLES = ("agent_definitions", "team_definitions", "team_members", "runs", "run_events")
 TEST_API_TOKEN = "uloo-test-service-token"
 TEST_WORKSPACE_ID = "10000000-0000-0000-0000-000000000001"
 settings.api_token = TEST_API_TOKEN
+settings.model_providers = {"openai-compatible": "https://models.example.test/v1"}
+settings.model_provider_api_keys = {"openai-compatible": SecretStr("server-secret")}
 
 
 @pytest.fixture(scope="session")
@@ -50,7 +53,7 @@ async def engine():
                     if table in tables
                 }
             )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - turn infrastructure failures into one actionable test error
         await eng.dispose()
         pytest.fail(
             f"cannot reach the test database at {settings.db_host}:{settings.db_port}/{settings.db_database} ({exc}). "
@@ -67,9 +70,7 @@ async def engine():
     missing_workspace = [table for table in REQUIRED_TABLES if "workspace_id" not in columns[table]]
     if missing_workspace:
         await eng.dispose()
-        pytest.fail(
-            f"workspace migration missing on tables {missing_workspace}; run: alembic upgrade head"
-        )
+        pytest.fail(f"workspace migration missing on tables {missing_workspace}; run: alembic upgrade head")
 
     yield eng
     await eng.dispose()

@@ -7,6 +7,8 @@ node_modules/
 dist/
 build/
 coverage/
+.coverage
+.coverage.*
 __pycache__/
 *.py[cod]
 .pytest_cache/

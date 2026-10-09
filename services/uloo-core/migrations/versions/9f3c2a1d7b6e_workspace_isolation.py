@@ -52,18 +52,10 @@ def upgrade() -> None:
     op.create_index("ix_agent_definitions_workspace_id", "agent_definitions", ["workspace_id"])
     op.create_index("ix_team_definitions_workspace_id", "team_definitions", ["workspace_id"])
     op.create_index("ix_team_members_workspace_id", "team_members", ["workspace_id"])
-    op.create_index(
-        "ix_agent_workspace_created", "agent_definitions", ["workspace_id", "created_at"]
-    )
-    op.create_index(
-        "ix_team_workspace_created", "team_definitions", ["workspace_id", "created_at"]
-    )
-    op.create_unique_constraint(
-        "uq_agent_workspace_key", "agent_definitions", ["workspace_id", "key"]
-    )
-    op.create_unique_constraint(
-        "uq_team_workspace_key", "team_definitions", ["workspace_id", "key"]
-    )
+    op.create_index("ix_agent_workspace_created", "agent_definitions", ["workspace_id", "created_at"])
+    op.create_index("ix_team_workspace_created", "team_definitions", ["workspace_id", "created_at"])
+    op.create_unique_constraint("uq_agent_workspace_key", "agent_definitions", ["workspace_id", "key"])
+    op.create_unique_constraint("uq_team_workspace_key", "team_definitions", ["workspace_id", "key"])
 
 
 def downgrade() -> None:

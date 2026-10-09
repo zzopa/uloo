@@ -39,22 +39,28 @@ async def test_capabilities_reports_agno_modes(client):
 
 async def test_unsupported_mode_is_rejected(client):
     """'tasks' does not exist in Agno 1.8.4 and must not be accepted."""
-    resp = await client.post("/api/v1/teams", json={
-        "key": "unsupported-mode-team",
-        "name": "Unsupported Mode",
-        "mode": "tasks",
-        "member_agent_ids": ["00000000-0000-0000-0000-000000000001"],
-    })
+    resp = await client.post(
+        "/api/v1/teams",
+        json={
+            "key": "unsupported-mode-team",
+            "name": "Unsupported Mode",
+            "mode": "tasks",
+            "member_agent_ids": ["00000000-0000-0000-0000-000000000001"],
+        },
+    )
     assert resp.status_code == 422
 
 
 async def test_route_mode_requires_leader(client):
     """'route' is Agno's delegation mode, so ULOO requires a leader for it."""
-    resp = await client.post("/api/v1/teams", json={
-        "key": "route-without-leader",
-        "name": "Route Without Leader",
-        "mode": "route",
-        "member_agent_ids": ["00000000-0000-0000-0000-000000000001"],
-    })
+    resp = await client.post(
+        "/api/v1/teams",
+        json={
+            "key": "route-without-leader",
+            "name": "Route Without Leader",
+            "mode": "route",
+            "member_agent_ids": ["00000000-0000-0000-0000-000000000001"],
+        },
+    )
     assert resp.status_code == 422
     assert "leader" in resp.text

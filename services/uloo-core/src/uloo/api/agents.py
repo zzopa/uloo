@@ -2,22 +2,25 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
+from pydantic import ValidationError
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..db import get_db
+from ..db import transaction_session
 from ..errors import ApiError
 from ..logging import get_logger
 from ..models.agent import AgentDefinition
-from ..schemas.common import Page
+from ..runtime.resources import load_resources
 from ..schemas.agent import (
     AgentCreate,
     AgentResponse,
+    AgentTestRunRequest,
     AgentTestRunResponse,
     AgentUpdate,
     AgentValidateResponse,
 )
+from ..schemas.common import Page
 from ..security import RequestContext, require_service_context
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -28,7 +31,7 @@ logger = get_logger(__name__)
 async def create_agent(
     body: AgentCreate,
     context: RequestContext = Depends(require_service_context),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = transaction_session,
 ):
     """Create a new Agent definition."""
     existing = await db.execute(
@@ -49,6 +52,7 @@ async def create_agent(
         instructions=body.instructions,
         model_ref=body.model_ref,
         tool_refs=body.tool_refs,
+        skill_refs=body.skill_refs,
         knowledge_refs=body.knowledge_refs,
         output_schema=body.output_schema,
         enabled=body.enabled,
@@ -67,7 +71,7 @@ async def list_agents(
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     context: RequestContext = Depends(require_service_context),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = transaction_session,
 ):
     """List and search agents."""
     filters = [
@@ -110,7 +114,7 @@ async def list_agents(
 async def get_agent(
     agent_id: uuid.UUID,
     context: RequestContext = Depends(require_service_context),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = transaction_session,
 ):
     """Get agent details by ID."""
     agent = await _get_agent_or_404(agent_id, context.workspace_id, db)
@@ -122,7 +126,7 @@ async def update_agent(
     agent_id: uuid.UUID,
     body: AgentUpdate,
     context: RequestContext = Depends(require_service_context),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = transaction_session,
 ):
     """Update agent with optimistic locking."""
     agent = await _get_agent_or_404(agent_id, context.workspace_id, db, for_update=True)
@@ -135,9 +139,13 @@ async def update_agent(
             details={"expected_version": body.expected_version, "current_version": agent.version},
         )
 
-    update_fields = body.model_dump(exclude={"expected_version"}, exclude_none=True)
-    for field, value in update_fields.items():
-        setattr(agent, field, value)
+    update_fields = body.model_dump(exclude={"expected_version"}, exclude_unset=True)
+    try:
+        validated = AgentCreate.model_validate({**agent.to_dict(), **update_fields})
+    except ValidationError as exc:
+        raise ApiError(422, "INVALID_AGENT_CONFIGURATION", "Updated Agent definition is invalid") from exc
+    for field in update_fields:
+        setattr(agent, field, getattr(validated, field))
 
     agent.version += 1
     await db.flush()
@@ -150,7 +158,7 @@ async def update_agent(
 async def delete_agent(
     agent_id: uuid.UUID,
     context: RequestContext = Depends(require_service_context),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = transaction_session,
 ):
     """Soft delete agent. Fails if agent is used by an enabled team."""
     from ..models.team import TeamDefinition, TeamMember
@@ -166,7 +174,7 @@ async def delete_agent(
             TeamDefinition.workspace_id == context.workspace_id,
             TeamMember.workspace_id == context.workspace_id,
             TeamDefinition.deleted_at.is_(None),
-            TeamDefinition.enabled == True,  # noqa: E712
+            TeamDefinition.enabled == True,
         )
     )
     if teams_using.scalars().first():
@@ -189,16 +197,21 @@ async def delete_agent(
 async def validate_agent(
     agent_id: uuid.UUID,
     context: RequestContext = Depends(require_service_context),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = transaction_session,
 ):
     """Validate agent model and tool configuration without creating a Run."""
     agent = await _get_agent_or_404(agent_id, context.workspace_id, db)
     errors: list[str] = []
 
-    if not agent.model_ref:
-        errors.append("model_ref is required")
-    if not agent.role:
-        errors.append("role is required")
+    from ..runtime.factory import validate_agent_runtime_config
+    from ..runtime.models import RuntimeConfigurationError
+
+    try:
+        if not agent.enabled:
+            errors.append("Agent is disabled")
+        validate_agent_runtime_config(agent, tools=await load_resources(db, context.workspace_id))
+    except RuntimeConfigurationError as exc:
+        errors.append(exc.message)
 
     return AgentValidateResponse(valid=len(errors) == 0, errors=errors)
 
@@ -206,17 +219,25 @@ async def validate_agent(
 @router.post("/{agent_id}/test-runs", response_model=AgentTestRunResponse)
 async def test_run_agent(
     agent_id: uuid.UUID,
+    request: Request,
+    body: AgentTestRunRequest | None = None,
     context: RequestContext = Depends(require_service_context),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = transaction_session,
 ):
-    """Execute a real single-agent run once the Stage 3 runtime is available."""
-    await _get_agent_or_404(agent_id, context.workspace_id, db)
-    raise ApiError(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        code="NOT_IMPLEMENTED",
-        message="Real Agno agent test runs are not implemented yet",
-        details={"required_stage": 3},
-    )
+    """Execute the persisted definition through the existing Agno adapter."""
+    from ..config import settings
+    from ..runtime import RuntimeConfigurationError, build_agent, execute_agent
+
+    definition = await _get_agent_or_404(agent_id, context.workspace_id, db)
+    try:
+        agent = build_agent(definition, tools=await load_resources(db, context.workspace_id))
+        result = await execute_agent(agent, (body or AgentTestRunRequest()).prompt, timeout_seconds=settings.model_timeout_seconds)
+    except RuntimeConfigurationError as exc:
+        raise ApiError(422, exc.code, str(exc)) from exc
+    except Exception as exc:
+        logger.error("agent_execution_failed", agent_id=str(agent_id), error_type=type(exc).__name__)
+        raise ApiError(502, "MODEL_EXECUTION_FAILED", "Agent execution failed; check the server model configuration") from exc
+    return AgentTestRunResponse(status="succeeded", run_id=result.run_id, trace_id=request.state.trace_id, output=result.output, usage=result.usage)
 
 
 async def _get_agent_or_404(

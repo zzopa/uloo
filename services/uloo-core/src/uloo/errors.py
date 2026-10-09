@@ -1,5 +1,6 @@
 """Stable API errors and exception handlers."""
 
+from collections.abc import Mapping
 from http import HTTPStatus
 from typing import Any
 
@@ -33,9 +34,9 @@ class ApiError(HTTPException):
         )
 
 
-ERROR_RESPONSES = {
+ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     status_code: {"model": ErrorResponse, "description": HTTPStatus(status_code).phrase}
-    for status_code in (400, 401, 403, 404, 409, 422, 500, 501, 503, 504)
+    for status_code in (400, 401, 403, 404, 409, 422, 500, 501, 502, 503, 504)
 }
 
 
@@ -52,7 +53,7 @@ def _error_response(
     code: str,
     message: str,
     details: Any | None = None,
-    headers: dict[str, str] | None = None,
+    headers: Mapping[str, str] | None = None,
 ) -> JSONResponse:
     request_id, trace_id = _correlation_ids(request)
     response_headers = dict(headers or {})

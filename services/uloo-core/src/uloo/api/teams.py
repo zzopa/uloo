@@ -8,11 +8,12 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..constants import TEAM_MODES, TEAM_MODES_REQUIRING_LEADER
-from ..db import get_db
+from ..db import transaction_session
 from ..errors import ApiError
 from ..logging import get_logger
 from ..models.agent import AgentDefinition
 from ..models.team import TeamDefinition, TeamMember
+from ..runtime.resources import load_resources
 from ..schemas.common import Page
 from ..schemas.team import (
     TeamCreate,
@@ -32,7 +33,7 @@ VALID_MODES = frozenset(TEAM_MODES)
 async def create_team(
     body: TeamCreate,
     context: RequestContext = Depends(require_service_context),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = transaction_session,
 ):
     """Create a new Team definition."""
     if body.mode not in VALID_MODES:
@@ -91,7 +92,7 @@ async def create_team(
         db.add(TeamMember(workspace_id=context.workspace_id, team_id=team.id, agent_id=agent_id))
 
     await db.flush()
-    await db.refresh(team, ["members"])
+    await db.refresh(team, ["members", "updated_at"])
     logger.info("team_created", team_id=str(team.id), key=team.key)
     return TeamResponse(**team.to_dict())
 
@@ -104,7 +105,7 @@ async def list_teams(
     offset: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
     context: RequestContext = Depends(require_service_context),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = transaction_session,
 ):
     """List and search teams."""
     filters = [
@@ -146,7 +147,7 @@ async def list_teams(
 async def get_team(
     team_id: uuid.UUID,
     context: RequestContext = Depends(require_service_context),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = transaction_session,
 ):
     """Get team details by ID."""
     team = await _get_team_or_404(team_id, context.workspace_id, db)
@@ -157,7 +158,7 @@ async def get_team(
 async def get_team_by_key(
     team_key: str,
     context: RequestContext = Depends(require_service_context),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = transaction_session,
 ):
     """Get team by stable key (used by plugin)."""
     result = await db.execute(
@@ -178,7 +179,7 @@ async def update_team(
     team_id: uuid.UUID,
     body: TeamUpdate,
     context: RequestContext = Depends(require_service_context),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = transaction_session,
 ):
     """Update team with optimistic locking."""
     team = await _get_team_or_404(team_id, context.workspace_id, db, for_update=True)
@@ -257,7 +258,7 @@ async def update_team(
 
     team.version += 1
     await db.flush()
-    await db.refresh(team, ["members"])
+    await db.refresh(team, ["members", "updated_at"])
     logger.info("team_updated", team_id=str(team.id), version=team.version)
     return TeamResponse(**team.to_dict())
 
@@ -266,7 +267,7 @@ async def update_team(
 async def delete_team(
     team_id: uuid.UUID,
     context: RequestContext = Depends(require_service_context),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = transaction_session,
 ):
     """Soft delete team."""
     from datetime import UTC, datetime
@@ -283,7 +284,7 @@ async def delete_team(
 async def validate_team(
     team_id: uuid.UUID,
     context: RequestContext = Depends(require_service_context),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = transaction_session,
 ):
     """Validate team: leader, members, model, tools, limits."""
     team = await _get_team_or_404(team_id, context.workspace_id, db)
@@ -308,7 +309,13 @@ async def validate_team(
     if not team.members:
         errors.append("team must have at least one member")
 
-    # Check all member agents still exist
+    from ..runtime.factory import validate_agent_runtime_config
+    from ..runtime.models import RuntimeConfigurationError
+
+    if not team.enabled:
+        errors.append("Team is disabled")
+    resources = await load_resources(db, context.workspace_id)
+    # Check all member agents still exist and have executable definitions.
     for member in team.members:
         agent = await db.execute(
             select(AgentDefinition).where(
@@ -317,8 +324,16 @@ async def validate_team(
                 AgentDefinition.deleted_at.is_(None),
             )
         )
-        if not agent.scalar_one_or_none():
+        definition = agent.scalar_one_or_none()
+        if not definition:
             errors.append(f"Agent {member.agent_id} not found or deleted")
+        else:
+            if not definition.enabled:
+                errors.append(f"Agent {definition.name} is disabled")
+            try:
+                validate_agent_runtime_config(definition, tools=resources)
+            except RuntimeConfigurationError as exc:
+                errors.append(f"Agent {definition.name}: {exc.message}")
 
     limits = team.limits or {}
     if limits.get("max_iterations", 0) <= 0:

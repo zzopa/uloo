@@ -1,6 +1,21 @@
 # ULOO V2 优化与交付清单
 
-> 最后盘点：2026-09-20
+> 最后盘点：2026-10-08
+
+## 2026-10-08 本轮增量：Run 可靠性
+
+界面增量：统一顶部模块路径与新任务快捷入口、页面标题分隔、任务入口四步导览、输入卡片与阶段进度视觉；移除无功能高级选项。修改文件静态检查通过，4 个测试文件共 11 项通过。源码设计预览位于 http://localhost:3001/uloo-preview；3000 仍为此前构建。设计说明见 docs/ULOO_UI_DESIGN.md。页面框架统一不等于所有正式页面功能完成。
+
+- [x] 新 Run 保存团队、Agent、计划的执行配置快照；旧 Run 保持 null，不伪造历史。
+- [x] 任务审批及启动执行加任务行锁，串行化同一任务的状态检查。
+- [x] 执行超时取服务上限与团队 timeout_seconds 的较小值，失败保存终态和事件。
+- [x] 修复 Teams 编辑后 updated_at 隐式异步加载导致的 500。
+- [x] 恢复 Alembic 使用真实 Settings 与模型 metadata，保留已有 tasks.team_id 索引。
+- [x] Core 60 项测试通过，包括编辑后历史快照不变、重复启动拒绝及超时持久化。
+- [ ] 成员级 run_members、异步执行、SSE、取消和重启恢复。
+- [ ] 将配置快照接入 Dify 类型契约与历史详情展示。
+
+本轮仅完成 Core 运行可靠性基础，不等于 P2/SSE 完成。真实模型联网验收仍受服务端 Key 配置阻塞。
 >
 > 产品目标：以 **Dify 源码 Web 作为唯一 UI**，通过 Dify API/BFF 调用 ULOO Core，使用 **真实 Agno Team** 完成多 Agent 协同，并提供可恢复的 Run/Event 与跨 Agent Memory。
 >
@@ -8,29 +23,30 @@
 
 ## 0. 当前结论
 
-当前项目处于“基础后端已加固、产品闭环尚未形成”的阶段，整体约完成 **20%–25%**。
+当前项目处于“Task → Plan → Team Run → Event 已形成首条真实纵向链路，SSE、Memory 与 Studio 节点仍待实现”的阶段，整体约完成 **45%**。
 
 | 能力 | 当前状态 | 是否可供最终用户使用 |
 |---|---|---|
 | Dify 1.16.1 源码基线 | 本机嵌套仓库已提交 ULOO BFF；因尚无团队 fork/submodule，根仓库新 clone 仍无法取得 patch | 否 |
 | ULOO Core 健康检查 | 已实现；未配置模型时 ready 正确返回 503 | 部分 |
 | Agent/Team CRUD | 已实现服务认证、workspace 隔离、并发锁、完整 PATCH 校验和分页 | 仅 API 可试用 |
-| Dify Console BFF | 已提交到 Dify `uloo/integration`，26 个单测通过；尚无 Web 页面调用 | 部分 |
-| Dify ULOO 页面 | 未开始 | 否 |
-| 真实 Agno 执行 | 未开始；`test-runs` 仍为占位响应 | 否 |
+| Dify Console BFF | Agent CRUD/validate 已接入生成式契约，26 个单测通过 | 部分 |
+| Dify ULOO 页面 | 预览区已补齐 Tasks、Runs、Artifacts、Memory、Teams、Agents、Runtime、Studio 的列表/详情静态界面；正式能力仍随真实接口状态展示 | 部分 |
+| 真实 Agno 执行 | 已完成 Provider Registry、Agent/Team Factory 和真实 Agent test-run；尚未配置真实供应商 E2E | 部分 |
 | Dify Studio Team 节点 | 未开始 | 否 |
-| Run/Event/SSE | 未开始 | 否 |
+| Run/Event/SSE | Run/Event 持久化、查询与任务执行已完成；SSE/取消/异步恢复未完成 | 部分 |
 | 跨 Agent Memory | 未开始 | 否 |
 | 源码发布 | 未开始 | 否 |
 
 已验证基线：
 
-- [x] ULOO Core：`30 passed`
+- [x] ULOO Core：`46 passed`，Ruff/Mypy 通过
 - [x] OpenAPI：重新生成结果为 `unchanged`
 - [x] Dify BFF：`26 passed`
 - [x] Dify API：`uv lock --check` 通过
-- [ ] 真实浏览器端到端闭环：尚不存在
-- [ ] 真实模型多 Agent 运行：尚不存在
+- [x] Agents 免登录预览与编辑表单浏览器验证
+- [ ] 登录工作空间后的持久化浏览器端到端闭环
+- [x] 真实 Agno Team 运行入口与持久化链路已存在；成功联网验收仍需供应商密钥
 
 ## 1. 执行原则
 
@@ -41,6 +57,24 @@
 - 复用 Dify workspace，不开发额外用户系统；所有 ULOO 数据仍必须按 workspace 隔离。
 - FakeModel 只能在测试 fixture 中注入，生产配置缺失时必须显式失败。
 - Event 只保存安全摘要与结构化状态，不保存隐藏思维链。
+
+## UI-0：界面连续性与信息架构（2026-09-24 新增）
+
+权威界面规范：[`docs/ULOO_UI_BLUEPRINT.md`](docs/ULOO_UI_BLUEPRINT.md)。后续页面实现与验收以该文件为准；不再按零散提示词继续增加孤立页面。
+
+- [x] 冻结全页面地图、规范路由、主流程、页面状态、接口依赖和分阶段实施顺序。
+- [x] 将现有横向导航重构为“工作 / 运行与资产 / 资源配置 / 集成”分组的 ULOO 二级侧栏；窄屏提供无滚动条的横向导航。
+- [x] 增加统一 route context，保证 `/uloo/**` 与 `/uloo-preview/**` 组件复用且链接不串线。
+- [x] 规范旧 `/uloo/agents`、`/uloo/teams` 仅做重定向，消除页面内硬编码别名。
+- [ ] 建立统一页面标题、面包屑、对象链接、状态标签、错误详情与环境状态组件。
+- [x] 用对应页面骨架和准确不可用状态替换 Runs、Memory、Teams 的通用占位卡。
+- [x] 补齐 Artifacts、Runtime、Studio Integration 的规范路由；接口未完成前不得展示假成功数据。
+- [x] 补齐 Runs、Artifacts、Memory、Teams、Agents 的预览列表与详情页，并提供上级对象回链。
+- [x] 完成新增静态页面的桌面浏览器逐路由验收；无 404、白屏或正式/预览链接串线。
+- [ ] 统一 Task → Plan → Run → Event → Artifact → Memory 的双向引用和跳转。
+- [ ] 完成桌面/窄屏、刷新恢复、正式/预览路由隔离的组件测试与浏览器验收。
+
+UI-0 验收门：所有现有页面使用同一导航和状态规范；正式页与预览页不串线；任何对象均有来源或上级回链；未实现能力如实标记。通过后才进入 UI-1 主流程细化。
 
 ---
 
@@ -61,8 +95,8 @@
 
 ### ULOO-002 修正“能力虚报”和占位接口（已完成）
 
-- [x] 将 `GET /api/v1/capabilities` 改为结构化能力状态；当前 `streaming=false`、`memory=false`、`runs=false`，直到相应验收门通过再开启。
-- [x] `POST /agents/{id}/test-runs` 在真实执行完成前返回 `501 NOT_IMPLEMENTED`，不得返回 `is_mock=false`。
+- [x] 将 `GET /api/v1/capabilities` 改为结构化能力状态；当前仅 Agent test-run 开启，team run/streaming/memory 仍为 false。
+- [x] `POST /agents/{id}/test-runs` 已由 501 占位升级为真实 Agno 调用；配置缺失显式返回 `MODEL_CONFIG_MISSING`。
 - [x] 为所有错误统一响应结构：`code/message/request_id/trace_id/details`。
 - [x] 在 OpenAPI 中给 health/capabilities/test-runs 添加明确 response model 和错误响应。
 - [x] 补充测试，防止未实现功能再次被标成可用。
@@ -112,18 +146,18 @@ P0 验收门：全新检出可构建；能力不虚报；workspace 隔离成立�
 
 ### ULOO-101 Dify Web 基础接入
 
-- [ ] 在 Dify Web 增加 `/uloo` 路由与导航入口，沿用现有布局、主题、国际化和权限组件。
-- [ ] 建立只访问 `/console/api/uloo/**` 的 TypeScript client；禁止 Web 直连 8200。
-- [ ] 由 `/capabilities` 驱动模式与功能开关，不在 UI 硬编码不存在的能力。
-- [ ] 增加统一 loading/empty/error/503/409 展示和 request/trace ID。
-- [ ] 暂未实现的 Runs/Memory 使用明确“尚未启用”状态，不放假数据。
+- [x] 在 Dify Web 增加 `/uloo` 路由与导航入口，沿用现有布局、主题、国际化和权限组件。
+- [x] 建立只访问 `/console/api/uloo/**` 的生成式 TypeScript client；禁止 Web 直连 8200。
+- [x] 由 `/capabilities` 驱动模式与功能开关，不在 UI 硬编码不存在的能力。
+- [x] Agents 页面已具备统一 loading/empty/error/409 展示和 request/trace ID；其余页面复用该模式时逐项验收。
+- [x] 暂未实现的 Runs/Memory 使用明确“尚未启用”状态，不放假数据。
 
 ### ULOO-102 Agents 页面
 
-- [ ] `/uloo/agents`：列表、搜索、分页、新建、编辑、启停、软删除。
+- [x] `/uloo/agents`：列表、搜索、分页、新建、编辑、启停、软删除。
 - [ ] 模型、工具、知识库字段只选择服务端返回的引用，不接受或显示 API Key。
-- [ ] 显示 `version`；409 时提示重新载入并比较变更。
-- [ ] 接入 `/validate`；真实测试按钮在 ULOO-301 完成前保持不可用并解释原因。
+- [x] 显示 `version` 并在更新时提交乐观锁版本；409 已展示冲突与 request/trace ID，变更对比待补。
+- [x] 接入 `/validate`；真实测试按钮保持不可用并解释尚未接入 Agno 执行。
 - [ ] 添加组件测试和 Playwright E2E。
 
 ### ULOO-103 Teams 页面
@@ -135,6 +169,18 @@ P0 验收门：全新检出可构建；能力不虚报；workspace 隔离成立�
 - [ ] 不创建第二套 Workflow Canvas。
 - [ ] 添加刷新后配置不丢失、冲突更新、跨 workspace 隔离 E2E。
 
+### ULOO-104 任务入口与真实 Planner
+
+- [x] 建立 workspace 隔离的 Task、版本化 TaskPlan 模型与 migration。
+- [x] 实现 Task 创建、列表、详情和真实规划接口，并通过 Dify BFF 暴露强类型契约。
+- [x] `/uloo` 改为“描述目标 → 创建 Task → 请求 Planner → 进入任务工作台”的主入口。
+- [x] 使用真实 Agno Agent 和结构化输出生成计划；缺少模型配置时明确失败，禁止 FakeModel。
+- [x] 校验 Planner 选择的 Team 与步骤 Agent 均属于当前 workspace 的可用候选集合。
+- [x] 持久化计划版本、runtime、run ID 与 usage；成功后 Task 进入 `awaiting_approval`。
+- [x] 工作台显示真实计划摘要、假设、步骤、Agent、预期产物与运行追踪信息。
+- [x] 添加 Core、BFF 与 Web 组件测试；Core 静态检查和 OpenAPI/TS 合同已通过。
+- [ ] 配置真实供应商和 `ULOO_PLANNER_MODEL_REF`，准备启用 Team，完成正式浏览器联网 E2E。
+
 P1 验收门：用户只通过 Dify 页面创建两个 Agent、组成 Team、刷新后仍存在；网络响应无密钥；无手写假数据。
 
 ---
@@ -143,25 +189,27 @@ P1 验收门：用户只通过 Dify 页面创建两个 Agent、组成 Team、刷
 
 ### ULOO-201 服务端模型配置
 
-- [ ] 定义 `model_ref` 解析协议和 provider registry，密钥仅来自服务端环境/密钥存储。
-- [ ] 至少完成一个 OpenAI-compatible provider 的真实连通性校验。
-- [ ] `/validate` 真正检查模型、工具和知识引用是否可解析，而不只检查字符串非空。
-- [ ] 缺失配置返回 `MODEL_CONFIG_MISSING`，调用错误返回 `MODEL_ERROR`，禁止 fallback 到 FakeModel。
+- [x] 定义 `provider:model-id` 解析协议和 OpenAI-compatible provider registry，密钥仅来自服务端环境。
+- [x] 已完成硅基流动 OpenAI-compatible provider 的真实连通性校验（DeepSeek-V4-Flash）。
+- [x] `/validate` 真正检查模型、工具白名单和知识引用是否可解析，而不只检查字符串非空。
+- [x] 缺失配置返回 `MODEL_CONFIG_MISSING`，调用错误返回 `MODEL_ERROR`，禁止 fallback 到 FakeModel。
 
 ### ULOO-202 Agno Agent/Team Factory
 
-- [ ] 将 AgentDefinition 映射为真实 `agno.agent.Agent`。
-- [ ] 将 TeamDefinition 映射为真实 `agno.team.Team`，只使用 Agno 1.8.4 官方 mode。
-- [ ] 明确 `leader_agent_id` 到 Agno team instructions/coordination role 的映射并写契约测试。
-- [ ] 建立工具 allow-list 与适配层，拒绝任意动态 import/执行。
+- [x] 将 AgentDefinition 映射为真实 `agno.agent.Agent`。
+- [x] 将 TeamDefinition 映射为真实 `agno.team.Team`，只使用 Agno 1.8.4 官方 mode。
+- [x] 明确 `leader_agent_id` 到 Team coordinator model/instructions 的映射并写契约测试。
+- [x] 建立工具 allow-list 与适配层，拒绝任意动态 import/执行。
 - [ ] 每次运行保存 Agent/Team 配置快照和版本，历史 Run 不受后续编辑影响。
 
 ### ULOO-203 Run/Event 数据模型和接口
 
-- [ ] migration：`runs`、`run_members`、`run_events`，包含 workspace、task/run/trace、team version、状态、输入输出、usage、错误和时间字段。
-- [ ] Event 使用 `(run_id, sequence)` 唯一递增序号，并保存安全摘要。
+- [x] migration：`runs`、`run_events`，包含 workspace、task/plan/team/run、状态、输入输出、usage、错误和时间字段。
+- [ ] 增加 `run_members` 和不可变 Agent/Team 配置快照。
+- [x] Event 使用 `(run_id, sequence)` 唯一递增序号，并保存安全摘要。
+- [x] 实现 `POST /tasks/{task_id}/approve` 与 `POST /tasks/{task_id}/runs`，仅允许执行已审批的当前计划。
 - [ ] 实现 `POST /teams/by-key/{team_key}/runs`，支持 blocking 和 streaming。
-- [ ] 实现 `GET /runs`、`GET /runs/{id}`、`GET /runs/{id}/events`。
+- [x] 实现 `GET /runs`、`GET /runs/{id}`、`GET /runs/{id}/events`。
 - [ ] 实现 `GET /runs/{id}/stream`，支持 SSE、`Last-Event-ID` 和 `after_sequence` 补发。
 - [ ] 实现 `POST /runs/{id}/cancel`、超时和预算限制。
 - [ ] 实现 `task_id` 幂等与 `parent_run_id/call_chain` 递归保护。
@@ -169,8 +217,8 @@ P1 验收门：用户只通过 Dify 页面创建两个 Agent、组成 Team、刷
 
 ### ULOO-204 真实执行验收
 
-- [ ] `POST /agents/{id}/test-runs` 调用真实 Agno Agent 并返回有 schema 的结果。
-- [ ] 两个角色不同的 Agent 完成一次真实 Team Run，成员结果可区分。
+- [x] `POST /agents/{id}/test-runs` 调用真实 Agno Agent 并返回有 schema 的结果；真实供应商连通 E2E 待配置密钥后验收。
+- [x] 两个角色不同的 Agent 已完成一次真实 Team Run；成员级结果的独立持久化与页面区分待 `run_members` 完成。
 - [ ] 验证 `runtime_type=agno`、`is_mock=false`、usage、run_id、trace_id。
 - [ ] 验证模型未配置、模型失败、超时、取消和客户端 SSE 重连。
 - [ ] FakeModel 仅用于单元测试 fixture；E2E 使用显式测试 provider 或真实测试账户。
@@ -209,7 +257,8 @@ P3 验收门：用户在 Studio 拖入一个 Team 节点即可运行，不需手
 - [ ] `/uloo` 展示 Core/DB/Agno/model readiness；未实现统计不得伪造。
 - [ ] Dashboard 展示 24 小时成功率、运行中任务、最近失败、token/费用。
 - [ ] Runs 列表支持 Team、状态、trace、时间过滤和分页。
-- [ ] `/uloo/runs/{run_id}` 展示 Team、成员状态、耗时、usage、安全摘要、输出和错误。
+- [x] `/uloo/runs` 已接入真实 Run 列表，正式页面不再回退演示数据。
+- [x] `/uloo/runs/{run_id}` 已接入持久 Event、Team、usage、Agno run ID 和任务回链；成员级状态与完整输出/错误展示待补。
 - [ ] SSE 实时更新；刷新或断线后从持久 Event 恢复。
 - [ ] UI 不显示 chain-of-thought，只显示事件摘要和结构化产物。
 

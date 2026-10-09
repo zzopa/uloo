@@ -31,7 +31,7 @@ async def create_agent(client, **overrides) -> dict:
         "key": unique("agent"),
         "name": "Agent",
         "role": "test",
-        "model_ref": "test-model",
+        "model_ref": "openai-compatible:test-model",
     }
     payload.update(overrides)
 
@@ -175,14 +175,28 @@ async def test_delete_agent_without_team_succeeds(client):
     assert (await client.get(f"/api/v1/agents/{agent['id']}")).status_code == 404
 
 
-async def test_agent_test_run_is_honestly_unavailable(client):
-    agent = await create_agent(client, name="No Runtime Yet")
+async def test_agent_test_run_rejects_invalid_model_configuration(client):
+    agent = await create_agent(client, name="No Runtime Yet", model_ref="test-model")
     resp = await client.post(f"/api/v1/agents/{agent['id']}/test-runs")
-    assert resp.status_code == 501
+    assert resp.status_code == 422
     data = resp.json()
-    assert data["code"] == "NOT_IMPLEMENTED"
-    assert data["details"] == {"required_stage": 3}
+    assert data["code"] == "MODEL_CONFIG_MISSING"
     assert "is_mock" not in data
+
+
+async def test_agent_update_can_clear_optional_output_definition(client):
+    agent = await create_agent(client, description="Old description", output_schema={"type": "object"})
+    cleared = await client.patch(f"/api/v1/agents/{agent['id']}", json={
+        "description": None, "output_schema": None, "expected_version": agent["version"],
+    })
+    assert cleared.status_code == 200
+    assert cleared.json()["description"] is None and cleared.json()["output_schema"] is None
+    invalid = await client.patch(f"/api/v1/agents/{agent['id']}", json={
+        "role": None, "expected_version": cleared.json()["version"],
+    })
+    assert invalid.status_code == 422
+    saved = (await client.get(f"/api/v1/agents/{agent['id']}")).json()
+    assert saved["role"] == agent["role"] and saved["version"] == cleared.json()["version"]
 
 
 async def test_service_authentication_is_required(client):

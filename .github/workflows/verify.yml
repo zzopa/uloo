@@ -1,0 +1,44 @@
+name: Verify ULOO
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: uloo
+          POSTGRES_PASSWORD: uloo
+          POSTGRES_DB: uloo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U uloo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      ULOO_DB_HOST: localhost
+      ULOO_DB_PORT: "5432"
+      ULOO_DB_USERNAME: uloo
+      ULOO_DB_PASSWORD: uloo
+      ULOO_DB_DATABASE: uloo
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run unified verification gate
+        run: uv run --project services/uloo-core python scripts/verify.py

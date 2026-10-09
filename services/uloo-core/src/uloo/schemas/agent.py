@@ -20,6 +20,7 @@ class AgentBase(BaseModel):
     instructions: list[str] = Field(default_factory=list)
     model_ref: str = Field(..., min_length=1, max_length=256, description="e.g. openai-compatible:gpt-5-mini")
     tool_refs: list[str] = Field(default_factory=list)
+    skill_refs: list[str] = Field(default_factory=list)
     knowledge_refs: list[str] = Field(default_factory=list)
     output_schema: dict[str, Any] | None = None
 
@@ -35,6 +36,7 @@ class AgentUpdate(BaseModel):
     instructions: list[str] | None = None
     model_ref: str | None = Field(None, min_length=1, max_length=256)
     tool_refs: list[str] | None = None
+    skill_refs: list[str] | None = None
     knowledge_refs: list[str] | None = None
     output_schema: dict[str, Any] | None = None
     enabled: bool | None = None
@@ -54,6 +56,10 @@ class AgentResponse(AgentBase):
 class AgentValidateResponse(BaseModel):
     valid: bool
     errors: list[str] = Field(default_factory=list)
+
+
+class AgentTestRunRequest(BaseModel):
+    prompt: str = Field(default="Confirm that this Agent is ready and summarize its role.", min_length=1, max_length=20000)
 
 
 class AgentTestRunResponse(BaseModel):

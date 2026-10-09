@@ -50,6 +50,11 @@ components:
           minLength: 1
           title: Role
           type: string
+        skill_refs:
+          items:
+            type: string
+          title: Skill Refs
+          type: array
         tool_refs:
           items:
             type: string
@@ -120,6 +125,11 @@ components:
           minLength: 1
           title: Role
           type: string
+        skill_refs:
+          items:
+            type: string
+          title: Skill Refs
+          type: array
         tool_refs:
           items:
             type: string
@@ -143,6 +153,16 @@ components:
       - enabled
       - version
       title: AgentResponse
+      type: object
+    AgentTestRunRequest:
+      properties:
+        prompt:
+          default: Confirm that this Agent is ready and summarize its role.
+          maxLength: 20000
+          minLength: 1
+          title: Prompt
+          type: string
+      title: AgentTestRunRequest
       type: object
     AgentTestRunResponse:
       properties:
@@ -247,6 +267,13 @@ components:
             type: string
           - type: 'null'
           title: Role
+        skill_refs:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Skill Refs
         tool_refs:
           anyOf:
           - items:
@@ -440,6 +467,682 @@ components:
       - offset
       - limit
       title: Page[TeamResponse]
+      type: object
+    ResourceCreate:
+      additionalProperties: false
+      properties:
+        config:
+          additionalProperties: true
+          title: Config
+          type: object
+        description:
+          default: ''
+          maxLength: 2000
+          title: Description
+          type: string
+        enabled:
+          default: true
+          title: Enabled
+          type: boolean
+        key:
+          maxLength: 128
+          minLength: 1
+          pattern: ^[A-Za-z][A-Za-z0-9._-]*$
+          title: Key
+          type: string
+        name:
+          maxLength: 256
+          minLength: 1
+          title: Name
+          type: string
+      required:
+      - key
+      - name
+      title: ResourceCreate
+      type: object
+    ResourceResponse:
+      additionalProperties: false
+      properties:
+        config:
+          additionalProperties: true
+          title: Config
+          type: object
+        description:
+          default: ''
+          maxLength: 2000
+          title: Description
+          type: string
+        enabled:
+          default: true
+          title: Enabled
+          type: boolean
+        key:
+          maxLength: 128
+          minLength: 1
+          pattern: ^[A-Za-z][A-Za-z0-9._-]*$
+          title: Key
+          type: string
+        name:
+          maxLength: 256
+          minLength: 1
+          title: Name
+          type: string
+        version:
+          title: Version
+          type: integer
+      required:
+      - key
+      - name
+      - version
+      title: ResourceResponse
+      type: object
+    ResourceUpdate:
+      additionalProperties: false
+      properties:
+        config:
+          additionalProperties: true
+          title: Config
+          type: object
+        description:
+          default: ''
+          maxLength: 2000
+          title: Description
+          type: string
+        enabled:
+          title: Enabled
+          type: boolean
+        expected_version:
+          minimum: 0.0
+          title: Expected Version
+          type: integer
+        name:
+          maxLength: 256
+          minLength: 1
+          title: Name
+          type: string
+      required:
+      - name
+      - config
+      - enabled
+      - expected_version
+      title: ResourceUpdate
+      type: object
+    RunCreate:
+      properties:
+        input:
+          anyOf:
+          - maxLength: 100000
+            minLength: 1
+            type: string
+          - type: 'null'
+          title: Input
+      title: RunCreate
+      type: object
+    RunDetailResponse:
+      properties:
+        agno_run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Agno Run Id
+        configuration_snapshot:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Configuration Snapshot
+        created_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Created At
+        error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Code
+        error_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Message
+        events:
+          items:
+            $ref: '#/components/schemas/RunEventResponse'
+          title: Events
+          type: array
+        finished_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Finished At
+        id:
+          title: Id
+          type: string
+        input_text:
+          title: Input Text
+          type: string
+        is_mock:
+          title: Is Mock
+          type: boolean
+        output:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Output
+        plan_id:
+          title: Plan Id
+          type: string
+        runtime_type:
+          title: Runtime Type
+          type: string
+        started_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Started At
+        status:
+          title: Status
+          type: string
+        task_id:
+          title: Task Id
+          type: string
+        team_id:
+          title: Team Id
+          type: string
+        updated_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Updated At
+        usage:
+          anyOf:
+          - additionalProperties:
+              type: integer
+            type: object
+          - type: 'null'
+          title: Usage
+        workspace_id:
+          title: Workspace Id
+          type: string
+      required:
+      - id
+      - workspace_id
+      - task_id
+      - plan_id
+      - team_id
+      - status
+      - runtime_type
+      - is_mock
+      - input_text
+      title: RunDetailResponse
+      type: object
+    RunEventResponse:
+      properties:
+        created_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Created At
+        event_type:
+          title: Event Type
+          type: string
+        id:
+          title: Id
+          type: string
+        payload:
+          additionalProperties: true
+          title: Payload
+          type: object
+        run_id:
+          title: Run Id
+          type: string
+        sequence:
+          minimum: 1.0
+          title: Sequence
+          type: integer
+        source_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Id
+        source_type:
+          title: Source Type
+          type: string
+        status:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+      required:
+      - id
+      - run_id
+      - sequence
+      - event_type
+      - source_type
+      title: RunEventResponse
+      type: object
+    RunListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/RunResponse'
+          title: Items
+          type: array
+        limit:
+          minimum: 1.0
+          title: Limit
+          type: integer
+        offset:
+          minimum: 0.0
+          title: Offset
+          type: integer
+        total:
+          minimum: 0.0
+          title: Total
+          type: integer
+      required:
+      - items
+      - total
+      - offset
+      - limit
+      title: RunListResponse
+      type: object
+    RunResponse:
+      properties:
+        agno_run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Agno Run Id
+        configuration_snapshot:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Configuration Snapshot
+        created_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Created At
+        error_code:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Code
+        error_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Message
+        finished_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Finished At
+        id:
+          title: Id
+          type: string
+        input_text:
+          title: Input Text
+          type: string
+        is_mock:
+          title: Is Mock
+          type: boolean
+        output:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Output
+        plan_id:
+          title: Plan Id
+          type: string
+        runtime_type:
+          title: Runtime Type
+          type: string
+        started_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Started At
+        status:
+          title: Status
+          type: string
+        task_id:
+          title: Task Id
+          type: string
+        team_id:
+          title: Team Id
+          type: string
+        updated_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Updated At
+        usage:
+          anyOf:
+          - additionalProperties:
+              type: integer
+            type: object
+          - type: 'null'
+          title: Usage
+        workspace_id:
+          title: Workspace Id
+          type: string
+      required:
+      - id
+      - workspace_id
+      - task_id
+      - plan_id
+      - team_id
+      - status
+      - runtime_type
+      - is_mock
+      - input_text
+      title: RunResponse
+      type: object
+    TaskCreate:
+      properties:
+        query:
+          description: User's original request
+          maxLength: 100000
+          minLength: 1
+          title: Query
+          type: string
+        team_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Optional explicit team selection
+          title: Team Id
+        title:
+          description: Short task title
+          maxLength: 512
+          minLength: 1
+          title: Title
+          type: string
+      required:
+      - title
+      - query
+      title: TaskCreate
+      type: object
+    TaskDetailResponse:
+      description: Task plus its current plan and latest run summary.
+      properties:
+        created_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Created At
+        current_plan_version:
+          title: Current Plan Version
+          type: integer
+        id:
+          title: Id
+          type: string
+        plans:
+          items:
+            $ref: '#/components/schemas/TaskPlanResponse'
+          title: Plans
+          type: array
+        query:
+          title: Query
+          type: string
+        session_id:
+          title: Session Id
+          type: string
+        status:
+          title: Status
+          type: string
+        team_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Id
+        title:
+          title: Title
+          type: string
+        updated_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Updated At
+      required:
+      - id
+      - title
+      - query
+      - status
+      - session_id
+      - current_plan_version
+      title: TaskDetailResponse
+      type: object
+    TaskListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/TaskResponse'
+          title: Items
+          type: array
+        limit:
+          minimum: 1.0
+          title: Limit
+          type: integer
+        offset:
+          minimum: 0.0
+          title: Offset
+          type: integer
+        total:
+          minimum: 0.0
+          title: Total
+          type: integer
+      required:
+      - items
+      - total
+      - offset
+      - limit
+      title: TaskListResponse
+      type: object
+    TaskPlanRequest:
+      properties:
+        feedback:
+          anyOf:
+          - maxLength: 4000
+            type: string
+          - type: 'null'
+          title: Feedback
+      title: TaskPlanRequest
+      type: object
+    TaskPlanResponse:
+      properties:
+        approval_status:
+          default: pending
+          pattern: pending|approved|rejected
+          title: Approval Status
+          type: string
+        assumptions:
+          items:
+            type: string
+          title: Assumptions
+          type: array
+        created_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Created At
+        id:
+          title: Id
+          type: string
+        is_mock:
+          default: false
+          title: Is Mock
+          type: boolean
+        planner_run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Planner Run Id
+        questions:
+          items:
+            type: string
+          title: Questions
+          type: array
+        recommended_team_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Recommended Team Id
+        rejection_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rejection Reason
+        runtime_type:
+          default: agno
+          title: Runtime Type
+          type: string
+        steps:
+          items:
+            $ref: '#/components/schemas/TaskPlanStep'
+          title: Steps
+          type: array
+        summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Summary
+        task_id:
+          title: Task Id
+          type: string
+        updated_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Updated At
+        usage:
+          anyOf:
+          - additionalProperties:
+              type: integer
+            type: object
+          - type: 'null'
+          title: Usage
+        version:
+          title: Version
+          type: integer
+      required:
+      - id
+      - task_id
+      - version
+      title: TaskPlanResponse
+      type: object
+    TaskPlanStep:
+      description: One step of an execution plan.
+      properties:
+        assigned_agent_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Assigned Agent Id
+        depends_on:
+          items:
+            type: string
+          title: Depends On
+          type: array
+        description:
+          anyOf:
+          - maxLength: 2000
+            type: string
+          - type: 'null'
+          title: Description
+        expected_output:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Expected Output
+        id:
+          description: Stable step id within the plan
+          title: Id
+          type: string
+        status:
+          default: pending
+          enum:
+          - pending
+          - running
+          - completed
+          - failed
+          - skipped
+          title: Status
+          type: string
+        title:
+          maxLength: 256
+          minLength: 1
+          title: Title
+          type: string
+      required:
+      - id
+      - title
+      title: TaskPlanStep
+      type: object
+    TaskResponse:
+      properties:
+        created_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Created At
+        current_plan_version:
+          title: Current Plan Version
+          type: integer
+        id:
+          title: Id
+          type: string
+        query:
+          title: Query
+          type: string
+        session_id:
+          title: Session Id
+          type: string
+        status:
+          title: Status
+          type: string
+        team_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Team Id
+        title:
+          title: Title
+          type: string
+        updated_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Updated At
+      required:
+      - id
+      - title
+      - query
+      - status
+      - session_id
+      - current_plan_version
+      title: TaskResponse
       type: object
     TeamCreate:
       properties:
@@ -731,6 +1434,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -863,6 +1572,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -959,6 +1674,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -1053,6 +1774,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -1150,6 +1877,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -1253,6 +1986,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -1270,7 +2009,7 @@ paths:
       - agents
   /api/v1/agents/{agent_id}/test-runs:
     post:
-      description: Execute a real single-agent run once the Stage 3 runtime is available.
+      description: Execute the persisted definition through the existing Agno adapter.
       operationId: test_run_agent_api_v1_agents__agent_id__test_runs_post
       parameters:
       - in: path
@@ -1296,6 +2035,14 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/AgentTestRunRequest'
+              - type: 'null'
+              title: Body
       responses:
         '200':
           content:
@@ -1351,6 +2098,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -1449,6 +2202,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -1468,6 +2227,23 @@ paths:
     get:
       description: Return implemented capabilities; planned features remain false.
       operationId: get_capabilities_api_v1_capabilities_get
+      parameters:
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
       responses:
         '200':
           content:
@@ -1523,6 +2299,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -1599,6 +2381,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -1675,6 +2463,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -1690,6 +2484,1434 @@ paths:
       summary: Readiness
       tags:
       - health
+  /api/v1/runs:
+    get:
+      description: List persisted runs in the current workspace.
+      operationId: list_runs_api_v1_runs_get
+      parameters:
+      - in: query
+        name: task_id
+        required: false
+        schema:
+          anyOf:
+          - format: uuid
+            type: string
+          - type: 'null'
+          title: Task Id
+      - in: query
+        name: status
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Status
+      - in: query
+        name: offset
+        required: false
+        schema:
+          default: 0
+          minimum: 0
+          title: Offset
+          type: integer
+      - in: query
+        name: limit
+        required: false
+        schema:
+          default: 20
+          maximum: 100
+          minimum: 1
+          title: Limit
+          type: integer
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunListResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: List Runs
+      tags:
+      - runs
+  /api/v1/runs/{run_id}:
+    get:
+      description: Return one run and its ordered observable events.
+      operationId: get_run_api_v1_runs__run_id__get
+      parameters:
+      - in: path
+        name: run_id
+        required: true
+        schema:
+          format: uuid
+          title: Run Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunDetailResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Get Run
+      tags:
+      - runs
+  /api/v1/runs/{run_id}/events:
+    get:
+      description: Return ordered events after a sequence cursor; SSE is added in the next stage.
+      operationId: get_run_events_api_v1_runs__run_id__events_get
+      parameters:
+      - in: path
+        name: run_id
+        required: true
+        schema:
+          format: uuid
+          title: Run Id
+          type: string
+      - in: query
+        name: after
+        required: false
+        schema:
+          default: 0
+          minimum: 0
+          title: After
+          type: integer
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/RunEventResponse'
+                title: Response Get Run Events Api V1 Runs  Run Id  Events Get
+                type: array
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Get Run Events
+      tags:
+      - runs
+  /api/v1/skills:
+    get:
+      operationId: list_skills_api_v1_skills_get
+      parameters:
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ResourceResponse'
+                title: Response List Skills Api V1 Skills Get
+                type: array
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: List Skills
+      tags:
+      - resources
+    post:
+      operationId: create_skills_api_v1_skills_post
+      parameters:
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Create Skills
+      tags:
+      - resources
+  /api/v1/skills/{key}:
+    delete:
+      operationId: delete_skills_api_v1_skills__key__delete
+      parameters:
+      - in: path
+        name: key
+        required: true
+        schema:
+          title: Key
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      responses:
+        '204':
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Delete Skills
+      tags:
+      - resources
+    patch:
+      operationId: update_skills_api_v1_skills__key__patch
+      parameters:
+      - in: path
+        name: key
+        required: true
+        schema:
+          title: Key
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceUpdate'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Update Skills
+      tags:
+      - resources
+  /api/v1/tasks:
+    get:
+      description: List tasks in the current workspace, newest first.
+      operationId: list_tasks_api_v1_tasks_get
+      parameters:
+      - description: Search in title and query
+        in: query
+        name: q
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Search in title and query
+          title: Q
+      - description: Filter by lifecycle status
+        in: query
+        name: status
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by lifecycle status
+          title: Status
+      - in: query
+        name: offset
+        required: false
+        schema:
+          default: 0
+          minimum: 0
+          title: Offset
+          type: integer
+      - in: query
+        name: limit
+        required: false
+        schema:
+          default: 20
+          maximum: 100
+          minimum: 1
+          title: Limit
+          type: integer
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskListResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: List Tasks
+      tags:
+      - tasks
+    post:
+      description: Create a task and persist the user's original request.
+      operationId: create_task_api_v1_tasks_post
+      parameters:
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskDetailResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Create Task
+      tags:
+      - tasks
+  /api/v1/tasks/{task_id}:
+    get:
+      description: Return a task with its plans (plans appear once the Planner has produced them).
+      operationId: get_task_api_v1_tasks__task_id__get
+      parameters:
+      - in: path
+        name: task_id
+        required: true
+        schema:
+          format: uuid
+          title: Task Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskDetailResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Get Task
+      tags:
+      - tasks
+  /api/v1/tasks/{task_id}/approve:
+    post:
+      description: Approve the task's current pending plan before execution.
+      operationId: approve_task_plan_api_v1_tasks__task_id__approve_post
+      parameters:
+      - in: path
+        name: task_id
+        required: true
+        schema:
+          format: uuid
+          title: Task Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  anyOf:
+                  - type: string
+                  - type: integer
+                title: Response Approve Task Plan Api V1 Tasks  Task Id  Approve Post
+                type: object
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Approve Task Plan
+      tags:
+      - runs
+  /api/v1/tasks/{task_id}/plan:
+    post:
+      description: Use a real structured Agno Planner run to create the next plan version.
+      operationId: plan_task_api_v1_tasks__task_id__plan_post
+      parameters:
+      - in: path
+        name: task_id
+        required: true
+        schema:
+          format: uuid
+          title: Task Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/TaskPlanRequest'
+              - type: 'null'
+              title: Body
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPlanResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Plan Task
+      tags:
+      - tasks
+  /api/v1/tasks/{task_id}/runs:
+    post:
+      description: Execute the approved plan through a real Agno Team and persist safe events.
+      operationId: start_task_run_api_v1_tasks__task_id__runs_post
+      parameters:
+      - in: path
+        name: task_id
+        required: true
+        schema:
+          format: uuid
+          title: Task Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/RunCreate'
+              - type: 'null'
+              title: Body
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunDetailResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Start Task Run
+      tags:
+      - runs
   /api/v1/teams:
     get:
       description: List and search teams.
@@ -1807,6 +4029,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -1903,6 +4131,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -2000,6 +4234,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -2094,6 +4334,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -2191,6 +4437,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -2294,6 +4546,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -2392,6 +4650,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
           description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
         '503':
           content:
             application/json:
@@ -2407,3 +4671,408 @@ paths:
       summary: Validate Team
       tags:
       - teams
+  /api/v1/tools:
+    get:
+      operationId: list_tools_api_v1_tools_get
+      parameters:
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ResourceResponse'
+                title: Response List Tools Api V1 Tools Get
+                type: array
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: List Tools
+      tags:
+      - resources
+    post:
+      operationId: create_tools_api_v1_tools_post
+      parameters:
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Create Tools
+      tags:
+      - resources
+  /api/v1/tools/{key}:
+    delete:
+      operationId: delete_tools_api_v1_tools__key__delete
+      parameters:
+      - in: path
+        name: key
+        required: true
+        schema:
+          title: Key
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      responses:
+        '204':
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Delete Tools
+      tags:
+      - resources
+    patch:
+      operationId: update_tools_api_v1_tools__key__patch
+      parameters:
+      - in: path
+        name: key
+        required: true
+        schema:
+          title: Key
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceUpdate'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Update Tools
+      tags:
+      - resources

@@ -41,7 +41,10 @@ async def readiness(response: Response) -> dict[str, Any]:
     checks["agno"] = agno_ok
 
     # Model config check (at least one provider configured)
-    checks["model_config"] = len(settings.model_providers) > 0
+    checks["model_config"] = any(
+        provider in settings.model_providers and bool(secret.get_secret_value())
+        for provider, secret in settings.model_provider_api_keys.items()
+    )
 
     # Service authentication must be configured before data APIs are usable.
     checks["service_auth"] = bool(settings.api_token)

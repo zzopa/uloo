@@ -1,10 +1,8 @@
 """Shared API response schemas."""
 
-from typing import Any, Generic, TypeVar
+from typing import Any
 
 from pydantic import BaseModel, Field
-
-ItemT = TypeVar("ItemT")
 
 
 class ErrorResponse(BaseModel):
@@ -39,7 +37,7 @@ class CapabilitiesResponse(BaseModel):
     agno_enabled: bool
 
 
-class Page(BaseModel, Generic[ItemT]):
+class Page[ItemT](BaseModel):
     """Stable offset-based pagination envelope."""
 
     items: list[ItemT]

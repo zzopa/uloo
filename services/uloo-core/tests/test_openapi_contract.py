@@ -16,9 +16,7 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 
 def test_contract_file_exists() -> None:
-    assert CONTRACT_PATH.exists(), (
-        f"{CONTRACT_PATH} is missing. Run: python scripts/export_openapi.py"
-    )
+    assert CONTRACT_PATH.exists(), f"{CONTRACT_PATH} is missing. Run: python scripts/export_openapi.py"
 
 
 def test_committed_contract_matches_the_app() -> None:

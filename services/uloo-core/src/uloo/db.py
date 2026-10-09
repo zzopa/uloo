@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncGenerator
 
+from fastapi import Depends
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -17,6 +18,7 @@ logger = get_logger(__name__)
 
 engine = create_async_engine(
     settings.database_url,
+    connect_args={"server_settings": {"search_path": settings.db_schema}},
     echo=settings.debug,
     pool_pre_ping=True,
     pool_size=5,
@@ -33,7 +35,6 @@ async_session_factory = async_sessionmaker(
 class Base(DeclarativeBase):
     """SQLAlchemy declarative base for all ULOO models."""
 
-    pass
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -47,12 +48,16 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             raise
 
 
+# Commit or roll back before sending the response, so success guarantees durable writes.
+transaction_session = Depends(get_db, scope="function")
+
+
 async def check_db_connection() -> bool:
     """Check if the database is reachable. Returns True if healthy."""
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
         return True
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - health probes report unavailable for any driver failure
         logger.error("database_health_check_failed", error=str(e))
         return False
