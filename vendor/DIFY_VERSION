@@ -5,13 +5,12 @@
 # repository does not contain Dify source at all -- the root repo only tracks this
 # file. Everything below is what a new machine needs in order to recreate it.
 #
-# Recreate (the pinned ref was not verifiable offline, confirm it once against
-# upstream before relying on it):
+# Recreate:
 #
 #   git clone --depth 1 --branch <upstream_ref> <upstream> vendor/dify
 #   git -C vendor/dify checkout -b <integration_branch>
-#   git -C vendor/dify remote add origin <your-fork>   # see note below
-#   git -C vendor/dify cherry-pick <uloo patch commits>
+#   git -C vendor/dify apply --check ../../patches/dify-uloo.patch
+#   git -C vendor/dify apply ../../patches/dify-uloo.patch
 #
 # Remote convention (implementation plan section 2.1): `origin` must point at the
 # team's own fork and `upstream` at the official repository. Only `upstream` is
@@ -23,5 +22,7 @@ dify_version = 1.16.1
 upstream = https://github.com/langgenius/dify.git
 upstream_ref = 1.16.1
 integration_branch = uloo/integration
-uloo_patch_commits = 9415c3ebff434eb443a492382fc80e60e3de1d06,1430403eb56d5dae197127a8276b96a9d7fc9da6
+local_baseline_commit = cbd4e083927a20c69f026819b5abb6bb80773097
+uloo_patch_file = patches/dify-uloo.patch
+uloo_patch_sha256 = 017f5882d0fae2c33338d66624144973773dd0177d748f70da3230dcc0b7b86e
 # Keep dify_version in sync with vendor/dify/web/package.json.

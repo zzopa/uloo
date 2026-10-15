@@ -1,3 +1,4 @@
+# AI生成
 """Small execution boundary around Agno responses."""
 
 import asyncio
@@ -19,6 +20,7 @@ class AgentExecutionResult:
     output: dict[str, Any]
     usage: dict[str, int] | None
     member_results: list[dict[str, Any]] = field(default_factory=list)
+    tool_summaries: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _serialize_output(content: Any) -> dict[str, Any]:
@@ -59,6 +61,29 @@ def _response_output(agent: Agent | Team, content: Any) -> dict[str, Any]:
     return _serialize_output(content)
 
 
+def _extract_tool_summaries(response: Any, agent_id: str | None = None) -> list[dict[str, Any]]:
+    """Extract safe tool-call summaries from an Agno response.
+
+    S5-补3: Tool summaries are persisted as observable events during
+    execution so that clients can monitor tool usage in real time.  Only
+    safe fields (name, call ID, error flag, truncated result preview) are
+    extracted – never full arguments or raw results.
+    """
+    summaries: list[dict[str, Any]] = []
+    for tool in getattr(response, "tools", None) or []:
+        result = getattr(tool, "result", None)
+        summaries.append(
+            {
+                "tool_name": getattr(tool, "tool_name", None),
+                "tool_call_id": getattr(tool, "tool_call_id", None),
+                "error": bool(getattr(tool, "tool_call_error", False)),
+                "result_preview": (str(result)[:200] if result else None),
+                **({"agent_id": agent_id} if agent_id else {}),
+            }
+        )
+    return summaries
+
+
 async def execute_agent(agent: Agent | Team, prompt: str, *, timeout_seconds: float) -> AgentExecutionResult:
     """Execute one non-streaming Agno Agent or Team run with a hard service timeout."""
     response = await asyncio.wait_for(
@@ -66,6 +91,7 @@ async def execute_agent(agent: Agent | Team, prompt: str, *, timeout_seconds: fl
         timeout=timeout_seconds,
     )
     member_results = []
+    tool_summaries: list[dict[str, Any]] = []
     members = (
         {member.agent_id: member for member in agent.members if isinstance(member, Agent)}
         if isinstance(agent, Team)
@@ -85,6 +111,9 @@ async def execute_agent(agent: Agent | Team, prompt: str, *, timeout_seconds: fl
                 "usage": _serialize_usage(member_response.metrics),
             }
         )
+        tool_summaries.extend(_extract_tool_summaries(member_response, agent_id=member_id))
+    # Also capture team-level tool calls (e.g. coordinator tools)
+    tool_summaries.extend(_extract_tool_summaries(response))
     usage = _serialize_usage(getattr(response, "metrics", None))
     for member_result in member_results:
         for key, value in (member_result["usage"] or {}).items():
@@ -96,4 +125,5 @@ async def execute_agent(agent: Agent | Team, prompt: str, *, timeout_seconds: fl
         output=_response_output(agent, getattr(response, "content", None)),
         usage=usage,
         member_results=member_results,
+        tool_summaries=tool_summaries,
     )

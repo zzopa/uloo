@@ -1,3 +1,4 @@
+# AI生成
 """Team management API endpoints."""
 
 import uuid
@@ -82,6 +83,9 @@ async def create_team(
         instructions=body.instructions,
         memory_policy=body.memory_policy.model_dump(),
         limits=body.limits.model_dump(),
+        review_policy=body.review_policy.model_dump(),
+        completion=body.completion.model_dump(),
+        handoff_context=body.handoff_context,
         enabled=body.enabled,
     )
     db.add(team)
@@ -204,6 +208,9 @@ async def update_team(
         "instructions": current["instructions"],
         "memory_policy": current["memory_policy"],
         "limits": current["limits"],
+        "review_policy": current.get("review_policy", {"max_rounds": 3, "require_unanimous": False, "criteria": []}),
+        "completion": current.get("completion", {"all_members_executed": True, "no_unresolved_errors": True, "custom": ""}),
+        "handoff_context": current.get("handoff_context", ""),
         "enabled": current["enabled"],
     }
     candidate_data.update(patch)
@@ -253,6 +260,8 @@ async def update_team(
     scalar_values = candidate.model_dump(exclude={"key", "member_agent_ids"})
     scalar_values["memory_policy"] = candidate.memory_policy.model_dump()
     scalar_values["limits"] = candidate.limits.model_dump()
+    scalar_values["review_policy"] = candidate.review_policy.model_dump()
+    scalar_values["completion"] = candidate.completion.model_dump()
     for field, value in scalar_values.items():
         setattr(team, field, value)
 

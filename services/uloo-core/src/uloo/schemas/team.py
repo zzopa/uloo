@@ -1,3 +1,4 @@
+# AI生成
 """Team Pydantic schemas."""
 
 import uuid
@@ -14,10 +15,23 @@ class MemoryPolicy(BaseModel):
     write_scope: Literal["project", "team", "agent"] = "team"
 
 
+class ReviewPolicy(BaseModel):
+    max_rounds: int = Field(default=3, ge=1, le=10, description="Maximum review/rework cycles before escalation")
+    require_unanimous: bool = Field(default=False, description="If true, all reviewers must approve")
+    criteria: list[str] = Field(default_factory=list, max_length=20, description="Review criteria checklist")
+
+
+class CompletionConditions(BaseModel):
+    all_members_executed: bool = Field(default=True, description="Every member must have executed at least once")
+    no_unresolved_errors: bool = Field(default=True, description="No unresolved errors at finish")
+    custom: str = Field(default="", max_length=2000, description="Additional custom completion criteria")
+
+
 class TeamLimits(BaseModel):
     max_iterations: int = Field(default=8, ge=1, le=100)
     timeout_seconds: int = Field(default=120, ge=1, le=3600)
-    max_tokens: int = Field(default=20000, ge=1, le=2_000_000)
+    max_tokens: int = Field(default=20000, ge=1, le=2_000_000, description="Per-iteration token limit")
+    total_token_budget: int = Field(default=200000, ge=1, le=10_000_000, description="Total token budget across all iterations")
 
 
 class TeamBase(BaseModel):
@@ -38,6 +52,9 @@ class TeamBase(BaseModel):
     instructions: list[str] = Field(default_factory=list)
     memory_policy: MemoryPolicy = Field(default_factory=MemoryPolicy)
     limits: TeamLimits = Field(default_factory=TeamLimits)
+    review_policy: ReviewPolicy = Field(default_factory=ReviewPolicy)
+    completion: CompletionConditions = Field(default_factory=CompletionConditions)
+    handoff_context: str = Field(default="", max_length=2000, description="What context to share during member handoff")
 
     @model_validator(mode="after")
     def validate_mode_leader(self):
@@ -67,6 +84,9 @@ class TeamUpdate(BaseModel):
     instructions: list[str] | None = None
     memory_policy: MemoryPolicy | None = None
     limits: TeamLimits | None = None
+    review_policy: ReviewPolicy | None = None
+    completion: CompletionConditions | None = None
+    handoff_context: str | None = Field(None, max_length=2000)
     enabled: bool | None = None
     expected_version: int = Field(..., ge=1, description="Optimistic lock version")
 

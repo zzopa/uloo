@@ -1,3 +1,4 @@
+# AI生成
 """ULOO Core FastAPI application."""
 
 import re
@@ -7,7 +8,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 
-from .api import agents, capabilities, health, resources, runs, tasks, teams
+from .api import agents, capabilities, health, models, resources, runs, tasks, teams
 from .config import settings
 from .errors import ERROR_RESPONSES, register_exception_handlers
 from .logging import configure_logging, get_logger
@@ -19,6 +20,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     configure_logging()
     logger = get_logger("uloo.core")
     logger.info("starting", app=settings.app_name, version="0.1.0")
+    # S5-补2: Clean up any runs left in 'running' status from a previous
+    # process crash or restart.
+    try:
+        cleaned = await runs.cleanup_leftover_runs()
+        if cleaned:
+            logger.info("startup_cleanup", leftover_runs_cleaned=cleaned)
+    except Exception:
+        logger.exception("startup_cleanup_failed")
     yield
     logger.info("stopping", app=settings.app_name)
 
@@ -62,6 +71,7 @@ def create_app() -> FastAPI:
     app.include_router(teams.router, prefix=api_prefix)
     app.include_router(tasks.router, prefix=api_prefix)
     app.include_router(runs.router, prefix=api_prefix)
+    app.include_router(models.router, prefix=api_prefix)
 
     # Root redirect to docs
     @app.get("/")

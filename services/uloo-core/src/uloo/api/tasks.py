@@ -1,3 +1,4 @@
+# AI生成
 """Task API endpoints - the root of the ULOO main flow."""
 
 import json
@@ -12,6 +13,7 @@ from ..db import transaction_session
 from ..errors import ApiError
 from ..logging import get_logger
 from ..models.agent import AgentDefinition
+from ..models.run import Run
 from ..models.task import TASK_STATUSES, Task, TaskPlan
 from ..models.team import TeamDefinition
 from ..runtime import build_planner_agent, execute_agent
@@ -20,10 +22,15 @@ from ..runtime.resources import load_resources
 from ..schemas.task import (
     TaskCreate,
     TaskDetailResponse,
+    TaskDirectExecuteRequest,
+    TaskExportResponse,
     TaskListResponse,
     TaskPlanDraft,
     TaskPlanRequest,
     TaskPlanResponse,
+    TaskPreCheckResponse,
+    PreCheckIssue,
+    TaskSupplementRequest,
     TaskResponse,
 )
 from ..security import RequestContext, require_service_context
@@ -67,6 +74,7 @@ async def create_task(
         query=body.query,
         status="draft",
         team_id=team_id,
+        constraints=body.constraints,
     )
     db.add(task)
     await db.flush()
@@ -186,7 +194,7 @@ async def plan_task(
     resources = await load_resources(db, context.workspace_id)
     prompt = json.dumps(
         {
-            "task": {"title": task.title, "query": task.query},
+            "task": {"title": task.title, "query": task.query, "constraints": task.constraints},
             "feedback": body.feedback if body else None,
             "candidate_teams": candidates,
             "resource_catalog": resources.snapshot,
@@ -241,6 +249,319 @@ async def plan_task(
     await db.flush()
     logger.info("task_plan_created", task_id=str(task.id), plan_id=str(plan.id), version=plan.version)
     return TaskPlanResponse.model_validate(plan.to_dict())
+
+
+@router.get("/{task_id}/precheck", response_model=TaskPreCheckResponse)
+async def precheck_task(
+    task_id: uuid.UUID,
+    context: RequestContext = Depends(require_service_context),
+    db: AsyncSession = transaction_session,
+):
+    """Check team/model/tool/knowledge dependencies before planning."""
+    task = await _get_task_or_404(task_id, context.workspace_id, db)
+    issues: list[PreCheckIssue] = []
+
+    # Check team availability
+    team_filters = [
+        TeamDefinition.workspace_id == context.workspace_id,
+        TeamDefinition.deleted_at.is_(None),
+        TeamDefinition.enabled == True,
+    ]
+    if task.team_id:
+        team_filters.append(TeamDefinition.id == task.team_id)
+    teams_result = await db.execute(select(TeamDefinition).where(*team_filters))
+    teams = list(teams_result.scalars().all())
+    if not teams:
+        issues.append(PreCheckIssue(
+            category="team",
+            status="missing",
+            detail="No enabled team available for this task",
+            fix_link="/uloo/teams",
+        ))
+    else:
+        issues.append(PreCheckIssue(
+            category="team",
+            status="ok",
+            detail=f"{len(teams)} team(s) available",
+        ))
+
+    # Check agent availability for the team(s)
+    member_ids = {membership.agent_id for team in teams for membership in team.members}
+    if member_ids:
+        agents_result = await db.execute(
+            select(AgentDefinition).where(
+                AgentDefinition.workspace_id == context.workspace_id,
+                AgentDefinition.id.in_(member_ids),
+                AgentDefinition.deleted_at.is_(None),
+                AgentDefinition.enabled == True,
+            )
+        )
+        agents = list(agents_result.scalars().all())
+        if len(agents) < len(member_ids):
+            issues.append(PreCheckIssue(
+                category="model",
+                status="misconfigured",
+                detail=f"{len(member_ids) - len(agents)} agent(s) missing or disabled",
+                fix_link="/uloo/agents",
+            ))
+        else:
+            issues.append(PreCheckIssue(
+                category="model",
+                status="ok",
+                detail=f"{len(agents)} agent(s) ready",
+            ))
+
+        # Check tool refs
+        all_tool_refs = {ref for agent in agents for ref in (agent.tool_refs or [])}
+        if all_tool_refs:
+            issues.append(PreCheckIssue(
+                category="tool",
+                status="ok",
+                detail=f"{len(all_tool_refs)} tool reference(s) configured",
+            ))
+        else:
+            issues.append(PreCheckIssue(
+                category="tool",
+                status="missing",
+                detail="No tools configured on team agents",
+                fix_link="/uloo/agents",
+            ))
+    else:
+        issues.append(PreCheckIssue(
+            category="model",
+            status="missing",
+            detail="No agents assigned to team",
+            fix_link="/uloo/teams",
+        ))
+
+    # Check knowledge resources
+    resources = await load_resources(db, context.workspace_id)
+    knowledge_count = len(resources.snapshot.get("datasets", [])) if isinstance(resources.snapshot, dict) else 0
+    if knowledge_count > 0:
+        issues.append(PreCheckIssue(
+            category="knowledge",
+            status="ok",
+            detail=f"{knowledge_count} knowledge resource(s) available",
+        ))
+    else:
+        issues.append(PreCheckIssue(
+            category="knowledge",
+            status="missing",
+            detail="No knowledge resources configured",
+            fix_link="/uloo/settings",
+        ))
+
+    ready = all(issue.status == "ok" for issue in issues)
+    return TaskPreCheckResponse(ready=ready, issues=issues)
+
+
+@router.post("/{task_id}/supplement", response_model=TaskDetailResponse)
+async def supplement_task(
+    task_id: uuid.UUID,
+    body: TaskSupplementRequest,
+    context: RequestContext = Depends(require_service_context),
+    db: AsyncSession = transaction_session,
+):
+    """User supplements conditions or answers planner questions."""
+    task = await _get_task_or_404(task_id, context.workspace_id, db)
+    if task.status in {"running", "succeeded", "cancelled"}:
+        raise ApiError(409, "INVALID_TASK_STATE", f"Task in status '{task.status}' cannot be supplemented")
+
+    existing = list(task.user_supplements or [])
+    existing.extend(body.supplements)
+    task.user_supplements = existing
+    if body.constraints:
+        current = task.constraints or ""
+        task.constraints = (current + "\n" + body.constraints).strip() if current else body.constraints
+
+    await db.flush()
+    logger.info("task_supplemented", task_id=str(task.id), supplement_count=len(body.supplements))
+
+    plans = await db.execute(select(TaskPlan).where(TaskPlan.task_id == task.id).order_by(TaskPlan.version.asc()))
+    return TaskDetailResponse(
+        **task.to_dict(),
+        plans=[TaskPlanResponse.model_validate(plan.to_dict()) for plan in plans.scalars().all()],
+    )
+
+
+@router.post("/{task_id}/execute", response_model=TaskDetailResponse)
+async def direct_execute_task(
+    task_id: uuid.UUID,
+    body: TaskDirectExecuteRequest | None = None,
+    context: RequestContext = Depends(require_service_context),
+    db: AsyncSession = transaction_session,
+):
+    """Create a minimal plan, auto-approve it, and mark the task ready for direct execution.
+
+    This bypasses the full Planner run for simple tasks. The frontend can then
+    call POST /tasks/{task_id}/runs to start execution.
+    """
+    task = await _get_task_or_404(task_id, context.workspace_id, db)
+    if task.status in {"running", "succeeded", "cancelled"}:
+        raise ApiError(409, "INVALID_TASK_STATE", f"Task in status '{task.status}' cannot be executed")
+
+    # If a plan already exists and is approved, just return
+    if task.status == "awaiting_approval":
+        plans_result = await db.execute(
+            select(TaskPlan).where(TaskPlan.task_id == task.id).order_by(TaskPlan.version.desc())
+        )
+        latest_plan = plans_result.scalars().first()
+        if latest_plan and latest_plan.approval_status == "approved":
+            plans = await db.execute(
+                select(TaskPlan).where(TaskPlan.task_id == task.id).order_by(TaskPlan.version.asc())
+            )
+            return TaskDetailResponse(
+                **task.to_dict(),
+                plans=[TaskPlanResponse.model_validate(p.to_dict()) for p in plans.scalars().all()],
+            )
+
+    # Find a team
+    team_filters = [
+        TeamDefinition.workspace_id == context.workspace_id,
+        TeamDefinition.deleted_at.is_(None),
+        TeamDefinition.enabled == True,
+    ]
+    if body and body.team_id:
+        try:
+            team_uuid = uuid.UUID(body.team_id)
+        except ValueError as exc:
+            raise ApiError(422, "VALIDATION_ERROR", "team_id must be a UUID") from exc
+        team_filters.append(TeamDefinition.id == team_uuid)
+    elif task.team_id:
+        team_filters.append(TeamDefinition.id == task.team_id)
+
+    teams_result = await db.execute(select(TeamDefinition).where(*team_filters).order_by(TeamDefinition.created_at))
+    team = teams_result.scalars().first()
+    if not team:
+        raise ApiError(409, "TEAM_NOT_FOUND", "No enabled team available for direct execution")
+
+    # Get first agent from team for the minimal plan
+    member_ids = [m.agent_id for m in team.members]
+    agents_result = await db.execute(
+        select(AgentDefinition).where(
+            AgentDefinition.workspace_id == context.workspace_id,
+            AgentDefinition.id.in_(member_ids),
+            AgentDefinition.deleted_at.is_(None),
+            AgentDefinition.enabled == True,
+        )
+    )
+    agents = list(agents_result.scalars().all())
+    if not agents:
+        raise ApiError(409, "INVALID_TEAM_CONFIGURATION", "Team has no enabled agents")
+
+    # Create a minimal single-step plan
+    latest_version = await db.scalar(select(func.max(TaskPlan.version)).where(TaskPlan.task_id == task.id))
+    plan = TaskPlan(
+        task_id=task.id,
+        version=(latest_version or 0) + 1,
+        summary=f"Direct execution: {task.title}",
+        assumptions=[],
+        questions=[],
+        recommended_team_id=team.id,
+        steps=[
+            {
+                "id": "direct-execute",
+                "title": "Execute task directly",
+                "description": task.query,
+                "assigned_agent_id": str(agents[0].id),
+                "depends_on": [],
+                "expected_output": "Task result",
+                "status": "pending",
+            }
+        ],
+        approval_status="approved",
+        runtime_type="agno",
+        is_mock=False,
+    )
+    db.add(plan)
+    task.team_id = team.id
+    task.current_plan_version = plan.version
+    task.status = "awaiting_approval"
+    await db.flush()
+    logger.info("task_direct_execute_plan", task_id=str(task.id), plan_id=str(plan.id))
+
+    plans = await db.execute(select(TaskPlan).where(TaskPlan.task_id == task.id).order_by(TaskPlan.version.asc()))
+    return TaskDetailResponse(
+        **task.to_dict(),
+        plans=[TaskPlanResponse.model_validate(p.to_dict()) for p in plans.scalars().all()],
+    )
+
+
+@router.get("/{task_id}/export", response_model=TaskExportResponse)
+async def export_task(
+    task_id: uuid.UUID,
+    context: RequestContext = Depends(require_service_context),
+    db: AsyncSession = transaction_session,
+):
+    """Export task summary as Markdown for download."""
+    task = await _get_task_or_404(task_id, context.workspace_id, db)
+    plans_result = await db.execute(
+        select(TaskPlan).where(TaskPlan.task_id == task.id).order_by(TaskPlan.version.asc())
+    )
+    plans = list(plans_result.scalars().all())
+    runs_result = await db.execute(
+        select(Run).where(Run.task_id == task.id).order_by(Run.created_at.desc())
+    )
+    runs = list(runs_result.scalars().all())
+
+    lines: list[str] = []
+    lines.append(f"# {task.title}\n")
+    lines.append(f"**Task ID:** {task.id}  ")
+    lines.append(f"**Status:** {task.status}  ")
+    lines.append(f"**Created:** {task.created_at}  \n")
+
+    lines.append("## Goal\n")
+    lines.append(f"{task.query}\n")
+
+    if task.constraints:
+        lines.append("## Constraints\n")
+        lines.append(f"{task.constraints}\n")
+
+    if task.user_supplements:
+        lines.append("## User Supplements\n")
+        for s in task.user_supplements:
+            lines.append(f"- {s}")
+        lines.append("")
+
+    if plans:
+        lines.append("## Plans\n")
+        for plan in plans:
+            lines.append(f"### Plan v{plan.version}: {plan.summary or 'Untitled'}\n")
+            if plan.assumptions:
+                lines.append("**Assumptions:**")
+                for a in plan.assumptions:
+                    lines.append(f"- {a}")
+                lines.append("")
+            if plan.questions:
+                lines.append("**Open questions:**")
+                for q in plan.questions:
+                    lines.append(f"- {q}")
+                lines.append("")
+            lines.append("**Steps:**")
+            for i, step in enumerate(plan.steps, 1):
+                step_title = step.get("title", "Untitled step")
+                lines.append(f"{i}. {step_title}")
+                if step.get("description"):
+                    lines.append(f"   - {step['description']}")
+            lines.append("")
+
+    if runs:
+        lines.append("## Runs\n")
+        for run in runs:
+            lines.append(f"### Run {run.id[:8]}...")
+            lines.append(f"- **Status:** {run.status}")
+            lines.append(f"- **Created:** {run.created_at}")
+            if run.output:
+                lines.append(f"- **Output:**\n\n```\n{run.output}\n```")
+            if run.error_message:
+                lines.append(f"- **Error:** {run.error_message}")
+            lines.append("")
+
+    content = "\n".join(lines)
+    safe_title = task.title.replace(" ", "_").replace("/", "-")[:60]
+    filename = f"task_{safe_title}_{str(task.id)[:8]}.md"
+
+    return TaskExportResponse(format="markdown", filename=filename, content=content)
 
 
 async def _get_task_or_404(

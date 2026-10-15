@@ -1,3 +1,4 @@
+# AI生成
 """Agent Registry API endpoints."""
 
 import uuid
@@ -54,6 +55,7 @@ async def create_agent(
         tool_refs=body.tool_refs,
         skill_refs=body.skill_refs,
         knowledge_refs=body.knowledge_refs,
+        workflow_refs=body.workflow_refs,
         output_schema=body.output_schema,
         enabled=body.enabled,
     )
@@ -209,7 +211,9 @@ async def validate_agent(
     try:
         if not agent.enabled:
             errors.append("Agent is disabled")
-        validate_agent_runtime_config(agent, tools=await load_resources(db, context.workspace_id))
+        validate_agent_runtime_config(
+            agent, tools=await load_resources(db, context.workspace_id), workspace_id=str(context.workspace_id)
+        )
     except RuntimeConfigurationError as exc:
         errors.append(exc.message)
 
@@ -230,7 +234,9 @@ async def test_run_agent(
 
     definition = await _get_agent_or_404(agent_id, context.workspace_id, db)
     try:
-        agent = build_agent(definition, tools=await load_resources(db, context.workspace_id))
+        agent = build_agent(
+            definition, tools=await load_resources(db, context.workspace_id), workspace_id=str(context.workspace_id)
+        )
         result = await execute_agent(agent, (body or AgentTestRunRequest()).prompt, timeout_seconds=settings.model_timeout_seconds)
     except RuntimeConfigurationError as exc:
         raise ApiError(422, exc.code, str(exc)) from exc

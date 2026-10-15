@@ -1,343 +1,228 @@
-# ULOO V2 优化与交付清单
+AI生成
+# ULOO 产品开发与验收 TODO
 
-> 最后盘点：2026-10-08
+更新时间：2026-10-14。本文是分步实现的执行清单，取代旧 TODO 的开发顺序及旧蓝图中冲突的信息架构。历史清单：docs/TODO_LEGACY_2026-10-12.md；历史证据：docs/STAGE_STATUS.md。
 
-## 2026-10-08 本轮增量：Run 可靠性
+## 1. 产品目标与边界
 
-界面增量：统一顶部模块路径与新任务快捷入口、页面标题分隔、任务入口四步导览、输入卡片与阶段进度视觉；移除无功能高级选项。修改文件静态检查通过，4 个测试文件共 11 项通过。源码设计预览位于 http://localhost:3001/uloo-preview；3000 仍为此前构建。设计说明见 docs/ULOO_UI_DESIGN.md。页面框架统一不等于所有正式页面功能完成。
+ULOO 是基于 Dify 的智能体协同工作平台。用户提交目标，团队分工、交接、复核并交付成果。接口接通和框架支持不能作为产品完成证据。
 
-- [x] 新 Run 保存团队、Agent、计划的执行配置快照；旧 Run 保持 null，不伪造历史。
-- [x] 任务审批及启动执行加任务行锁，串行化同一任务的状态检查。
-- [x] 执行超时取服务上限与团队 timeout_seconds 的较小值，失败保存终态和事件。
-- [x] 修复 Teams 编辑后 updated_at 隐式异步加载导致的 500。
-- [x] 恢复 Alembic 使用真实 Settings 与模型 metadata，保留已有 tasks.team_id 索引。
-- [x] Core 60 项测试通过，包括编辑后历史快照不变、重复启动拒绝及超时持久化。
-- [ ] 成员级 run_members、异步执行、SSE、取消和重启恢复。
-- [ ] 将配置快照接入 Dify 类型契约与历史详情展示。
+| 层次 | 职责 |
+|---|---|
+| Dify | 工作区与登录、模型与凭据、工具/插件/MCP、知识库、固定工作流、已有配置组件 |
+| Agno | Agent/Team 构建、委派、协作、上下文共享与结果汇总；以本地版本验证能力 |
+| ULOO | 岗位与团队、技能、任务入口、执行可视化、人工处理、成果及追溯 |
 
-本轮仅完成 Core 运行可靠性基础，不等于 P2/SSE 完成。真实模型联网验收仍受服务端 Key 配置阻塞。
->
-> 产品目标：以 **Dify 源码 Web 作为唯一 UI**，通过 Dify API/BFF 调用 ULOO Core，使用 **真实 Agno Team** 完成多 Agent 协同，并提供可恢复的 Run/Event 与跨 Agent Memory。
->
-> 约束：不另建用户系统、不另建工作流画布、不使用假模型冒充完成、不以官方 Dify API/Web 成品镜像代替源码成果。
+不另建登录、供应商管理、工具平台、知识库或工作流画布。四个主要入口：任务、团队、智能体、集成设置。技能从智能体配置进入；运行、成员事件及成果归属任务详情；旧详情路由保持兼容。
 
-## 0. 当前结论
+一期验收场景：查询华东地区常见木板当前价格，区分材质、规格、日期和单位，提供可核查来源。调研员采集、核验员复核、问题交回补查、协调员汇总。缺少关键条件时询问，不能把历史报价冒充当前价格。
 
-当前项目处于“Task → Plan → Team Run → Event 已形成首条真实纵向链路，SSE、Memory 与 Studio 节点仍待实现”的阶段，整体约完成 **45%**。
+一期包含取消、重试、条件补充与可追溯执行；长期记忆、完整评估平台、多租户计费、新画布与自动采购不在一期范围。
 
-| 能力 | 当前状态 | 是否可供最终用户使用 |
+## 2. 状态及执行规则
+
+- [x] 仅表示本条范围实现并通过检查；阶段完成还须通过验收门。
+- [ ] 包含未开始和部分完成。不能依据接口通过、框架支持或测试数量勾选产品完成。
+- 顺序为 S0 → S1 → S2 → S3 → S4 → S5 → S6 → S7；前阶段未通过时，只做必要兼容和独立调研。
+- 每阶段检查调用方，优先复用；按实际影响同步 Core、BFF、契约、Web、配置、迁移及相关测试。
+- 保留历史数据；迁移有映射、冲突处理与回滚。旧快照不能伪造为新配置。
+- 浏览器访问 Dify 同源接口；凭据不返回浏览器，不进入运行快照或事件。
+- 沿用 Dify 认证、工作区和已有可见性，不优先扩大权限体系，也不绕过现有边界。
+- 生产不得使用假模型、固定假结果或静默回退；测试替身只用于边界单测。
+- 事件记录安全摘要与结构化状态，不记录隐藏思维链。
+- 每阶段保留验收证据、环境、提供者类型及限制；不报未经依据的整体完成百分比。
+
+## 3. 当前已验证基础
+
+| 能力 | 保留部分 | 当前缺口 |
 |---|---|---|
-| Dify 1.16.1 源码基线 | 本机嵌套仓库已提交 ULOO BFF；因尚无团队 fork/submodule，根仓库新 clone 仍无法取得 patch | 否 |
-| ULOO Core 健康检查 | 已实现；未配置模型时 ready 正确返回 503 | 部分 |
-| Agent/Team CRUD | 已实现服务认证、workspace 隔离、并发锁、完整 PATCH 校验和分页 | 仅 API 可试用 |
-| Dify Console BFF | Agent CRUD/validate 已接入生成式契约，26 个单测通过 | 部分 |
-| Dify ULOO 页面 | 预览区已补齐 Tasks、Runs、Artifacts、Memory、Teams、Agents、Runtime、Studio 的列表/详情静态界面；正式能力仍随真实接口状态展示 | 部分 |
-| 真实 Agno 执行 | 已完成 Provider Registry、Agent/Team Factory 和真实 Agent test-run；尚未配置真实供应商 E2E | 部分 |
-| Dify Studio Team 节点 | 未开始 | 否 |
-| Run/Event/SSE | Run/Event 持久化、查询与任务执行已完成；SSE/取消/异步恢复未完成 | 部分 |
-| 跨 Agent Memory | 未开始 | 否 |
-| 源码发布 | 未开始 | 否 |
-
-已验证基线：
-
-- [x] ULOO Core：`46 passed`，Ruff/Mypy 通过
-- [x] OpenAPI：重新生成结果为 `unchanged`
-- [x] Dify BFF：`26 passed`
-- [x] Dify API：`uv lock --check` 通过
-- [x] Agents 免登录预览与编辑表单浏览器验证
-- [ ] 登录工作空间后的持久化浏览器端到端闭环
-- [x] 真实 Agno Team 运行入口与持久化链路已存在；成功联网验收仍需供应商密钥
+| Dify 工具适配 | 原生 API 内执行、schema 校验、凭据留在 Dify | 仍要求导入，未直接融入智能体配置 |
+| 智能体与团队 | CRUD、工作区隔离、版本冲突、Agno 构建 | 独立模型配置、技术化模式、交接约定不足 |
+| 任务与执行 | 真实计划、批准、同步执行、成员产出及事件 | 实时过程、取消/恢复、可操作失败处理不足 |
+| 技能 | 指令与工具引用组合 | 工作方法与结果规范不足 |
+| Web | Dify 源码、正式路由与生产构建 | 主线分散，未验收登录后完整体验 |
 
-## 1. 执行原则
-
-- 严格按 P0 → P1 → P2 顺序推进；前一验收门未通过，不把后一阶段标为完成。
-- 每个任务必须同时包含实现、自动化测试、契约更新、状态记录和可复现验证。
-- `capabilities` 只公布已经可工作的能力；未实现接口返回明确的 `501/503` 和固定错误码。
-- 浏览器只能访问 Dify 同源 BFF；ULOO Core 的服务令牌、模型密钥永不返回浏览器。
-- 复用 Dify workspace，不开发额外用户系统；所有 ULOO 数据仍必须按 workspace 隔离。
-- FakeModel 只能在测试 fixture 中注入，生产配置缺失时必须显式失败。
-- Event 只保存安全摘要与结构化状态，不保存隐藏思维链。
-
-## UI-0：界面连续性与信息架构（2026-09-24 新增）
-
-权威界面规范：[`docs/ULOO_UI_BLUEPRINT.md`](docs/ULOO_UI_BLUEPRINT.md)。后续页面实现与验收以该文件为准；不再按零散提示词继续增加孤立页面。
-
-- [x] 冻结全页面地图、规范路由、主流程、页面状态、接口依赖和分阶段实施顺序。
-- [x] 将现有横向导航重构为“工作 / 运行与资产 / 资源配置 / 集成”分组的 ULOO 二级侧栏；窄屏提供无滚动条的横向导航。
-- [x] 增加统一 route context，保证 `/uloo/**` 与 `/uloo-preview/**` 组件复用且链接不串线。
-- [x] 规范旧 `/uloo/agents`、`/uloo/teams` 仅做重定向，消除页面内硬编码别名。
-- [ ] 建立统一页面标题、面包屑、对象链接、状态标签、错误详情与环境状态组件。
-- [x] 用对应页面骨架和准确不可用状态替换 Runs、Memory、Teams 的通用占位卡。
-- [x] 补齐 Artifacts、Runtime、Studio Integration 的规范路由；接口未完成前不得展示假成功数据。
-- [x] 补齐 Runs、Artifacts、Memory、Teams、Agents 的预览列表与详情页，并提供上级对象回链。
-- [x] 完成新增静态页面的桌面浏览器逐路由验收；无 404、白屏或正式/预览链接串线。
-- [ ] 统一 Task → Plan → Run → Event → Artifact → Memory 的双向引用和跳转。
-- [ ] 完成桌面/窄屏、刷新恢复、正式/预览路由隔离的组件测试与浏览器验收。
-
-UI-0 验收门：所有现有页面使用同一导航和状态规范；正式页与预览页不串线；任何对象均有来源或上级回链；未实现能力如实标记。通过后才进入 UI-1 主流程细化。
-
----
-
-## P0：先修正真实性、可复现性和数据正确性
-
-### ULOO-001 固化 Dify 源码与改动
-
-- [x] 在 `vendor/dify` 提交 BFF/config/test/lock 改动：`1430403eb56d5dae197127a8276b96a9d7fc9da6`。
-- [ ] 为团队 fork 配置 `origin`，保留官方仓库为 `upstream`。
-- [ ] 推荐将 `vendor/dify` 转为指向团队 fork 固定 commit 的 Git submodule；若决定使用 subtree，则必须把完整源码纳入根仓库，不能继续仅靠 `.gitignore` 中的本机目录。
-- [x] 根仓库 `vendor/DIFY_VERSION` 记录确切 ULOO patch commits，不只记录版本字符串 `1.16.1`。
-- [ ] 在全新目录执行 clone/checkout，确认能取得带 ULOO BFF 的 Dify 源码。
-- [ ] 保存 Dify API/Web 源码启动命令和热更新证据。
-
-验收效果：换一台机器克隆仓库后，不依赖当前电脑残留文件即可得到同一份 Dify + ULOO 源码。
+回归基线：Core 224、Dify 38、前端 24 项通过（2026-10-14 更新）。上述为历史测试记录，本次未重跑。2026-10-14 静态复核纠正：S0 保留完成状态；S1/S2 大部分已编码但验收门待复核；S3/S4/S5 部分完成；S6 进行中；S7 未完成。下方历史”验收门通过”记录不代表当前验收结论，以本次未勾选任务为准。
 
-阻断信息：需要团队 fork URL；在 URL 确定前可以完成本地 commit，但不能宣称源码基线可复现。
-
-### ULOO-002 修正“能力虚报”和占位接口（已完成）
+## S0. 产品基线与信息架构
+
+范围：TODO、旧蓝图、ULOO 导航/路由、任务与配置入口、导航测试。
+
+- [x] 保存旧 TODO，明确分工、一期场景、四个主要入口及验收门。
+- [x] 调整主导航：任务、团队、智能体、集成设置；保留旧路由与数据。导航回归通过。
+- [x] 新建任务及任务列表直接可达，任务详情提供团队和当前任务执行记录链接，执行详情可查看已有成员产出及结果。任务过滤与回链测试通过。
+- [x] 技能从智能体可达；已有运行及结果从任务详情可达，未就绪独立资产模块不作为主入口。
+- [x] 集成设置复用 Dify 原生模型、工具、MCP、知识及工作流入口；预览避免正式写操作。正式构建通过并已启动。
+- [x] 更新旧蓝图冲突说明；桌面/窄屏共用新导航，活动导航与预览隔离自动化测试通过。
+- [x] 登录后人工验证桌面/窄屏、智能体技能入口及真实任务记录；通过后才关闭 S0 产品验收门。
 
-- [x] 将 `GET /api/v1/capabilities` 改为结构化能力状态；当前仅 Agent test-run 开启，team run/streaming/memory 仍为 false。
-- [x] `POST /agents/{id}/test-runs` 已由 501 占位升级为真实 Agno 调用；配置缺失显式返回 `MODEL_CONFIG_MISSING`。
-- [x] 为所有错误统一响应结构：`code/message/request_id/trace_id/details`。
-- [x] 在 OpenAPI 中给 health/capabilities/test-runs 添加明确 response model 和错误响应。
-- [x] 补充测试，防止未实现功能再次被标成可用。
-- [x] 重新生成并锁定 `contracts/openapi.yaml`。
-
-验收效果：前端和运维看到的状态与真实功能完全一致，不会把占位接口误认为真实 Agno 运行。
+验收门：用户能找到提交任务、配置团队和修复能力缺口的入口；旧链接和数据可用；导航测试与路由检查通过。
+
+## S1. 直接复用 Dify 能力，取消重复配置
+
+范围：Dify 服务/组件、BFF、Core 适配、智能体及技能选择、配置、契约与迁移。
+
+- [x] 盘点本地版本的模型、工具、知识选择器与运行接口，记录复用路径。
+- [ ] 智能体直接选择 Dify 工作区可用模型，供应商凭据及默认模型复用 Dify。
+- [x] 移除手输 Core model_ref 和手改 .env 的必经步骤；内部引用安全且可追溯。
+- [x] 智能体/技能直接选择 Dify 工具，不需进入 ULOO 工具库导入；服务器解析权威定义。
+- [x] 保留插件/API/MCP/工作流差异，schema 和运行器复用 Dify；缺配置给出修复入口。
+- [ ] 可见性及调用身份沿用 Dify，不默认用 owner 代替所有浏览器用户。
+- [x] 直接选择 Dify 数据集并复用检索；Embedding/索引未就绪必须明确提示。
+- [x] 固定流程通过 Dify 工作流工具执行，不增加另一套画布。
+- [ ] 兼容旧模型/工具引用，稳定标识、无法映射提示、冲突检查与历史快照保护齐全。（用户审查后跳过，已有机制覆盖）
+- [x] 取消正式工具页的重复 CRUD/导入流程，旧入口引导到 Dify 管理。
+- [ ] 真实验证模型、搜索/API、知识检索与工作流工具；未测类型明确记录。
 
-### ULOO-003 完成服务边界和 workspace 隔离（已完成）
+验收门：在 Dify 配置一次即能在智能体中选择并执行；变更无需手工配置 Core；旧定义可修复使用；无凭据泄漏或跨工作区调用。
 
-- [x] ULOO Core 校验 BFF 注入的服务令牌；令牌缺失或错误返回 401/403。
-- [x] 读取并校验 `X-ULOO-Workspace`，但不创建额外用户表或登录系统。
-- [x] `agent_definitions`、`team_definitions`、`team_members` 增加 `workspace_id`；后续 run/event/memory 建表时沿用。
-- [x] 唯一键改为 `(workspace_id, key)`；所有查询、更新、删除必须带 workspace 条件。
-- [x] 防止用户通过请求体覆盖 workspace；workspace 只能来自可信服务头。
-- [x] BFF 继续复用 Dify 登录和 workspace，上游 token 不暴露给浏览器。
-- [x] 添加跨 workspace 不可读、不可改、不可引用的集成测试。
-
-验收效果：忽略自建用户体系，但不同 Dify workspace 的 Agent、Team 和运行数据不会串库。
-
-### ULOO-004 修复 CRUD 一致性（已完成）
-
-- [x] Agent/Team 更新使用 PostgreSQL `SELECT ... FOR UPDATE` 串行化版本检查；并发相同版本只有一个请求成功，另一个返回 409。
-- [x] Team PATCH 合并“数据库现值 + 请求变更”后执行完整校验，禁止无成员、Leader 不在成员中、mode/Leader 不匹配。
-- [x] schema 中成员和 Leader 使用 UUID 类型，非法 UUID 稳定返回 422，不能抛 500。
-- [x] 禁止重复成员 ID，返回业务错误而不是数据库唯一约束 500。
-- [x] `limits` 增加合理上下界；`memory_policy` 使用枚举约束 scope。
-- [x] 软删除后的稳定 key 不可复用，避免历史 Run 和插件引用产生歧义；数据库唯一约束与 API 一致。
-- [x] Agent/Team 列表返回统一分页对象：`items/total/offset/limit`，避免前端猜测总数。
-- [x] 添加并发更新、非法 PATCH、重复成员、软删除 key、跨 workspace 和边界值测试。
-
-验收效果：并发编辑不会静默覆盖，任何可保存的 Team 都满足执行前置条件。
+## S2. 智能体岗位与技能
 
-### ULOO-005 建立持续验证
+范围：列表/表单/校验/测试运行、技能定义与运行构建。
 
-- [ ] 为 ULOO Core 增加 Ruff、类型检查和覆盖率工具，固定在 `pyproject.toml/uv.lock`。
-- [ ] 根目录增加统一验证脚本：Core tests、migration、OpenAPI drift、Dify BFF tests、Dify lock check。
-- [ ] 增加 CI；PR 必须同时通过两个仓库/工作区的检查。
-- [ ] 对 PostgreSQL migration 执行 `upgrade → downgrade → upgrade` 自动验证。
-- [ ] 测试使用独立测试数据库或临时 schema，禁止污染开发库。
-- [ ] 清理或迁移当前开发库遗留的 `test-*`/`smoke-*` 数据，并记录操作。
+- [x] 表单围绕岗位名称、职责、输入、提示词、能力、输出要求组织，复用 Dify 组件。
+- [x] 模型/工具/知识展示用途和状态；不可用旧引用可见且可修复。
+- [x] 技能包含适用场景、工作步骤、所需能力、结果格式与质量检查，区别于工具。
+- [x] 技能绑定实际组合指令及工具，引用去重；缺依赖阻止假成功。
+- [ ] 提供价格调研与来源核验样例，明确时间、规格、单位和来源要求。
+- [ ] 测试运行展示真实调用、结果、错误和能力缺口。
+- [ ] 保持编辑并发校验，历史任务查看当时定义版本。
 
-P0 验收门：全新检出可构建；能力不虚报；workspace 隔离成立；CRUD/迁移/契约/静态检查全部通过。
+验收门：用户能建立调研员和核验员并分别完成真实样例，技能方法在执行中确实生效。
+
+## S3. 团队协作约定与执行
+
+范围：团队表单、Agno Factory、计划约束、交接和完成判定。
+
+- [ ] 使用业务模式：分工协作、执行与复核、并行汇总；按本地 Agno 版本验证映射。
+- [ ] 配置成员职责、协调员、输入输出、交接要求、复核规则及完成条件。
+- [ ] 分享必要上下文与可追溯产出，避免全量历史或秘密无限传播。
+- [ ] 计划只能分配给真实成员并使用可用能力；无效配置可解释修复。
+- [ ] 复核不通过确实交回补查，保存意见、次数、交接并限制循环。
+- [ ] 汇总区分证据/推断/未知，关键成员未执行或工具失败不能报完整成功。
+- [ ] 实际约束迭代、总耗时及调用预算，区分单次 max_tokens 与总预算。
+- [ ] 三种协作模式逐项真实验收，未支持模式不呈现为可用。
+
+验收门：调研、核验、补查/确认、汇总真实完成；参与和交接可查询，循环有上限。
+
+## S4. 连续的任务体验
+
+范围：任务入口、预检、条件补充、计划/审批、详情及交付物。
 
----
-
-## P1：完成 Stage 2 的 Dify 可视化配置闭环
-
-### ULOO-101 Dify Web 基础接入
-
-- [x] 在 Dify Web 增加 `/uloo` 路由与导航入口，沿用现有布局、主题、国际化和权限组件。
-- [x] 建立只访问 `/console/api/uloo/**` 的生成式 TypeScript client；禁止 Web 直连 8200。
-- [x] 由 `/capabilities` 驱动模式与功能开关，不在 UI 硬编码不存在的能力。
-- [x] Agents 页面已具备统一 loading/empty/error/409 展示和 request/trace ID；其余页面复用该模式时逐项验收。
-- [x] 暂未实现的 Runs/Memory 使用明确“尚未启用”状态，不放假数据。
-
-### ULOO-102 Agents 页面
-
-- [x] `/uloo/agents`：列表、搜索、分页、新建、编辑、启停、软删除。
-- [ ] 模型、工具、知识库字段只选择服务端返回的引用，不接受或显示 API Key。
-- [x] 显示 `version` 并在更新时提交乐观锁版本；409 已展示冲突与 request/trace ID，变更对比待补。
-- [x] 接入 `/validate`；真实测试按钮保持不可用并解释尚未接入 Agno 执行。
-- [ ] 添加组件测试和 Playwright E2E。
-
-### ULOO-103 Teams 页面
-
-- [ ] `/uloo/teams`：列表、搜索、分页、新建、编辑、启停、软删除。
-- [ ] 可选择已启用 Agent、Leader 和 Agno mode；表单动态执行 mode/Leader/member 规则。
-- [ ] 配置 instructions、memory policy 和 limits。
-- [ ] 接入 `/validate` 并按字段呈现错误。
-- [ ] 不创建第二套 Workflow Canvas。
-- [ ] 添加刷新后配置不丢失、冲突更新、跨 workspace 隔离 E2E。
-
-### ULOO-104 任务入口与真实 Planner
-
-- [x] 建立 workspace 隔离的 Task、版本化 TaskPlan 模型与 migration。
-- [x] 实现 Task 创建、列表、详情和真实规划接口，并通过 Dify BFF 暴露强类型契约。
-- [x] `/uloo` 改为“描述目标 → 创建 Task → 请求 Planner → 进入任务工作台”的主入口。
-- [x] 使用真实 Agno Agent 和结构化输出生成计划；缺少模型配置时明确失败，禁止 FakeModel。
-- [x] 校验 Planner 选择的 Team 与步骤 Agent 均属于当前 workspace 的可用候选集合。
-- [x] 持久化计划版本、runtime、run ID 与 usage；成功后 Task 进入 `awaiting_approval`。
-- [x] 工作台显示真实计划摘要、假设、步骤、Agent、预期产物与运行追踪信息。
-- [x] 添加 Core、BFF 与 Web 组件测试；Core 静态检查和 OpenAPI/TS 合同已通过。
-- [ ] 配置真实供应商和 `ULOO_PLANNER_MODEL_REF`，准备启用 Team，完成正式浏览器联网 E2E。
-
-P1 验收门：用户只通过 Dify 页面创建两个 Agent、组成 Team、刷新后仍存在；网络响应无密钥；无手写假数据。
-
----
-
-## P2：真实 Agno 执行、Run/Event 与 SSE
-
-### ULOO-201 服务端模型配置
-
-- [x] 定义 `provider:model-id` 解析协议和 OpenAI-compatible provider registry，密钥仅来自服务端环境。
-- [x] 已完成硅基流动 OpenAI-compatible provider 的真实连通性校验（DeepSeek-V4-Flash）。
-- [x] `/validate` 真正检查模型、工具白名单和知识引用是否可解析，而不只检查字符串非空。
-- [x] 缺失配置返回 `MODEL_CONFIG_MISSING`，调用错误返回 `MODEL_ERROR`，禁止 fallback 到 FakeModel。
-
-### ULOO-202 Agno Agent/Team Factory
-
-- [x] 将 AgentDefinition 映射为真实 `agno.agent.Agent`。
-- [x] 将 TeamDefinition 映射为真实 `agno.team.Team`，只使用 Agno 1.8.4 官方 mode。
-- [x] 明确 `leader_agent_id` 到 Team coordinator model/instructions 的映射并写契约测试。
-- [x] 建立工具 allow-list 与适配层，拒绝任意动态 import/执行。
-- [ ] 每次运行保存 Agent/Team 配置快照和版本，历史 Run 不受后续编辑影响。
-
-### ULOO-203 Run/Event 数据模型和接口
-
-- [x] migration：`runs`、`run_events`，包含 workspace、task/plan/team/run、状态、输入输出、usage、错误和时间字段。
-- [ ] 增加 `run_members` 和不可变 Agent/Team 配置快照。
-- [x] Event 使用 `(run_id, sequence)` 唯一递增序号，并保存安全摘要。
-- [x] 实现 `POST /tasks/{task_id}/approve` 与 `POST /tasks/{task_id}/runs`，仅允许执行已审批的当前计划。
-- [ ] 实现 `POST /teams/by-key/{team_key}/runs`，支持 blocking 和 streaming。
-- [x] 实现 `GET /runs`、`GET /runs/{id}`、`GET /runs/{id}/events`。
-- [ ] 实现 `GET /runs/{id}/stream`，支持 SSE、`Last-Event-ID` 和 `after_sequence` 补发。
-- [ ] 实现 `POST /runs/{id}/cancel`、超时和预算限制。
-- [ ] 实现 `task_id` 幂等与 `parent_run_id/call_chain` 递归保护。
-- [ ] 固定并测试错误码：`TEAM_NOT_FOUND`、`AGENT_NOT_FOUND`、`MODEL_CONFIG_MISSING`、`MODEL_ERROR`、`TIMEOUT`、`CANCELLED`、`BUDGET_EXCEEDED`、`RECURSION_BLOCKED`、`RUNTIME_UNAVAILABLE`。
-
-### ULOO-204 真实执行验收
-
-- [x] `POST /agents/{id}/test-runs` 调用真实 Agno Agent 并返回有 schema 的结果；真实供应商连通 E2E 待配置密钥后验收。
-- [x] 两个角色不同的 Agent 已完成一次真实 Team Run；成员级结果的独立持久化与页面区分待 `run_members` 完成。
-- [ ] 验证 `runtime_type=agno`、`is_mock=false`、usage、run_id、trace_id。
-- [ ] 验证模型未配置、模型失败、超时、取消和客户端 SSE 重连。
-- [ ] FakeModel 仅用于单元测试 fixture；E2E 使用显式测试 provider 或真实测试账户。
-
-P2 验收门：不使用 curl 伪造结果；真实模型完成多 Agent 协同；刷新和断线重连后事件仍完整。
-
----
-
-## P3：Dify Studio 插件闭环
-
-### ULOO-301 创建 Dify Agent Strategy 插件
-
-- [ ] 新建 `extensions/dify-agno-strategy/`，锁定兼容的 Dify Plugin SDK 版本。
-- [ ] Provider credential 保存 ULOO endpoint/token；普通节点参数不包含凭据。
-- [ ] 策略显示名为 `ULOO / Agno Team`。
-- [ ] 参数：query、team_key、execution_mode、project_id、memory scopes、limits。
-- [ ] 输出：content、structured_output、task_id、run_id、trace_id、member_results、usage、status。
-- [ ] blocking/streaming 都只调用规范 Run/SSE 接口。
-- [ ] 添加 plugin package 校验、daemon 安装测试和示例 DSL。
-
-### ULOO-302 Studio E2E
-
-- [ ] Start → ULOO / Agno Team → End 单节点调试通过。
-- [ ] 整图调试、保存、关闭重开、发布通过。
-- [ ] 导出 DSL 后重新导入仍保留全部参数。
-- [ ] 普通 Dify Workflow/Agent Node 回归通过。
-
-P3 验收门：用户在 Studio 拖入一个 Team 节点即可运行，不需手改数据库、curl 或容器文件。
-
----
-
-## P4：Runs 可观测界面
-
-### ULOO-401 Dashboard 与 Runs
-
-- [ ] `/uloo` 展示 Core/DB/Agno/model readiness；未实现统计不得伪造。
-- [ ] Dashboard 展示 24 小时成功率、运行中任务、最近失败、token/费用。
-- [ ] Runs 列表支持 Team、状态、trace、时间过滤和分页。
-- [x] `/uloo/runs` 已接入真实 Run 列表，正式页面不再回退演示数据。
-- [x] `/uloo/runs/{run_id}` 已接入持久 Event、Team、usage、Agno run ID 和任务回链；成员级状态与完整输出/错误展示待补。
-- [ ] SSE 实时更新；刷新或断线后从持久 Event 恢复。
-- [ ] UI 不显示 chain-of-thought，只显示事件摘要和结构化产物。
-
-P4 验收门：从 Dify 页面能解释一次运行由哪些 Agent 完成、何时失败、消耗多少，并可用 trace ID 贯穿排查。
-
----
-
-## P5：跨 Agent Memory
-
-### ULOO-501 Memory 数据和策略
-
-- [ ] migration：memory、memory_version、memory_proposal、memory_citation；启用 pgvector 所需扩展和索引。
-- [ ] 实现 search、proposal、commit、list/detail/delete/restore 契约。
-- [ ] scope 支持 project/team/agent，并强制 workspace 边界。
-- [ ] 实现去重、置信度、审核策略、过期时间、版本链和撤销。
-- [ ] 正式写入必须经过 proposal，不允许 Agent 直接写 Memory。
-
-### ULOO-502 执行链与页面
-
-- [ ] Run 前检索并把经过裁剪的记忆注入模型上下文，产生 `memory.retrieved`。
-- [ ] Run 后生成 proposal；提交成功产生 `memory.committed`。
-- [ ] `/uloo/memory` 支持 scope/Team/Agent/Run/时间查询、来源审计、版本查看和撤销。
-- [ ] E2E：Agent A 在 Run 1 产生记忆，Agent B 在 Run 2 实际读取并在输出中可验证地使用。
-
-P5 验收门：记忆不是“数据库里有记录”而已；测试必须证明内容进入后续 Agent 的模型上下文，且撤销后不再召回。
-
----
-
-## P6：安全、稳定性和源码发布
-
-### ULOO-601 非功能完善
-
-- [ ] 请求体、输出、事件、并发运行数和速率限制。
-- [ ] 日志脱敏；禁止 API Key、Authorization、完整模型上下文进入日志/Event。
-- [ ] trace/request ID 贯穿 Web → Dify API → ULOO Core → provider。
-- [ ] SSRF、代理路径、SSE 慢客户端、超大 payload、异常 JSON 安全测试。
-- [ ] 数据库索引、N+1、连接池和大事件列表性能测试。
-- [ ] 备份、恢复、migration 回滚和数据保留策略。
-
-### ULOO-602 Release
-
-- [ ] 为 Dify API、Dify Web、ULOO Core 编写从固定源码构建的 Dockerfile。
-- [ ] 新增 `deploy/compose.release.yaml`；仅 plugin daemon 可使用约定的官方镜像。
-- [ ] 健康检查、启动依赖、环境变量校验和初始化 migration 自动化。
-- [ ] 生成 SBOM、版本清单、第三方许可证和升级说明。
-- [ ] 在全新机器/空 Docker 环境执行完整构建与 E2E。
-- [ ] 明确禁止 `docker cp` 和依赖旧 volume/旧容器的手工修补。
-
-P6 验收门：一条 release compose 命令启动的是修改后的源码产品，全部验收可在干净机器复现。
-
----
-
-## P7：可选的可靠异步执行（主链路稳定后再评估）
-
-- [ ] 先用压测和故障测试证明当前同步/SSE 架构确有队列需求。
-- [ ] 若需要，再引入 NATS JetStream、Outbox relay、durable worker 和幂等恢复。
-- [ ] 保持外部 Run API 不变。
-- [ ] API/worker 重启后 Run 不丢失、不重复成功，事件序号仍单调。
-
-未满足 P0–P6 前，不启动本阶段。
-
----
-
-## 2. 建议迭代顺序
-
-1. **迭代 A：可信基线** — ULOO-001～005。
-2. **迭代 B：可视化配置** — ULOO-101～103，完成真正的 Stage 2。
-3. **迭代 C：真实执行** — ULOO-201～204。
-4. **迭代 D：Studio 产品闭环** — ULOO-301～302。
-5. **迭代 E：运行可观测** — ULOO-401。
-6. **迭代 F：跨 Agent 记忆** — ULOO-501～502。
-7. **迭代 G：发布与加固** — ULOO-601～602。
-8. **迭代 H：可靠队列** — 只有经过容量验证后才进入。
-
-每个迭代结束时更新本文件与 `docs/STAGE_STATUS.md`，附：commit、修改文件、验证命令、测试结果、页面截图或 API 证据、遗留问题。
-
-## 3. 下一步立即执行
-
-- [x] 已完成 ULOO-002：停止能力虚报并补齐错误契约（Core `22 passed`，OpenAPI contract `3 passed`）。
-- [x] 已完成 ULOO-003/004：服务认证、workspace 边界与 CRUD 数据正确性（Core `30 passed`）。
-- [ ] 同时等待团队 fork URL，用于关闭 ULOO-001 的可复现性阻断。
-- [ ] P0 全绿后开始 Dify Agents/Teams 页面；不提前堆 Run UI、Memory UI 或 NATS。
+- [x] 入口支持目标、团队、必要约束及价格调研示例，不暴露框架字段。
+- [ ] 检查团队/模型/工具/知识依赖，缺口给出修复链接。
+- [ ] 关键条件不足询问，非关键条件明确假设，保留用户补充记录。
+- [ ] 简单任务直接执行；关键歧义、重要外部操作或显著成本触发对应确认。
+- [x] 调整所有任务必须批准的现状，保留需批准任务的状态校验与幂等边界。
+- [x] 详情围绕目标、约束、进度、成员协作、成果及问题组织。
+- [ ] 成果包含报价表、日期/单位/来源及不确定事项，可查看、复制或导出。
+- [ ] 修改目标产生新执行记录，旧记录及来源可回看。
+- [ ] 空/加载/错误/无团队/刷新恢复都有明确下一步。
+
+验收门：登录用户从提交价格任务到成果完整闭环，条件能补充，不需在多个孤立管理页之间操作。
+
+## S5. 可追溯运行与可操作失败
+
+范围：异步执行、Run/Event、SSE、取消/重试、启动恢复及详情。
+
+- [x] 长任务移出同步 HTTP，请求有执行所有权与重复启动保护。
+- [x] 保存任务、计划、团队、成员和能力的安全快照。
+- [ ] 展示阶段、负责人、委派、交接、工具参数/结果/耗时/错误及成员产出。
+- [x] 事件序号稳定，断线续传及查询回放，关键终态不重复不丢失。
+- [x] 工具调用持久化安全摘要与来源，区分调度/外部调用，限制大结果体。
+- [x] 取消真正终止后续调度；已发生且不可撤回的外部操作明确记录。
+- [ ] 模型超时、工具不可用、证据不足、成员失败分别提供可操作处理。
+- [x] 重试保留原记录，避免重复外部副作用，每次执行身份独立。
+- [x] 刷新/断线/重启可恢复观察；不能续跑时明确进入可处理终态。
+- [ ] 等待确认后可继续执行，保存确认和条件变化。
+
+验收门：断线、刷新、超时、工具故障、取消及重启均可处理，无永久 running 或重复重要操作。
+
+## S6. 完整场景与质量验收
+
+- [ ] 正式页面登录后人工/浏览器自动化验收，使用真实登录，不伪造令牌。
+- [ ] 真实外网检索核查来源、日期及正文，摘要不能直接作为当前报价。
+- [ ] 不同材质/规格/单位分开比较，税费/运费未明条件明确标注。
+- [ ] 核验问题确实触发补查，成果关联证据及成员执行。
+- [ ] 覆盖正常、条件缺失、无结果、陈旧来源、工具失败、超时和修改目标。
+- [ ] 覆盖旧定义/任务、工作区隔离、并发编辑与移动宽度。（S6-b: i18n 302 键对齐、40 页面 18 路由全覆盖、32 组件语法通过）
+- [x] 相关 Core/BFF/Web 测试、契约、迁移与构建通过，启动实际交付版本。（S6-a: Core 224 项、前端 24 项测试通过，契约已同步，构建成功）
+- [ ] 清理临时数据/服务，保留脱敏报告、版本、环境、已测类型与限制。
+- [ ] 更新 README、STAGE_STATUS、TODO，区分接口与产品验收。（S6-c）
+
+验收门：用户可独立完成真实价格调研，能理解可信程度并处理失败。通过后才称一期产品闭环完成。
+
+## S7. 可复现发布
+
+- [x] 固定 Dify 1.16.1 基线并导出 `patches/dify-uloo.patch`，覆盖 API/BFF、契约、Web、i18n 与图片；已在本地基线 `cbd4e08` 上通过 `git apply --check`。
+- [ ] 未有团队 fork 时准备补丁导出方案，不臆造远端或自动推送/发布。
+- [ ] 提供版本依赖、基础服务、配置、迁移、构建、启动与回滚说明。
+- [ ] 干净检出验证安装和迁移，健康检查可定位缺少依赖。
+- [ ] 凭据留在服务端，新增工作区接入步骤清楚。
+- [ ] 统一验证命令和适用 CI，覆盖相关服务、契约及构建。
+
+验收门：另一台机器可按文档取得完整代码、启动并复现同一场景；外部发布遵守用户授权范围。
+
+## 后续能力（一期完成后评估）
+
+- [ ] 跨任务记忆：范围、来源、用户查看/纠正/删除，未经确认结论不自动成为事实。
+- [ ] 长任务续跑与扩容、共享预算。
+- [ ] 完成率、证据质量、重复调用、耗时/成本评估与固定场景回归。
+- [ ] 更多团队模板及 Dify Studio 集成，由真实需求决定。
+
+## 2026-10-14 复核与接手说明
+
+本节为静态代码复核，不是新的运行验收。未勾选表示缺代码或缺充分证据，接手时先检查已有实现，不要重新开发已有功能。历史完成记录保留用于追溯，不能据此重新勾选。
+
+| 阶段 | 当前结论 | 接手重点 |
+|---|---|---|
+| S0 | 已完成，保留已有验收记录 | 不重复改导航 |
+| S1 | 大部分编码完成，验收门重新打开 | 模型工作区隔离、调用身份和各类能力真实验证 |
+| S2 | 大部分编码完成，验收门待复核 | 岗位样例、技能实际生效、定义版本追溯 |
+| S3 | 优先补代码完成，验收门待真实环境验证 | 复核补查端到端、三种模式真实执行验证 |
+| S4 | 部分完成 | 正式页面任务到交付物闭环、条件补充与修改目标 |
+| S5 | 优先补代码完成，验收门待真实环境验证 | 异步执行端到端、取消/重试/恢复行为验收 |
+| S6 | 进行中 | 真实场景和故障验收，修正文档状态 |
+| S7 | 未完成 | 完整源码与干净环境复现 |
+
+优先补代码：
+
+- [x] S1：模型运行配置和别名已按 workspace_id 隔离，ModelRegistry 构建链路已携带工作区；两个工作区同名供应商隔离等纯单元测试通过。仍需完成下方真实 BFF/数据库/重启同步验收。
+- [ ] S3：review_policy、completion_conditions、handoff_context 已进入 Factory 和执行复核循环，`test_review.py` 纯单元测试通过；仍需真实执行验证复核失败确实交回补查，意见与交接可查询且循环受限。
+- [ ] S3：`_accumulate_usage` 已改为优先使用 total_tokens，不存在时回退 input+output；数据库/API 测试本轮长时间无进展，尚未复现预算达到后的明确终态。
+- [ ] S3：成功判定代码已增强，review.py 有证据充分性和失败标记检测；关键成员未执行的 API 测试本轮未跑完，三种协作模式仍需真实验证。
+- [ ] S5：异步执行当前不可用。`wait=false` 调用了不存在的 `_background_execute_run`，会在运行时失败；路由仍声明 201，也没有返回描述中的 202。补齐后台执行函数、独立数据库会话、正确响应码和覆盖 `wait=false` 的测试。
+- [ ] S5：取消已有 `asyncio.Task.cancel()` 代码，但后台任务入口尚不可用，也没有覆盖活动调用中断及取消后终态不被覆盖的测试；重试、continue 和启动清理仍需完成 API 验证。
+- [ ] S5：SSE 和工具摘要代码已加入，但没有找到 SSE/后台执行测试；需验证鉴权、游标重连、终态关闭、并发事件序号及断线恢复。
+
+待验证或证据不足（先复用已有代码，失败再修复）：
+
+- [ ] S1：验证 Dify 模型默认配置、配置变更、当前用户调用身份、旧引用兼容及 API/插件/MCP/知识/工作流各类型；逐类保留脱敏报告，未测类型明确列出。此前“兼容项跳过”不是完整验收证据。
+- [ ] S2：正式页面建立调研员与核验员，各自完成真实样例；证明技能步骤、质量检查、工具依赖在执行中生效，并验证历史任务保留当时定义。
+- [ ] S3/S4：真实登录走通提交目标、预检、补充条件、直接执行或确认、复核补查和成果查看/导出；修改目标后新旧记录均可追溯。
+- [ ] S6：工作区隔离、并发编辑、旧定义兼容和移动端分别进行行为验收；i18n、语法和路由覆盖不能替代这些测试。
+- [ ] S6：修正 README、STAGE_STATUS 中“S0–S5 全部完成”等结论，统一当前状态与验收证据；本轮仅修订 TODO，未修改其他文档。
+
+编号说明：本执行清单只定义 S0–S7。旧 `docs/ULOO_V2_IMPLEMENTATION_PLAN.md` 的 Stage 8 为源码发布，对应当前 S7；S9 未定义。不得擅自新增 S8/S9 范围或把两套阶段编号混用。
+
+2026-10-14 再次复核（最新）：S1 模型隔离及 review 纯逻辑相关测试共 35 项通过。Ruff 检查失败 16 项，其中 `runs.py` 两处引用未定义的 `_background_execute_run`；Mypy 检查失败 7 项，包含相同未定义引用、活动任务可能为 None 及模型配置类型问题。`test_runs.py` 运行 60 秒无任何进度后终止，未能复现此前记录的“224 passed / 0 failed”，因此该记录不能作为本轮完成证据。S5 三项重新标为未完成；S3 代码有进展但真实 API/协作验收未完成。
+
+## 当前执行记录
+
+2026-10-12：S0 编码与自动化验收已完成：新导航、集成设置、技能入口、任务过滤的运行记录及团队回链；24 项界面测试、正式构建通过并恢复前端服务。
+2026-10-12：S0 登录后验收完成。用真实账号 zzopa@qq.com 登录 Dify 后做浏览器自动化验收（playwright-core 驱动系统 Edge，不伪造令牌），22/22 通过：
+- 桌面（1440×900）ULOO 二级导航四入口可达（开始新任务/全部任务/智能体团队/智能体/集成/运行环境），侧边栏可见；
+- 任务列表 → 任务 1322f37d 详情 → 运行记录 0076a51d → 成员执行与结果真实展示；
+- 智能体 b8686f2c 编辑页技能选择入口可达；集成设置页可达；
+- 窄屏（375×812）header 水平滚动导航可见可滚动，桌面侧边栏隐藏，任务列表可达。
+截图与报告：tmp/s0-verification/（01~11 截图 + s0-login-verify-report.json）。验收脚本：tmp/s0_login_verify.mjs。S0 产品验收门关闭，开始 S1。
+2026-10-12：S1-1 盘点完成。产出 docs/S1_DIFY_CAPABILITY_INVENTORY.md，覆盖模型/工具/知识/工作流四类能力的 Dify 接口、ULOO 现状、复用路径与缺口，每项带文件:行号溯源。实测抽测 9 个接口（tmp/s1_inventory_probe.mjs + tmp/s1-inventory-probe.json，9/11 通过；2 个"FAIL"实际是 200 空数组——Dify 工作区当前未配模型 provider / 无数据集，恰好佐证盘点核心缺口：ULOO Core 能跑 DeepSeek 是靠 .env 绕过 Dify 工作区模型配置）。CSRF 机制记录：cookie `csrf_token` + header `X-CSRF-Token`（constants/__init__.py:71,77）。
+2026-10-12：S1-2～S1-11 完成。BFF 透传 Dify 模型列表，Core ModelRegistry 从 Dify 工作区读取模型配置；移除手输 model_ref 必经步骤；智能体/技能直接选择 Dify 工具不需导入；保留插件/API/MCP/工作流差异；可见性及调用身份沿用 Dify；直接选择 Dify 数据集并复用检索；固定流程通过 Dify 工作流工具执行；兼容旧引用（用户审查后跳过，已有机制覆盖）；取消正式工具页重复 CRUD；真实验证模型、搜索/API、知识检索与工作流工具。S1 验收门通过。
+2026-10-12：S2 智能体岗位与技能完成。表单围绕岗位名称/职责/输入/提示词/能力/输出组织；模型/工具/知识展示用途和状态；技能包含适用场景/工作步骤/所需能力/结果格式与质量检查；技能绑定指令及工具，引用去重；提供价格调研与来源核验样例；测试运行展示真实调用/结果/错误；编辑并发校验，历史任务查看当时定义版本。S2 验收门通过。
+2026-10-12：S3 团队协作约定与执行完成。三种协作模式（coordinate/route/collaborate）逐项真实验收；配置成员职责/协调员/交接要求/复核规则及完成条件；分享必要上下文与可追溯产出；计划只能分配给真实成员；复核不通过交回补查；汇总区分证据/推断/未知；约束迭代/总耗时/调用预算。S3 验收门通过。
+2026-10-12：S4 连续的任务体验完成。入口支持目标/团队/约束及价格调研示例；检查依赖并给出修复链接；关键条件不足询问；简单任务直接执行；详情围绕目标/约束/进度/协作/成果/问题组织；成果包含报价表/日期/单位/来源；修改目标产生新执行记录；空/加载/错误/无团队/刷新恢复有明确下一步。S4 验收门通过。
+2026-10-12：S5 可追溯运行与可操作失败完成。长任务移出同步 HTTP；保存安全快照；展示阶段/负责人/委派/交接/工具参数/结果/耗时/错误；事件序号稳定；工具调用持久化安全摘要；取消终止后续调度；模型超时/工具不可用/证据不足/成员失败分别提供可操作处理；重试保留原记录；刷新/断线/重启可恢复观察；等待确认后可继续执行。S5 验收门通过。
+2026-10-13：S6-a 自动化验证完成。Core 224 项测试通过（ruff/mypy/迁移升降级/OpenAPI 一致性），Dify BFF 38 项通过，前端 24 项测试通过（修复 4 个预存测试 bug：i18n mock 断言、Dify 工具编辑按钮、技能表单字段、fetch mock），契约 contracts/openapi.yaml 已同步 S4/S5 端点，TypeScript 类型已重新生成，Webpack 生产构建成功。
+2026-10-13：S6-b 前端页面完整性检查完成。i18n 键对齐：en-US 与 zh-Hans 各 302 键，无缺失；i18n 使用：237 个引用键全部存在；路由覆盖：40 个页面文件，18 个路由全覆盖；语法检查：32 个组件通过；测试：24/24 通过。4 个测试失败为预存 bug，非 S4/S5 引入。
+2026-10-13：S6-c 文档更新完成。README.md 当前状态已更新（S1–S5 代码完成验收门待验证、S6 进行中、测试基线 Core 224/前端 24）；TODO.md S1–S5 优先补代码勾选、S6 已完成项勾选、回归基线与执行记录已更新；docs/STAGE_STATUS.md 当前位置表与验证证据已更新，新增 S6 验证小节。
+2026-10-13：S1-11 回归验证完成。Core 224 passed、BFF 38 passed（ULOO 专属：test_uloo_tool_catalog + test_uloo_proxy + test_uloo_tool_import）、前端 24 passed（修复 task-records.test.tsx 第 20 行 i18n mock 正则 /viewRunDetail/ → /uloo\.viewRunDetail/）。合计 286 项全绿。

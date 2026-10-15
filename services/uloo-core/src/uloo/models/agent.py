@@ -1,3 +1,4 @@
+# AI生成
 """Agent definition model."""
 
 import uuid
@@ -32,6 +33,7 @@ class AgentDefinition(Base):
     tool_refs: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
     skill_refs: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
     knowledge_refs: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
+    workflow_refs: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
     output_schema: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -61,6 +63,7 @@ class AgentDefinition(Base):
             "tool_refs": self.tool_refs,
             "skill_refs": self.skill_refs or [],
             "knowledge_refs": self.knowledge_refs,
+            "workflow_refs": self.workflow_refs or [],
             "output_schema": self.output_schema,
             "enabled": self.enabled,
             "version": self.version,

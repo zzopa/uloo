@@ -1,3 +1,4 @@
+# AI生成
 """Team definition and team member models."""
 
 import uuid
@@ -46,9 +47,16 @@ class TeamDefinition(Base):
     )
     limits: Mapped[dict] = mapped_column(
         JSONB,
-        default=lambda: {"max_iterations": 8, "timeout_seconds": 120, "max_tokens": 20000},
+        default=lambda: {"max_iterations": 8, "timeout_seconds": 120, "max_tokens": 20000, "total_token_budget": 200000},
         nullable=False,
     )
+    review_policy: Mapped[dict] = mapped_column(
+        JSONB, default=lambda: {"max_rounds": 3, "require_unanimous": False, "criteria": []}, nullable=False
+    )
+    completion: Mapped[dict] = mapped_column(
+        JSONB, default=lambda: {"all_members_executed": True, "no_unresolved_errors": True, "custom": ""}, nullable=False
+    )
+    handoff_context: Mapped[str] = mapped_column(Text, default="", nullable=False)
 
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
@@ -80,6 +88,9 @@ class TeamDefinition(Base):
             "instructions": self.instructions,
             "memory_policy": self.memory_policy,
             "limits": self.limits,
+            "review_policy": self.review_policy,
+            "completion": self.completion,
+            "handoff_context": self.handoff_context,
             "enabled": self.enabled,
             "version": self.version,
             "created_at": self.created_at.isoformat() if self.created_at else None,

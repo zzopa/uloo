@@ -1,3 +1,4 @@
+# AI生成
 """Map persisted ULOO definitions to real Agno Agent and Team objects."""
 
 import json
@@ -54,17 +55,19 @@ def build_agent(
     *,
     models: ModelRegistry | None = None,
     tools: ToolRegistry | None = None,
+    workspace_id: str | None = None,
 ) -> Agent:
     """Build an executable Agno Agent without persisting any provider secret."""
     if not definition.enabled:
         raise RuntimeConfigurationError("AGENT_DISABLED", f"Agent '{definition.key}' is disabled")
 
-    model_registry = models or ModelRegistry()
+    model_registry = models or ModelRegistry(workspace_id=workspace_id)
     tool_registry = tools or ToolRegistry()
     model, resolved_tools = validate_agent_runtime_config(
         definition,
         models=model_registry,
         tools=tool_registry,
+        workspace_id=workspace_id,
     )
     instructions = list(definition.instructions or [])
     skill_instructions, _ = tool_registry.skill_config(definition.skill_refs or [])
@@ -93,14 +96,10 @@ def validate_agent_runtime_config(
     *,
     models: ModelRegistry | None = None,
     tools: ToolRegistry | None = None,
+    workspace_id: str | None = None,
 ):
     """Resolve every executable reference without making a model request."""
-    if definition.knowledge_refs:
-        raise RuntimeConfigurationError(
-            "KNOWLEDGE_CONFIG_MISSING",
-            "Knowledge references are configured but no knowledge adapter is enabled",
-        )
-    model_registry = models or ModelRegistry()
+    model_registry = models or ModelRegistry(workspace_id=workspace_id)
     tool_registry = tools or ToolRegistry()
     model = model_registry.resolve(definition.model_ref)
     if definition.output_schema is not None:
@@ -114,6 +113,27 @@ def validate_agent_runtime_config(
             ) from exc
     _, skill_tools = tool_registry.skill_config(definition.skill_refs or [])
     resolved_tools = tool_registry.resolve_many(dict.fromkeys([*(definition.tool_refs or []), *skill_tools]))
+
+    # S1-7: Create Dify knowledge retrieval tools for each referenced dataset.
+    if definition.knowledge_refs and workspace_id:
+        from .dify_knowledge import dify_knowledge_tool
+
+        for dataset_id in definition.knowledge_refs:
+            tool_name = f"knowledge:{dataset_id}"
+            resolved_tools.append(
+                dify_knowledge_tool(dataset_id, tool_name, workspace_id)
+            )
+
+    # S1-8: Create Dify workflow execution tools for each referenced workflow app.
+    if definition.workflow_refs and workspace_id:
+        from .dify_workflow import dify_workflow_tool
+
+        for app_id in definition.workflow_refs:
+            tool_name = f"workflow:{app_id}"
+            resolved_tools.append(
+                dify_workflow_tool(app_id, tool_name, workspace_id)
+            )
+
     return model, resolved_tools
 
 
@@ -123,6 +143,7 @@ def build_team(
     *,
     models: ModelRegistry | None = None,
     tools: ToolRegistry | None = None,
+    workspace_id: str | None = None,
 ) -> Team:
     """Build a real Agno Team using the declared leader as coordinator model."""
     if not definition.enabled:
@@ -137,10 +158,11 @@ def build_team(
             f"Team references missing Agents: {', '.join(missing_ids)}",
         )
 
-    model_registry = models or ModelRegistry()
+    model_registry = models or ModelRegistry(workspace_id=workspace_id)
     tool_registry = tools or ToolRegistry()
     runtime_members: list[Agent | Team] = [
-        build_agent(members_by_id[member_id], models=model_registry, tools=tool_registry) for member_id in expected_ids
+        build_agent(members_by_id[member_id], models=model_registry, tools=tool_registry, workspace_id=workspace_id)
+        for member_id in expected_ids
     ]
     if not runtime_members:
         raise RuntimeConfigurationError("AGENT_NOT_FOUND", "Team has no members")
@@ -157,6 +179,43 @@ def build_team(
             0,
             f"Use {coordinator_definition.name} ({coordinator_definition.role}) as the declared coordination lead.",
         )
+
+    # S3-补1: Inject review_policy, completion conditions, and handoff context
+    # into the team instructions so the coordinator enforces them during execution.
+    review_policy = definition.review_policy or {}
+    completion = definition.completion or {}
+    handoff_context = (definition.handoff_context or "").strip()
+
+    if review_policy.get("criteria"):
+        criteria_text = "; ".join(review_policy["criteria"])
+        max_rounds = review_policy.get("max_rounds", 3)
+        instructions.append(
+            f"Review policy (max {max_rounds} rounds): before marking work complete, "
+            f"verify: {criteria_text}. If criteria are not met, hand back to the "
+            f"responsible member for rework. Do not claim completion without verification."
+        )
+    if review_policy.get("require_unanimous"):
+        instructions.append(
+            "All team members must agree on the final result before marking complete. "
+            "Dissent must be recorded and addressed."
+        )
+    if handoff_context:
+        instructions.append(
+            f"Handoff context: {handoff_context}. Ensure this context is preserved "
+            f"and communicated during member transitions."
+        )
+    if completion.get("all_members_executed"):
+        instructions.append(
+            "Every assigned member must produce output before the team result is "
+            "considered complete. Missing member output means the task is incomplete."
+        )
+    if completion.get("no_unresolved_errors"):
+        instructions.append(
+            "No unresolved errors may remain. If a member reports a tool failure or "
+            "insufficient evidence, the issue must be addressed before completion."
+        )
+    if completion.get("custom", "").strip():
+        instructions.append(f"Additional completion requirement: {completion['custom']}")
 
     coordinator_model = model_registry.resolve(coordinator_definition.model_ref)
     limits = definition.limits or {}
@@ -179,6 +238,9 @@ def build_team(
             "uloo_team_key": definition.key,
             "uloo_team_version": definition.version,
             "uloo_limits": dict(definition.limits or {}),
+            "uloo_review_policy": dict(review_policy),
+            "uloo_completion": dict(completion),
+            "uloo_handoff_context": handoff_context,
         },
         telemetry=False,
         monitoring=False,

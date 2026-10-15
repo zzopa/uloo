@@ -60,6 +60,12 @@ components:
             type: string
           title: Tool Refs
           type: array
+        workflow_refs:
+          description: Dify workflow app IDs
+          items:
+            type: string
+          title: Workflow Refs
+          type: array
       required:
       - key
       - name
@@ -144,6 +150,12 @@ components:
         version:
           title: Version
           type: integer
+        workflow_refs:
+          description: Dify workflow app IDs
+          items:
+            type: string
+          title: Workflow Refs
+          type: array
       required:
       - key
       - name
@@ -281,6 +293,13 @@ components:
             type: array
           - type: 'null'
           title: Tool Refs
+        workflow_refs:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Workflow Refs
       required:
       - expected_version
       title: AgentUpdate
@@ -309,9 +328,7 @@ components:
           $ref: '#/components/schemas/FeatureCapabilities'
         models:
           additionalProperties:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/components/schemas/ModelProviderInfo'
           title: Models
           type: object
         modes:
@@ -319,6 +336,11 @@ components:
             type: string
           title: Modes
           type: array
+        provider_aliases:
+          additionalProperties:
+            type: string
+          title: Provider Aliases
+          type: object
         tools:
           items:
             type: string
@@ -335,6 +357,26 @@ components:
       - tools
       - agno_enabled
       title: CapabilitiesResponse
+      type: object
+    CompletionConditions:
+      properties:
+        all_members_executed:
+          default: true
+          description: Every member must have executed at least once
+          title: All Members Executed
+          type: boolean
+        custom:
+          default: ''
+          description: Additional custom completion criteria
+          maxLength: 2000
+          title: Custom
+          type: string
+        no_unresolved_errors:
+          default: true
+          description: No unresolved errors at finish
+          title: No Unresolved Errors
+          type: boolean
+      title: CompletionConditions
       type: object
     ErrorResponse:
       description: Stable error envelope returned by every ULOO Core endpoint.
@@ -395,6 +437,89 @@ components:
       - memory
       title: FeatureCapabilities
       type: object
+    McpDiscoverRequest:
+      additionalProperties: false
+      description: Request to discover tools from an MCP Server.
+      properties:
+        args:
+          items:
+            type: string
+          maxItems: 50
+          title: Args
+          type: array
+        command:
+          default: ''
+          maxLength: 512
+          title: Command
+          type: string
+        enabled_tools:
+          items:
+            type: string
+          maxItems: 100
+          title: Enabled Tools
+          type: array
+        endpoint_url:
+          default: ''
+          maxLength: 2048
+          title: Endpoint Url
+          type: string
+        env:
+          additionalProperties:
+            type: string
+          maxProperties: 50
+          title: Env
+          type: object
+        headers:
+          additionalProperties:
+            type: string
+          maxProperties: 20
+          title: Headers
+          type: object
+        transport:
+          enum:
+          - sse
+          - stdio
+          title: Transport
+          type: string
+      required:
+      - transport
+      title: McpDiscoverRequest
+      type: object
+    McpDiscoverResponse:
+      additionalProperties: false
+      description: Response containing all tools discovered from an MCP Server.
+      properties:
+        tools:
+          items:
+            $ref: '#/components/schemas/McpToolInfo'
+          title: Tools
+          type: array
+      required:
+      - tools
+      title: McpDiscoverResponse
+      type: object
+    McpToolInfo:
+      additionalProperties: false
+      description: Single tool discovered from an MCP Server.
+      properties:
+        description:
+          default: ''
+          maxLength: 2000
+          title: Description
+          type: string
+        input_schema:
+          additionalProperties: true
+          title: Input Schema
+          type: object
+        name:
+          maxLength: 256
+          minLength: 1
+          title: Name
+          type: string
+      required:
+      - name
+      title: McpToolInfo
+      type: object
     MemoryPolicy:
       properties:
         read_scopes:
@@ -415,6 +540,89 @@ components:
           title: Write Scope
           type: string
       title: MemoryPolicy
+      type: object
+    ModelConfigSync:
+      description: Batch of model provider configurations to sync.
+      properties:
+        aliases:
+          additionalProperties:
+            type: string
+          description: Dify→ULOO provider aliases
+          title: Aliases
+          type: object
+        providers:
+          items:
+            $ref: '#/components/schemas/ModelProviderConfig'
+          title: Providers
+          type: array
+      required:
+      - providers
+      title: ModelConfigSync
+      type: object
+    ModelConfigSyncResponse:
+      description: Result of a model config sync.
+      properties:
+        synced_providers:
+          items:
+            type: string
+          title: Synced Providers
+          type: array
+        total_models:
+          title: Total Models
+          type: integer
+      required:
+      - synced_providers
+      - total_models
+      title: ModelConfigSyncResponse
+      type: object
+    ModelProviderConfig:
+      description: One model provider configuration pushed from the Dify workspace.
+      properties:
+        api_key:
+          description: API key for this provider
+          format: password
+          title: Api Key
+          type: string
+          writeOnly: true
+        base_url:
+          default: ''
+          description: API base URL, empty for default
+          title: Base Url
+          type: string
+        model_ids:
+          description: Available model IDs
+          items:
+            type: string
+          title: Model Ids
+          type: array
+        provider:
+          description: Provider key (e.g. 'deepseek' or Dify ID)
+          title: Provider
+          type: string
+      required:
+      - provider
+      - api_key
+      title: ModelProviderConfig
+      type: object
+    ModelProviderInfo:
+      description: 'Selectability info for one configured model provider.
+
+
+        `models` is the list of model ids the UI may offer for this provider.
+
+        Credentials are never included; the UI only needs names to build a picker.'
+      properties:
+        base_url:
+          title: Base Url
+          type: string
+        models:
+          items:
+            type: string
+          title: Models
+          type: array
+      required:
+      - base_url
+      title: ModelProviderInfo
       type: object
     Page_AgentResponse_:
       properties:
@@ -467,6 +675,40 @@ components:
       - offset
       - limit
       title: Page[TeamResponse]
+      type: object
+    PreCheckIssue:
+      description: A single dependency check result.
+      properties:
+        category:
+          enum:
+          - team
+          - model
+          - tool
+          - knowledge
+          title: Category
+          type: string
+        detail:
+          maxLength: 500
+          title: Detail
+          type: string
+        fix_link:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Route to fix the issue
+          title: Fix Link
+        status:
+          enum:
+          - ok
+          - missing
+          - misconfigured
+          title: Status
+          type: string
+      required:
+      - category
+      - status
+      - detail
+      title: PreCheckIssue
       type: object
     ResourceCreate:
       additionalProperties: false
@@ -566,6 +808,29 @@ components:
       - enabled
       - expected_version
       title: ResourceUpdate
+      type: object
+    ReviewPolicy:
+      properties:
+        criteria:
+          description: Review criteria checklist
+          items:
+            type: string
+          maxItems: 20
+          title: Criteria
+          type: array
+        max_rounds:
+          default: 3
+          description: Maximum review/rework cycles before escalation
+          maximum: 10.0
+          minimum: 1.0
+          title: Max Rounds
+          type: integer
+        require_unanimous:
+          default: false
+          description: If true, all reviewers must approve
+          title: Require Unanimous
+          type: boolean
+      title: ReviewPolicy
       type: object
     RunCreate:
       properties:
@@ -855,6 +1120,13 @@ components:
       type: object
     TaskCreate:
       properties:
+        constraints:
+          anyOf:
+          - maxLength: 10000
+            type: string
+          - type: 'null'
+          description: User-specified constraints and conditions
+          title: Constraints
         query:
           description: User's original request
           maxLength: 100000
@@ -881,6 +1153,11 @@ components:
     TaskDetailResponse:
       description: Task plus its current plan and latest run summary.
       properties:
+        constraints:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Constraints
         created_at:
           anyOf:
           - format: date-time
@@ -921,6 +1198,11 @@ components:
             type: string
           - type: 'null'
           title: Updated At
+        user_supplements:
+          items:
+            type: string
+          title: User Supplements
+          type: array
       required:
       - id
       - title
@@ -929,6 +1211,36 @@ components:
       - session_id
       - current_plan_version
       title: TaskDetailResponse
+      type: object
+    TaskDirectExecuteRequest:
+      description: Direct execution request for simple tasks that skip planning.
+      properties:
+        team_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Optional explicit team selection
+          title: Team Id
+      title: TaskDirectExecuteRequest
+      type: object
+    TaskExportResponse:
+      description: Exported task summary in Markdown format.
+      properties:
+        content:
+          title: Content
+          type: string
+        filename:
+          title: Filename
+          type: string
+        format:
+          const: markdown
+          default: markdown
+          title: Format
+          type: string
+      required:
+      - filename
+      - content
+      title: TaskExportResponse
       type: object
     TaskListResponse:
       properties:
@@ -1098,8 +1410,28 @@ components:
       - title
       title: TaskPlanStep
       type: object
+    TaskPreCheckResponse:
+      description: Result of checking task dependencies before planning.
+      properties:
+        issues:
+          items:
+            $ref: '#/components/schemas/PreCheckIssue'
+          title: Issues
+          type: array
+        ready:
+          title: Ready
+          type: boolean
+      required:
+      - ready
+      title: TaskPreCheckResponse
+      type: object
     TaskResponse:
       properties:
+        constraints:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Constraints
         created_at:
           anyOf:
           - format: date-time
@@ -1135,6 +1467,11 @@ components:
             type: string
           - type: 'null'
           title: Updated At
+        user_supplements:
+          items:
+            type: string
+          title: User Supplements
+          type: array
       required:
       - id
       - title
@@ -1144,8 +1481,30 @@ components:
       - current_plan_version
       title: TaskResponse
       type: object
+    TaskSupplementRequest:
+      description: User supplements conditions or answers planner questions.
+      properties:
+        constraints:
+          anyOf:
+          - maxLength: 10000
+            type: string
+          - type: 'null'
+          title: Constraints
+        supplements:
+          items:
+            type: string
+          maxItems: 20
+          minItems: 1
+          title: Supplements
+          type: array
+      required:
+      - supplements
+      title: TaskSupplementRequest
+      type: object
     TeamCreate:
       properties:
+        completion:
+          $ref: '#/components/schemas/CompletionConditions'
         description:
           anyOf:
           - type: string
@@ -1155,6 +1514,12 @@ components:
           default: true
           title: Enabled
           type: boolean
+        handoff_context:
+          default: ''
+          description: What context to share during member handoff
+          maxLength: 2000
+          title: Handoff Context
+          type: string
         instructions:
           items:
             type: string
@@ -1193,6 +1558,8 @@ components:
           minLength: 1
           title: Name
           type: string
+        review_policy:
+          $ref: '#/components/schemas/ReviewPolicy'
       required:
       - key
       - name
@@ -1209,6 +1576,7 @@ components:
           type: integer
         max_tokens:
           default: 20000
+          description: Per-iteration token limit
           maximum: 2000000.0
           minimum: 1.0
           title: Max Tokens
@@ -1219,10 +1587,19 @@ components:
           minimum: 1.0
           title: Timeout Seconds
           type: integer
+        total_token_budget:
+          default: 200000
+          description: Total token budget across all iterations
+          maximum: 10000000.0
+          minimum: 1.0
+          title: Total Token Budget
+          type: integer
       title: TeamLimits
       type: object
     TeamResponse:
       properties:
+        completion:
+          $ref: '#/components/schemas/CompletionConditions'
         created_at:
           anyOf:
           - format: date-time
@@ -1237,6 +1614,12 @@ components:
         enabled:
           title: Enabled
           type: boolean
+        handoff_context:
+          default: ''
+          description: What context to share during member handoff
+          maxLength: 2000
+          title: Handoff Context
+          type: string
         id:
           title: Id
           type: string
@@ -1278,6 +1661,8 @@ components:
           minLength: 1
           title: Name
           type: string
+        review_policy:
+          $ref: '#/components/schemas/ReviewPolicy'
         updated_at:
           anyOf:
           - format: date-time
@@ -1298,6 +1683,10 @@ components:
       type: object
     TeamUpdate:
       properties:
+        completion:
+          anyOf:
+          - $ref: '#/components/schemas/CompletionConditions'
+          - type: 'null'
         description:
           anyOf:
           - type: string
@@ -1313,6 +1702,12 @@ components:
           minimum: 1.0
           title: Expected Version
           type: integer
+        handoff_context:
+          anyOf:
+          - maxLength: 2000
+            type: string
+          - type: 'null'
+          title: Handoff Context
         instructions:
           anyOf:
           - items:
@@ -1354,6 +1749,10 @@ components:
             type: string
           - type: 'null'
           title: Name
+        review_policy:
+          anyOf:
+          - $ref: '#/components/schemas/ReviewPolicy'
+          - type: 'null'
       required:
       - expected_version
       title: TeamUpdate
@@ -1517,6 +1916,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '200':
           content:
@@ -1613,6 +2028,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       requestBody:
         content:
           application/json:
@@ -1723,6 +2154,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '204':
           description: Successful Response
@@ -1822,6 +2269,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '200':
           content:
@@ -1925,6 +2388,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       requestBody:
         content:
           application/json:
@@ -2035,6 +2514,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       requestBody:
         content:
           application/json:
@@ -2147,6 +2642,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '200':
           content:
@@ -2244,6 +2755,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '200':
           content:
@@ -2484,6 +3011,132 @@ paths:
       summary: Readiness
       tags:
       - health
+  /api/v1/models/config:
+    put:
+      description: 'Receive model provider configurations from the BFF.
+
+
+        The BFF calls this endpoint to sync Dify workspace model credentials
+
+        to Core at startup or when the user updates model provider settings.
+
+        This eliminates the need for .env configuration (S1-3).'
+      operationId: sync_model_config_api_v1_models_config_put
+      parameters:
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelConfigSync'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelConfigSyncResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Sync Model Config
+      tags:
+      - models
   /api/v1/runs:
     get:
       description: List persisted runs in the current workspace.
@@ -2539,6 +3192,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '200':
           content:
@@ -2643,6 +3312,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '200':
           content:
@@ -2719,9 +3404,276 @@ paths:
       summary: Get Run
       tags:
       - runs
+  /api/v1/runs/{run_id}/cancel:
+    post:
+      description: 'Cancel a running run.
+
+
+        S5-补2: Marks the run as ''cancelled'', releases execution ownership,
+
+        and records a run.cancelled event.  If the run is being executed by
+
+        an asyncio.Task in this process, task.cancel() is called to actually
+
+        interrupt long-running model calls.  Only runs in ''running'' status
+
+        can be cancelled.'
+      operationId: cancel_run_api_v1_runs__run_id__cancel_post
+      parameters:
+      - in: path
+        name: run_id
+        required: true
+        schema:
+          format: uuid
+          title: Run Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunDetailResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Cancel Run
+      tags:
+      - runs
+  /api/v1/runs/{run_id}/continue:
+    post:
+      description: 'Confirm continuation of a run that was paused for user input.
+
+
+        S5-补2: For interactive runs that reach a confirmation gate, this
+
+        endpoint records the user''s decision and allows the run to proceed.
+
+        Currently a no-op marker that records a run.continued event; future
+
+        interactive execution loops will use this to resume paused tasks.'
+      operationId: continue_run_api_v1_runs__run_id__continue_post
+      parameters:
+      - in: path
+        name: run_id
+        required: true
+        schema:
+          format: uuid
+          title: Run Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunDetailResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Continue Run
+      tags:
+      - runs
   /api/v1/runs/{run_id}/events:
     get:
-      description: Return ordered events after a sequence cursor; SSE is added in the next stage.
+      description: 'Return ordered events after a sequence cursor for polling.
+
+
+        S5-补3: For real-time streaming, use the SSE endpoint at
+
+        /runs/{run_id}/stream instead.  This endpoint remains for
+
+        cursor-based polling and reconnection recovery.'
       operationId: get_run_events_api_v1_runs__run_id__events_get
       parameters:
       - in: path
@@ -2755,6 +3707,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '200':
           content:
@@ -2834,6 +3802,288 @@ paths:
       summary: Get Run Events
       tags:
       - runs
+  /api/v1/runs/{run_id}/retry:
+    post:
+      description: 'Retry a failed or cancelled run by starting a new execution.
+
+
+        S5-补2: Creates a fresh Run for the same task/plan/team and executes
+
+        it.  The original run remains untouched for audit history.  Only runs
+
+        in ''failed'' or ''cancelled'' status can be retried.'
+      operationId: retry_run_api_v1_runs__run_id__retry_post
+      parameters:
+      - in: path
+        name: run_id
+        required: true
+        schema:
+          format: uuid
+          title: Run Id
+          type: string
+      - description: If false, execute in background and return 202 immediately
+        in: query
+        name: wait
+        required: false
+        schema:
+          default: true
+          description: If false, execute in background and return 202 immediately
+          title: Wait
+          type: boolean
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/RunCreate'
+              - type: 'null'
+              title: Body
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunDetailResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Retry Run
+      tags:
+      - runs
+  /api/v1/runs/{run_id}/stream:
+    get:
+      description: 'S5-补3: Stream run events via Server-Sent Events (SSE).
+
+
+        Yields events as they are persisted to the database, enabling real-time
+
+        observation of execution progress.  Supports cursor replay via the ``after``
+
+        query parameter for reconnection recovery.  The stream closes automatically
+
+        when a terminal event is observed.'
+      operationId: stream_run_events_api_v1_runs__run_id__stream_get
+      parameters:
+      - in: path
+        name: run_id
+        required: true
+        schema:
+          format: uuid
+          title: Run Id
+          type: string
+      - description: Start streaming after this sequence cursor
+        in: query
+        name: after
+        required: false
+        schema:
+          default: 0
+          description: Start streaming after this sequence cursor
+          minimum: 0
+          title: After
+          type: integer
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Stream Run Events
+      tags:
+      - runs
   /api/v1/skills:
     get:
       operationId: list_skills_api_v1_skills_get
@@ -2854,6 +4104,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '200':
           content:
@@ -2952,6 +4218,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       requestBody:
         content:
           application/json:
@@ -3060,6 +4342,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '204':
           description: Successful Response
@@ -3157,6 +4455,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       requestBody:
         content:
           application/json:
@@ -3297,6 +4611,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '200':
           content:
@@ -3393,6 +4723,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       requestBody:
         content:
           application/json:
@@ -3503,6 +4849,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '200':
           content:
@@ -3607,6 +4969,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '200':
           content:
@@ -3688,6 +5066,259 @@ paths:
       summary: Approve Task Plan
       tags:
       - runs
+  /api/v1/tasks/{task_id}/execute:
+    post:
+      description: 'Create a minimal plan, auto-approve it, and mark the task ready for direct execution.
+
+
+        This bypasses the full Planner run for simple tasks. The frontend can then
+
+        call POST /tasks/{task_id}/runs to start execution.'
+      operationId: direct_execute_task_api_v1_tasks__task_id__execute_post
+      parameters:
+      - in: path
+        name: task_id
+        required: true
+        schema:
+          format: uuid
+          title: Task Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/TaskDirectExecuteRequest'
+              - type: 'null'
+              title: Body
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskDetailResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Direct Execute Task
+      tags:
+      - tasks
+  /api/v1/tasks/{task_id}/export:
+    get:
+      description: Export task summary as Markdown for download.
+      operationId: export_task_api_v1_tasks__task_id__export_get
+      parameters:
+      - in: path
+        name: task_id
+        required: true
+        schema:
+          format: uuid
+          title: Task Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskExportResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Export Task
+      tags:
+      - tasks
   /api/v1/tasks/{task_id}/plan:
     post:
       description: Use a real structured Agno Planner run to create the next plan version.
@@ -3716,6 +5347,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       requestBody:
         content:
           application/json:
@@ -3800,10 +5447,10 @@ paths:
       summary: Plan Task
       tags:
       - tasks
-  /api/v1/tasks/{task_id}/runs:
-    post:
-      description: Execute the approved plan through a real Agno Team and persist safe events.
-      operationId: start_task_run_api_v1_tasks__task_id__runs_post
+  /api/v1/tasks/{task_id}/precheck:
+    get:
+      description: Check team/model/tool/knowledge dependencies before planning.
+      operationId: precheck_task_api_v1_tasks__task_id__precheck_get
       parameters:
       - in: path
         name: task_id
@@ -3828,6 +5475,162 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPreCheckResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Precheck Task
+      tags:
+      - tasks
+  /api/v1/tasks/{task_id}/runs:
+    post:
+      description: 'Execute the approved plan through a real Agno Team and persist safe events.
+
+
+        S5-补1: Execution ownership is tracked via _active_runs to prevent
+
+        duplicate concurrent executions.  The DB row lock (for_update=True)
+
+        plus the in-memory check provide two-layer duplicate start protection.
+
+        When wait=false, execution starts in a background asyncio.Task and
+
+        the API returns 202 with run_id and status=running immediately.'
+      operationId: start_task_run_api_v1_tasks__task_id__runs_post
+      parameters:
+      - in: path
+        name: task_id
+        required: true
+        schema:
+          format: uuid
+          title: Task Id
+          type: string
+      - description: If false, execute in background and return 202 immediately
+        in: query
+        name: wait
+        required: false
+        schema:
+          default: true
+          description: If false, execute in background and return 202 immediately
+          title: Wait
+          type: boolean
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       requestBody:
         content:
           application/json:
@@ -3912,6 +5715,132 @@ paths:
       summary: Start Task Run
       tags:
       - runs
+  /api/v1/tasks/{task_id}/supplement:
+    post:
+      description: User supplements conditions or answers planner questions.
+      operationId: supplement_task_api_v1_tasks__task_id__supplement_post
+      parameters:
+      - in: path
+        name: task_id
+        required: true
+        schema:
+          format: uuid
+          title: Task Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskSupplementRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskDetailResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Supplement Task
+      tags:
+      - tasks
   /api/v1/teams:
     get:
       description: List and search teams.
@@ -3974,6 +5903,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '200':
           content:
@@ -4070,6 +6015,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       requestBody:
         content:
           application/json:
@@ -4179,6 +6140,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '200':
           content:
@@ -4283,6 +6260,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '204':
           description: Successful Response
@@ -4382,6 +6375,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '200':
           content:
@@ -4485,6 +6494,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       requestBody:
         content:
           application/json:
@@ -4595,6 +6620,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '200':
           content:
@@ -4691,6 +6732,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '200':
           content:
@@ -4789,6 +6846,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       requestBody:
         content:
           application/json:
@@ -4871,6 +6944,125 @@ paths:
       summary: Create Tools
       tags:
       - resources
+  /api/v1/tools/mcp/discover:
+    post:
+      description: Connect to an MCP Server and discover its exposed tools.
+      operationId: discover_mcp_tools_api_v1_tools_mcp_discover_post
+      parameters:
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/McpDiscoverRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpDiscoverResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Discover Mcp Tools
+      tags:
+      - resources
   /api/v1/tools/{key}:
     delete:
       operationId: delete_tools_api_v1_tools__key__delete
@@ -4897,6 +7089,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       responses:
         '204':
           description: Successful Response
@@ -4994,6 +7202,22 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
       requestBody:
         content:
           application/json:

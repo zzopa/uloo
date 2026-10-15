@@ -1,3 +1,4 @@
+# AI生成
 """Agent Pydantic schemas."""
 
 from datetime import datetime
@@ -22,6 +23,7 @@ class AgentBase(BaseModel):
     tool_refs: list[str] = Field(default_factory=list)
     skill_refs: list[str] = Field(default_factory=list)
     knowledge_refs: list[str] = Field(default_factory=list)
+    workflow_refs: list[str] = Field(default_factory=list, description="Dify workflow app IDs")
     output_schema: dict[str, Any] | None = None
 
 
@@ -38,6 +40,7 @@ class AgentUpdate(BaseModel):
     tool_refs: list[str] | None = None
     skill_refs: list[str] | None = None
     knowledge_refs: list[str] | None = None
+    workflow_refs: list[str] | None = None
     output_schema: dict[str, Any] | None = None
     enabled: bool | None = None
     expected_version: int = Field(..., ge=1, description="Optimistic lock version")

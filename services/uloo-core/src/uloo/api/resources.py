@@ -7,18 +7,48 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import transaction_session
-from ..errors import ApiError
+from ..errors import ERROR_RESPONSES, ApiError
 from ..models.resource import ResourceDefinition
+from ..runtime.mcp_adapter import MCPToolAdapter
 from ..runtime.resources import definitions
-from ..schemas.resource import ResourceCreate, ResourceResponse, ResourceUpdate, SearchConfig, SkillConfig
+from ..schemas.resource import (
+    DifyToolConfig,
+    McpDiscoverRequest,
+    McpDiscoverResponse,
+    McpSseToolConfig,
+    McpStdioToolConfig,
+    ResourceCreate,
+    ResourceResponse,
+    ResourceUpdate,
+    SearchConfig,
+    SkillConfig,
+)
 from ..security import RequestContext, require_service_context
 
 router = APIRouter(tags=["resources"])
 
+_TOOL_CONFIG_MODELS: dict[str, type] = {
+    "dify": DifyToolConfig,
+    "builtin": SearchConfig,
+    "mcp_sse": McpSseToolConfig,
+    "mcp_stdio": McpStdioToolConfig,
+}
+
 
 def validate_config(kind: str, config: dict) -> dict:
     try:
-        return (SearchConfig if kind == "tools" else SkillConfig).model_validate(config).model_dump()
+        if kind == "skills":
+            model: type = SkillConfig
+        else:
+            tool_type = config.get("tool_type", "builtin")
+            model = _TOOL_CONFIG_MODELS.get(tool_type)  # type: ignore[assignment]
+            if model is None:
+                raise ApiError(
+                    422,
+                    "INVALID_TOOL_TYPE",
+                    f"Unknown tool_type: {tool_type}",
+                )
+        return model.model_validate(config).model_dump()  # type: ignore[attr-defined]
     except ValidationError as exc:
         raise ApiError(
             422,
@@ -26,6 +56,26 @@ def validate_config(kind: str, config: dict) -> dict:
             "Resource configuration is invalid",
             details=exc.errors(include_context=False),
         ) from exc
+
+
+@router.post(
+    "/tools/mcp/discover",
+    response_model=McpDiscoverResponse,
+    responses=ERROR_RESPONSES,
+    name="discover_mcp_tools",
+)
+async def discover_mcp_tools(
+    body: McpDiscoverRequest,
+    context: RequestContext = Depends(require_service_context),
+) -> McpDiscoverResponse:
+    """Connect to an MCP Server and discover its exposed tools."""
+    adapter = MCPToolAdapter()
+    try:
+        return await adapter.discover(body)
+    except TimeoutError as exc:
+        raise ApiError(504, "MCP_DISCOVERY_TIMEOUT", f"MCP Server did not respond in time: {exc}") from exc
+    except Exception as exc:
+        raise ApiError(502, "MCP_DISCOVERY_FAILED", f"MCP Server discovery failed: {exc}") from exc
 
 
 def register(kind: str):

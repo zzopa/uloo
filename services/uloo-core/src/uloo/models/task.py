@@ -1,3 +1,4 @@
+# AI生成
 """Task and TaskPlan models - the durable record of a user business request."""
 
 import uuid
@@ -43,6 +44,8 @@ class Task(Base):
     )
     session_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4, nullable=False)
     current_plan_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    constraints: Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_supplements: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
@@ -63,6 +66,8 @@ class Task(Base):
             "team_id": str(self.team_id) if self.team_id else None,
             "session_id": str(self.session_id),
             "current_plan_version": self.current_plan_version,
+            "constraints": self.constraints,
+            "user_supplements": self.user_supplements or [],
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

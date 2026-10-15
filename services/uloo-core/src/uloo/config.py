@@ -1,3 +1,4 @@
+# AI生成
 """ULOO Core configuration."""
 
 import re
@@ -38,6 +39,10 @@ class Settings(BaseSettings):
     # API
     api_prefix: str = "/api/v1"
     api_token: str = ""
+    dify_api_url: str = "http://localhost:5001"
+    dify_inner_api_key: SecretStr = SecretStr("")
+    # Server-owned Dify app/account context, keyed by workspace; never supplied by a model.
+    dify_workspace_callers: dict[str, dict[str, str]] = {}
 
     # Agno
     agno_enabled: bool = True
@@ -46,6 +51,16 @@ class Settings(BaseSettings):
     # e.g. {"openai": "https://api.openai.com/v1"}
     model_providers: dict[str, str] = {}
     model_provider_api_keys: dict[str, SecretStr] = {}
+    # Optional catalog of selectable model ids per provider, surfaced via capabilities
+    # so the UI can render a picker instead of asking the user to type `provider:model-id`.
+    # When empty, the planner_model_ref is used to derive at least one selectable model.
+    model_catalog: dict[str, list[str]] = {}
+    # Aliases mapping Dify workspace provider IDs to ULOO .env provider names.
+    # e.g. {"langgenius/deepseek/deepseek": "deepseek"}
+    # When a model_ref uses a Dify provider ID, the alias resolves it to the
+    # .env-configured provider for credential lookup.  If no alias exists, the
+    # raw provider ID is used as the .env key (backward compatible).
+    model_provider_aliases: dict[str, str] = {}
     model_timeout_seconds: float = 300
     planner_model_ref: str = ""
 

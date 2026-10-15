@@ -1,3 +1,4 @@
+# AI生成
 """Service authentication and Dify workspace request context."""
 
 import secrets
@@ -15,11 +16,17 @@ class RequestContext:
     """Trusted scope injected by the authenticated Dify BFF."""
 
     workspace_id: uuid.UUID
+    # S1-6: Caller identity forwarded from the Dify console session.
+    # Used when Core invokes Dify inner APIs (e.g. tool invocation).
+    user_id: str | None = None
+    app_id: str | None = None
 
 
 async def require_service_context(
     authorization: str | None = Header(None),
     x_uloo_workspace: str | None = Header(None),
+    x_uloo_user_id: str | None = Header(None, alias="X-ULOO-User-Id"),
+    x_uloo_app_id: str | None = Header(None, alias="X-ULOO-App-Id"),
 ) -> RequestContext:
     """Authenticate the caller and parse its immutable workspace scope."""
     if not settings.api_token:
@@ -53,4 +60,8 @@ async def require_service_context(
             message="X-ULOO-Workspace must be a UUID",
         ) from exc
 
-    return RequestContext(workspace_id=workspace_id)
+    return RequestContext(
+        workspace_id=workspace_id,
+        user_id=x_uloo_user_id,
+        app_id=x_uloo_app_id,
+    )

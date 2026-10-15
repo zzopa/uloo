@@ -1,3 +1,4 @@
+# AI生成
 """Task and TaskPlan Pydantic schemas."""
 
 from datetime import datetime
@@ -14,6 +15,7 @@ class TaskCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=512, description="Short task title")
     query: str = Field(..., min_length=1, max_length=100_000, description="User's original request")
     team_id: str | None = Field(None, description="Optional explicit team selection")
+    constraints: str | None = Field(default=None, max_length=10_000, description="User-specified constraints and conditions")
 
 
 class TaskResponse(BaseModel):
@@ -24,6 +26,8 @@ class TaskResponse(BaseModel):
     team_id: str | None = None
     session_id: str
     current_plan_version: int
+    constraints: str | None = None
+    user_supplements: list[str] = Field(default_factory=list)
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -104,3 +108,40 @@ class TaskListResponse(BaseModel):
     total: int = Field(ge=0)
     offset: int = Field(ge=0)
     limit: int = Field(ge=1)
+
+
+class PreCheckIssue(BaseModel):
+    """A single dependency check result."""
+
+    category: Literal["team", "model", "tool", "knowledge"]
+    status: Literal["ok", "missing", "misconfigured"]
+    detail: str = Field(max_length=500)
+    fix_link: str | None = Field(default=None, description="Route to fix the issue")
+
+
+class TaskPreCheckResponse(BaseModel):
+    """Result of checking task dependencies before planning."""
+
+    ready: bool
+    issues: list[PreCheckIssue] = Field(default_factory=list)
+
+
+class TaskSupplementRequest(BaseModel):
+    """User supplements conditions or answers planner questions."""
+
+    supplements: list[str] = Field(..., min_length=1, max_length=20)
+    constraints: str | None = Field(default=None, max_length=10_000)
+
+
+class TaskDirectExecuteRequest(BaseModel):
+    """Direct execution request for simple tasks that skip planning."""
+
+    team_id: str | None = Field(None, description="Optional explicit team selection")
+
+
+class TaskExportResponse(BaseModel):
+    """Exported task summary in Markdown format."""
+
+    format: Literal["markdown"] = "markdown"
+    filename: str
+    content: str

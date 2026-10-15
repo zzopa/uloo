@@ -1,17 +1,32 @@
+AI生成
 # ULOO V2
 
 Unified Logic Orchestration & Operations：以 Dify 源码作为唯一可视化产品壳，以 Agno 作为唯一多 Agent 协同运行时，以 ULOO Core 管理 Agent、Team、Run、Event 与跨 Agent Memory。
 
-当前状态：Agent 定义与调试、Team 创建/编辑/校验、任务规划与审批、真实 Agno Team 执行、
-持久 Run/Event 和成员结果已接通。DeepSeek-V3.1 的单 Agent 与三种 Team 模式已有真实模型
-接口验收。正式 Teams 与 Run 页面读取后端数据；登录态浏览器操作尚未验收。
-SSE、取消、重启恢复、Studio 插件和 Memory 仍未完成，当前尚不是完整可交付产品。
+当前状态：S0 已完成；S1–S5 已有主要实现，阶段验收门待真实 Dify 环境验证；S6 场景与质量验收进行中。历史基线曾有 224 项测试通过，当前增量仍有静态检查和后台 Run 执行问题，准确进度以 TODO 未勾选项为准。Agent 定义与调试、Team 创建/编辑/校验、
+任务规划与审批、真实 Agno Team 执行、持久 Run/Event 和成员结果已接通。DeepSeek-V3.1 的单 Agent
+与三种 Team 模式已有真实模型接口验收。正式 Teams 与 Run 页面读取后端数据。Dify 原生工具、技能库、
+工具管理与互联网搜索已集成。S6-a 自动化验证通过（Core 224 项、前端 24 项测试、契约与迁移一致、
+构建成功）；S6-b 前端完整性检查通过（i18n 302 键对齐、40 页面 18 路由全覆盖、32 组件语法通过）。
+SSE 实时事件、取消/重试/恢复、工具摘要持久化已实现；Studio 插件和跨 Agent Memory 仍未完成，当前尚不是完整可交付产品。
 
 实施与接口定义见 [docs/ULOO_V2_IMPLEMENTATION_PLAN.md](docs/ULOO_V2_IMPLEMENTATION_PLAN.md)，
 产品闭环路线见 [docs/ULOO_PRODUCT_COMPLETION_PLAN.md](docs/ULOO_PRODUCT_COMPLETION_PLAN.md)。
 当前任务与验收进度见 [TODO.md](TODO.md) 和 [docs/STAGE_STATUS.md](docs/STAGE_STATUS.md)。
 
 ## 开发环境启动
+
+根仓库不直接收录完整 Dify 源码。首次克隆后，从固定的 Dify 1.16.1 基线应用仓库内补丁：
+
+```powershell
+git clone --depth 1 --branch 1.16.1 https://github.com/langgenius/dify.git vendor/dify
+git -C vendor/dify switch -c uloo/integration
+git -C vendor/dify apply --check ../../patches/dify-uloo.patch
+git -C vendor/dify apply ../../patches/dify-uloo.patch
+```
+
+补丁包含 Dify API/BFF、生成契约、Web 路由、ULOO 页面、国际化与图片资源。基线和校验值记录在
+`vendor/DIFY_VERSION`；补丁已在该文件记录的本地基线快照上执行 `git apply --check`。
 
 基础设施（PostgreSQL 5432、Redis 6379、plugin daemon 5002/5003）由
 `deploy/compose.dev.yaml` 或你本机已有实例提供；下面的脚本只负责三个从源码运行的进程。

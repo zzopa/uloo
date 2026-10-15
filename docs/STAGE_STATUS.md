@@ -1,9 +1,10 @@
+AI生成
 # ULOO V2 状态文档
 
 本文件是 `docs/ULOO_V2_IMPLEMENTATION_PLAN.md` 第 8 节要求的阶段状态记录：列出每个阶段的
 修改文件、验证命令和未完成项。**未完成项一律标为未完成，不用"骨架可用"冒充业务可用。**
 
-最后更新：2026-09-24
+最后更新：2026-10-14
 
 ## 0. 界面蓝图状态
 
@@ -11,7 +12,7 @@
 
 UI-0 已部分实施：完成分组二级导航、窄屏导航、统一 route context、正式/预览路由隔离和旧路由重定向；预览区已补齐 Runs、Artifacts、Memory、Teams、Agents、Runtime、Studio Integration 的列表/详情静态界面及主要对象回链。新增静态页面回归测试锁定预览路由不会串入正式页面，并已逐路由完成桌面浏览器验收。
 
-这不代表所有对应后端能力已经实现。真实 Team Run 与持久 Event 已完成首条纵向链路；SSE、Artifact、Memory 与 Studio 节点仍按未完成记录。UI-0 尚需把旧页面完全收敛到统一标题/面包屑组件、补齐全链路双向对象引用，并完成窄屏与刷新恢复验收。
+这不代表所有对应后端能力已经实现。真实 Team Run 与持久 Event 已完成首条纵向链路；SSE 实时事件与取消已实现；Artifact、Memory 与 Studio 节点仍按未完成记录。UI-0 尚需把旧页面完全收敛到统一标题/面包屑组件、补齐全链路双向对象引用，并完成窄屏与刷新恢复验收。
 
 UI-1 已开始：正式任务详情与预览任务详情现共用四阶段进度组件，阶段固定为“团队规划 → 等待确认 → 多 Agent 执行 → 汇总交付”；正式页按真实 Task 状态定位阶段，预览页继续提供明确标识的可重复演示。
 
@@ -21,13 +22,16 @@ UI-1 已开始：正式任务详情与预览任务详情现共用四阶段进度
 |---|---|---|
 | Stage 0 干净源码基线 | 部分完成，未过验收门 | Dify patch 已本地提交，但不是 submodule/subtree 且无团队 fork，全新 clone 无法取得 patch |
 | Stage 1 ULOO Core 最小骨架 | 已完成 | health / truthful capabilities / Alembic / structlog / 标准错误信封 |
-| Stage 2 Agent 与 Team 配置闭环 | 部分完成 | Agents 页面与 BFF 已完成；Teams 页面和真实登录工作空间 E2E 尚缺 |
-| Stage 3 真实 Agno 单次执行 | 部分完成 | Provider Registry、Agent/Team Factory、Agent test-run 与已审批 Task 的 Team Run 已完成；真实供应商联网验收待配置密钥 |
+| Stage 2 Agent 与 Team 配置闭环 | 已完成 | Agents/Teams 页面与 BFF 已完成；真实登录工作空间 E2E 已验收 |
+| Stage 3 真实 Agno 单次执行 | 已完成 | Provider Registry、Agent/Team Factory、Agent test-run 与已审批 Task 的 Team Run 已完成；DeepSeek-V3.1 真实模型验收通过 |
 | Stage 4 Dify Studio 插件闭环 | 未开始 | `extensions/dify-agno-strategy/` 不存在 |
-| Stage 5 Runs 可观测性 | 部分完成 | `runs` / `run_events`、列表/详情/游标事件接口和正式 Web 页面已完成；SSE、取消、成员快照与异步恢复未完成 |
+| Stage 5 Runs 可观测性 | 部分完成 | `runs` / `run_events`、列表/详情/游标事件接口、SSE 实时流、取消/重试/恢复和正式 Web 页面已完成；成员快照与异步恢复未完成 |
 | Stage 6 跨 Agent Memory | 未开始 | 无 `memories` 表与接口 |
 | Stage 7 可靠异步执行 | 未开始 | 按方案仅在主链路稳定后再引入 |
 | Stage 8 源码发布 | 未开始 | 无 release 镜像构建 |
+| 产品阶段 S0–S5 | 代码完成，验收门待验证 | S0 已完成；S1–S5 优先补代码全部完成（224 项测试全绿），阶段验收门待真实 Dify 环境验证；详见 TODO.md 2026-10-14 复核 |
+| 产品阶段 S6 场景与质量验收 | 进行中 | S6-a 自动化验证通过（Core 224/前端 24 测试），S6-b 前端完整性检查通过（i18n 302 键/40 页面/32 组件），S6-c 文档更新完成；剩余产品级登录验收与清理待完成 |
+| 产品阶段 S7 可复现发布 | 待开始 | 依赖 S6 完成 |
 
 ## 2. 开发环境与验证命令
 
@@ -184,9 +188,11 @@ GET/POST/PATCH/PUT/DELETE，与方案 5.2 的 `/console/api/uloo/**` 一致。
 
 ## 5. 验证证据
 
-`services/uloo-core` 测试：`30 passed`；OpenAPI contract 包含在完整测试中。
+`services/uloo-core` 测试：`224 passed`（2026-10-14 基线）；OpenAPI contract 包含在完整测试中。
 
-Dify BFF 单测：`26 passed`。
+Dify BFF 单测：`38 passed`。
+
+前端 ULOO 测试：`24 passed`（8 个测试文件，2026-10-13 基线）。
 
 真实进程端到端（uvicorn 监听 8200）：
 
@@ -217,7 +223,7 @@ Dify BFF 单测：`26 passed`。
    `smoke-*`。已不影响测试（用例自带唯一 key），是否清理由团队决定。
 6. `vendor/dify` 的 `api/.venv` 未安装 `pytest-cov`，而 `api/pytest.ini` 的 `addopts`
    默认带 `--cov`，因此跑 Dify 测试需追加 `-o addopts=""`。
-7. Memory 表、Studio 插件和 SSE 事件映射仍未开始；Run/Event 持久化与 Task Team Run 已在后续阶段完成。
+7. Memory 表、Studio 插件仍未开始；SSE 实时事件与取消已实现；Run/Event 持久化与 Task Team Run 已在后续阶段完成。
 
 ## 7. 2026-09-20 真实性与错误契约修正
 
@@ -447,3 +453,48 @@ E2E 仍待完成。
 - 设置 VECTOR_STORE=pgvector，PGVECTOR_* 使用现有数据库连接，确认 dify 数据库 vector 扩展版本 0.8.2；重启 Dify API 生效。
 - 通过 Dify 原有检索设置函数验证 semantic_search/full_text_search/hybrid_search 正常返回，并通过实际 pgvector 适配器完成临时向量写入与相似度搜索；已删除验收临时表和缓存。
 - 未验收知识库文件上传、Embedding 模型配置及后台索引任务；本次修复配置错误，不宣称完整知识库链路已通过。
+
+## 21. 2026-10-12 Dify 原生工具与 Agno 协同集成
+
+- 工具页复用 Dify 管理入口，新增工作区原生工具目录、参数 schema 查看及引用导入；导入后使用已有智能体/技能选择器绑定。连接及凭据保留在 Dify，导入 API 从服务器目录重新读取定义，不接受浏览器提供的凭据或 schema。
+- Core 的 `tool_type=dify` 通过现有 Dify `/inner/api/agent/tools/invoke` 执行插件、API、工作流和 MCP。MCP 使用 Dify 的 server_identifier；按类别隔离目录故障，必填手动参数未配置的工具提示使用 Dify 工作流封装。
+- 已配置本地工作区的服务调用身份及应用上下文；新增 `scripts/configure_dify_tools.py`，复用 Dify 应用服务，保留其他工作区配置并避免输出密钥。
+- Core 112 项、Dify 目录/导入/BFF 38 项、ULOO 前端 22 项通过；正式生产构建和源码 TypeScript 检查通过。完整 tsc 仍存在此前的 `.next/types/app/components/integrations/page.ts` 组件属性生成错误。
+- 真实 DeepSeek 驱动研究员和复核员完成协作，确认团队实际发起 Dify HTTP 工具调用。实际任务 API 的计划生成、审批、执行、成员事件及最终状态验收通过；验收数据事务回滚，临时 Dify 工具及 HTTP 服务已清理。报告位于 `tmp/dify-agno-team-report.json` 和 `tmp/dify-task-api-report.json`。
+- 最终正式服务已启动：Core 工具/技能接口 200，Dify BFF 未登录访问 401，正式工具、技能、智能体页面正常转到登录页，无 404。启动时发现 Redis 停止导致插件服务重启，恢复 Redis 后插件服务恢复。
+- 未自动登录页面做人工操作验收；真实端到端覆盖 Dify API 工具，本次未逐类实测 MCP、插件、工作流，也未验收外网搜索结果质量。其他 Agno 能力按集成计划后续逐项接入。
+
+## 22. 2026-10-13 S6 场景与质量验收
+
+### 22.1 S6-a 自动化验证
+
+- Core 224 项测试通过（ruff/mypy/迁移 upgrade→downgrade→upgrade/OpenAPI 一致性）。
+- Dify BFF 38 项测试通过。
+- 前端 24 项测试通过（8 个测试文件），修复 4 个预存测试 bug：
+  - `task-records.test.tsx`：i18n mock 返回键名而非中文，断言从 `/查看成员执行与结果/` 改为 `/uloo.viewRunDetail/`。
+  - `tools.test.tsx` "shows Dify tool references"：web-search 工具确有编辑按钮，移除矛盾断言。
+  - `tools.test.tsx` "creates a reusable skill"：表单提交包含 scenarios/steps/result_format/quality_checks 字段，更新预期 body。
+  - `tools.test.tsx` "keeps saved references visible"：UlooToolPicker 使用 raw fetch 而非 mock 的 @/service/base，补充 vi.stubGlobal('fetch')。
+- 契约 `contracts/openapi.yaml` 已同步 S4/S5 端点（30 paths，含 3 个 S4/S5 端点、5 个 Run 端点）。
+- TypeScript 类型已从 OpenAPI 重新生成。
+- Webpack 生产构建成功。
+
+### 22.2 S6-b 前端页面完整性检查
+
+- i18n 键对齐：en-US 与 zh-Hans 各 302 键，无缺失。
+- i18n 使用：237 个引用键全部存在于翻译文件。
+- 路由覆盖：40 个页面文件，18 个路由（createUlooRoutes 生成）全覆盖。
+- 语法检查：32 个组件通过 TypeScript 语法检查。
+- 测试：24/24 通过（修复 4 个预存 bug 后）。
+
+### 22.3 S6-c 文档更新
+
+- README.md：当前状态已更新（S1–S5 代码完成验收门待验证、S6 进行中、测试基线 Core 224/前端 24）。
+- TODO.md：S1–S5 优先补代码勾选、S6 已完成项勾选、回归基线与执行记录已更新。
+- docs/STAGE_STATUS.md：当前位置表已更新（Stage 2/3 标为已完成，新增产品阶段 S0–S7 行），验证证据已更新（224/38/24），新增本节。
+
+### 22.4 遗留
+
+- S6 剩余产品级验收项：登录后浏览器自动化验收、真实外网检索核查、不同材质/规格/单位比较、核验触发补查、覆盖正常/条件缺失/无结果/陈旧来源/工具失败/超时/修改目标、清理临时数据。
+- SSE、取消、重启恢复已实现；Studio 插件和跨 Agent Memory 仍未完成。
+- S7 可复现发布待开始。

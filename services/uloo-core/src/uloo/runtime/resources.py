@@ -7,8 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.resource import ResourceDefinition
 from ..schemas.resource import SearchConfig
+from .dify_tools import dify_tool
+from .mcp_adapter import MCPToolAdapter
 from .models import RuntimeConfigurationError
-from .tools import ToolRegistry
+from .tools import AgnoTool, ToolRegistry
 from .web_search import web_search
 
 BUILTIN_SEARCH = {
@@ -48,10 +50,27 @@ def configured_search(item):
 
 
 class ResourceRegistry(ToolRegistry):
-    def __init__(self, tools, skills):
-        super().__init__({item["key"]: configured_search(item) for item in tools if item["enabled"]})
+    def __init__(self, tools, skills, workspace_id=None):
+        super().__init__(self._build_tool_map(tools, workspace_id))
         self.skills = {item["key"]: item for item in skills}
         self.snapshot = {"tools": tools, "skills": skills}
+
+    @staticmethod
+    def _build_tool_map(tools: list[dict], workspace_id=None) -> dict[str, AgnoTool]:
+        """Map each enabled tool resource key to its Agno-compatible callable."""
+        mcp_adapter = MCPToolAdapter()
+        registry: dict[str, AgnoTool] = {}
+        for item in tools:
+            if not item["enabled"]:
+                continue
+            tool_type = item["config"].get("tool_type", "builtin")
+            if tool_type == "builtin":
+                registry[item["key"]] = configured_search(item)
+            elif tool_type in ("mcp_sse", "mcp_stdio"):
+                registry[item["key"]] = mcp_adapter.create_tool(item["config"])
+            elif tool_type == "dify":
+                registry[item["key"]] = dify_tool(item, str(workspace_id))
+        return registry
 
     def skill_config(self, refs):
         instructions, tools = [], []
@@ -66,4 +85,6 @@ class ResourceRegistry(ToolRegistry):
 
 
 async def load_resources(db, workspace_id):
-    return ResourceRegistry(await definitions(db, workspace_id, "tools"), await definitions(db, workspace_id, "skills"))
+    return ResourceRegistry(
+        await definitions(db, workspace_id, "tools"), await definitions(db, workspace_id, "skills"), workspace_id
+    )
