@@ -8,12 +8,12 @@ from uloo.runtime.models import ModelRegistry, RuntimeConfigurationError
 
 
 def _settings(**overrides) -> Settings:
-    defaults = dict(
-        _env_file=None,
-        model_providers={"deepseek": "http://localhost:3000/v1"},
-        model_provider_api_keys={"deepseek": "sk-test"},
-        model_provider_aliases={"langgenius/deepseek/deepseek": "deepseek"},
-    )
+    defaults = {
+        "_env_file": None,
+        "model_providers": {"deepseek": "http://localhost:3000/v1"},
+        "model_provider_api_keys": {"deepseek": "sk-test"},
+        "model_provider_aliases": {"langgenius/deepseek/deepseek": "deepseek"},
+    }
     defaults.update(overrides)
     return Settings(**defaults)
 

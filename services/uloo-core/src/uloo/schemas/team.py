@@ -19,6 +19,14 @@ class ReviewPolicy(BaseModel):
     max_rounds: int = Field(default=3, ge=1, le=10, description="Maximum review/rework cycles before escalation")
     require_unanimous: bool = Field(default=False, description="If true, all reviewers must approve")
     criteria: list[str] = Field(default_factory=list, max_length=20, description="Review criteria checklist")
+    # P0/S3-5: When True, the first insufficient review round pauses the run
+    # (status=awaiting_input) for a human supplement via POST /runs/{id}/continue
+    # instead of auto-reworking. The supplement is merged into the next round's
+    # prompt so the team actually receives the human clarification.
+    require_human_input: bool = Field(
+        default=False,
+        description="If true, pause for human supplement after the first failed review round",
+    )
 
 
 class CompletionConditions(BaseModel):

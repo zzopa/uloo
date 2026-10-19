@@ -3,12 +3,9 @@ AI生成
 
 Unified Logic Orchestration & Operations：以 Dify 源码作为唯一可视化产品壳，以 Agno 作为唯一多 Agent 协同运行时，以 ULOO Core 管理 Agent、Team、Run、Event 与跨 Agent Memory。
 
-当前状态：S0 已完成；S1–S5 已有主要实现，阶段验收门待真实 Dify 环境验证；S6 场景与质量验收进行中。历史基线曾有 224 项测试通过，当前增量仍有静态检查和后台 Run 执行问题，准确进度以 TODO 未勾选项为准。Agent 定义与调试、Team 创建/编辑/校验、
-任务规划与审批、真实 Agno Team 执行、持久 Run/Event 和成员结果已接通。DeepSeek-V3.1 的单 Agent
-与三种 Team 模式已有真实模型接口验收。正式 Teams 与 Run 页面读取后端数据。Dify 原生工具、技能库、
-工具管理与互联网搜索已集成。S6-a 自动化验证通过（Core 224 项、前端 24 项测试、契约与迁移一致、
-构建成功）；S6-b 前端完整性检查通过（i18n 302 键对齐、40 页面 18 路由全覆盖、32 组件语法通过）。
-SSE 实时事件、取消/重试/恢复、工具摘要持久化已实现；Studio 插件和跨 Agent Memory 仍未完成，当前尚不是完整可交付产品。
+当前状态（2026-10-15）：任务默认直接执行，另可选择先规划，在执行前编辑团队、步骤、负责人、依赖和预期产物。修改保存为新计划版本，执行校验版本并保留快照。直接执行由一次服务端请求完成计划准备和 Run 启动，页面切换不会漏启动。两条入口均通过正式登录浏览器和真实 DeepSeek 验收，编辑后的交付要求进入最终结果。Core 249 项、Dify 集成 38 项、前端 29 项测试通过，Ruff/mypy 和一次性数据库迁移升降级通过。此前单 Agent 和三种 Team 模式亦已通过真实接口验收。
+
+这次验收任务为计算与独立核验，尚未完成木板价格调研的来源质量、补查与条件补充验收。S1–S5 各阶段仍有未完成项；SSE 的断线/并发验证、跨 Agent Memory 与 Studio 插件仍需完成。完整前端类型检查仍受 Dify 原有 `app/components` 路由类型错误阻断，不能以生产构建成功代替类型检查。以 TODO 未勾选项为当前缺口。
 
 实施与接口定义见 [docs/ULOO_V2_IMPLEMENTATION_PLAN.md](docs/ULOO_V2_IMPLEMENTATION_PLAN.md)，
 产品闭环路线见 [docs/ULOO_PRODUCT_COMPLETION_PLAN.md](docs/ULOO_PRODUCT_COMPLETION_PLAN.md)。
@@ -28,15 +25,14 @@ git -C vendor/dify apply ../../patches/dify-uloo.patch
 补丁包含 Dify API/BFF、生成契约、Web 路由、ULOO 页面、国际化与图片资源。基线和校验值记录在
 `vendor/DIFY_VERSION`；补丁已在该文件记录的本地基线快照上执行 `git apply --check`。
 
-基础设施（PostgreSQL 5432、Redis 6379、plugin daemon 5002/5003）由
-`deploy/compose.dev.yaml` 或你本机已有实例提供；下面的脚本只负责三个从源码运行的进程。
+基础设施使用本机已有的 PostgreSQL/Redis 容器和 `deploy/compose.dev.yaml`
+中的 plugin daemon。下面的脚本会启动缺失的已知容器，再启动三个源码进程。
 
 PostgreSQL 和 Redis 都跑在容器里，所以 **Docker Desktop 必须先处于运行状态**：daemon 不在时
 ULOO Core 与 Dify API 仍会启动成功，却让每次查询都失败，看起来像应用 bug。`dev-up.ps1`
-会在启动前探测 daemon，不可用就直接报错退出并给出指引。
+会在启动前探测 daemon；Docker 可用时自动启动停止的依赖并等待健康检查。
 
 ```powershell
-docker compose -f deploy/compose.dev.yaml up -d plugin_daemon # 首次启动插件服务
 pwsh -File scripts/dev-up.ps1      # 启动并等待健康检查
 pwsh -File scripts/dev-down.ps1    # 停止本项目的服务
 ```

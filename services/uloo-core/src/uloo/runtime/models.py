@@ -50,7 +50,7 @@ class ModelRegistry:
         # Runtime aliases take priority, then .env aliases
         from ..api.models import get_runtime_aliases
 
-        runtime_aliases = get_runtime_aliases(self._workspace_id)
+        runtime_aliases = get_runtime_aliases(self._workspace_id) if self._workspace_id is not None else {}
         if provider in runtime_aliases:
             return runtime_aliases[provider]
         return self._settings.model_provider_aliases.get(provider, provider)
@@ -64,7 +64,7 @@ class ModelRegistry:
         from ..api.models import get_runtime_config
 
         # 1. Runtime sync (Dify workspace) – scoped by workspace_id
-        runtime = get_runtime_config(self._workspace_id)
+        runtime = get_runtime_config(self._workspace_id) if self._workspace_id is not None else {}
         if provider in runtime:
             base_url, api_key, _model_ids = runtime[provider]
             if api_key and api_key.get_secret_value():
@@ -110,11 +110,11 @@ class ModelRegistry:
         """Return configured provider names without exposing URLs or credentials."""
         from ..api.models import get_runtime_config
 
-        refs = set(
+        refs = {
             provider
             for provider in self._settings.model_providers
             if provider in self._settings.model_provider_api_keys
-        )
+        }
         # Only include runtime-synced providers when we have a workspace context.
         # Without workspace_id, runtime config keys are workspace IDs, not providers.
         if self._workspace_id is not None:

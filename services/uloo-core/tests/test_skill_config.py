@@ -2,6 +2,8 @@
 """Tests for the enhanced SkillConfig schema (S2: 智能体岗位与技能)."""
 
 import pytest
+from pydantic import ValidationError
+
 from uloo.schemas.resource import SkillConfig
 
 
@@ -45,7 +47,7 @@ class TestSkillConfigEnhanced:
 
     def test_extra_fields_rejected(self):
         """No arbitrary fields allowed — closed schema."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             SkillConfig(
                 instructions=["test"],
                 unknown_field="should fail",
@@ -53,7 +55,7 @@ class TestSkillConfigEnhanced:
 
     def test_steps_max_length_enforced(self):
         """At most 20 work steps."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             SkillConfig(
                 instructions=["test"],
                 steps=[f"Step {i}" for i in range(21)],
@@ -61,7 +63,7 @@ class TestSkillConfigEnhanced:
 
     def test_quality_checks_max_length_enforced(self):
         """At most 20 quality checks."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             SkillConfig(
                 instructions=["test"],
                 quality_checks=[f"Check {i}" for i in range(21)],
@@ -69,7 +71,7 @@ class TestSkillConfigEnhanced:
 
     def test_scenarios_max_length_enforced(self):
         """Scenarios description capped at 2000 chars."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             SkillConfig(
                 instructions=["test"],
                 scenarios="x" * 2001,
@@ -77,7 +79,7 @@ class TestSkillConfigEnhanced:
 
     def test_result_format_max_length_enforced(self):
         """Result format capped at 2000 chars."""
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             SkillConfig(
                 instructions=["test"],
                 result_format="x" * 2001,

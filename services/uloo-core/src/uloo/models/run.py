@@ -10,7 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..db import Base
 
-RUN_STATUSES = ("running", "succeeded", "failed", "cancelled")
+RUN_STATUSES = ("running", "awaiting_input", "succeeded", "failed", "cancelled")
 
 
 class Run(Base):

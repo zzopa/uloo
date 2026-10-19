@@ -5,11 +5,71 @@ S5-补1: Execution ownership and duplicate start protection are verified
 via the existing duplicate-start test case and the in-memory _active_runs set.
 """
 
+import asyncio
 import json
+
+import pytest
 
 from uloo.runtime.execution import AgentExecutionResult
 
 from .test_tasks import create_enabled_team, create_task
+
+
+@pytest.mark.parametrize('cancel', [False, True])
+async def test_background_start_returns_before_execution_and_persists_terminal_state(
+    client, monkeypatch, background_session, cancel,
+):
+    from uloo.api.runs import _active_runs
+
+    task, team = await prepare_approved_task(client, monkeypatch)
+    started = asyncio.Event()
+    finish = asyncio.Event()
+    interrupted = asyncio.Event()
+
+    async def execute(_team, _prompt, *, timeout_seconds):
+        started.set()
+        try:
+            await finish.wait()
+        except asyncio.CancelledError:
+            interrupted.set()
+            raise
+        return AgentExecutionResult(
+            run_id='background-team', output={'content': 'verified result [1]'}, usage={'total_tokens': 20},
+            member_results=[{
+                'agent_id': team['member_agent_ids'][0], 'name': 'Member', 'run_id': 'background-member',
+                'output': {'content': 'verified result [1]'}, 'usage': {'total_tokens': 10},
+            }],
+        )
+
+    monkeypatch.setattr('uloo.api.runs.build_team', lambda *args, **kwargs: object())
+    monkeypatch.setattr('uloo.api.runs.execute_agent', execute)
+    response = await asyncio.wait_for(client.post(f"/api/v1/tasks/{task['id']}/runs?wait=false", json={}), 3)
+    assert response.status_code == 202, response.text
+    run_id = response.json()['id']
+    owned = _active_runs[run_id]
+    try:
+        await asyncio.wait_for(started.wait(), 3)
+        assert response.json()['status'] == 'running'
+        duplicate = await client.post(f"/api/v1/tasks/{task['id']}/runs?wait=false", json={})
+        assert duplicate.status_code == 409
+        if cancel:
+            cancelled = await client.post(f'/api/v1/runs/{run_id}/cancel')
+            assert cancelled.status_code == 200, cancelled.text
+            assert interrupted.is_set()
+        else:
+            finish.set()
+            await asyncio.wait_for(owned, 3)
+        saved = (await client.get(f'/api/v1/runs/{run_id}')).json()
+        assert saved['status'] == ('cancelled' if cancel else 'succeeded')
+        assert saved['events'][-1]['event_type'] == ('run.cancelled' if cancel else 'run.completed')
+        assert run_id not in _active_runs
+        if not cancel:
+            assert saved['output'] == {'content': 'verified result [1]'}
+    finally:
+        finish.set()
+        if not owned.done():
+            owned.cancel()
+        await asyncio.gather(owned, return_exceptions=True)
 
 
 async def prepare_approved_task(client, monkeypatch) -> tuple[dict, dict]:
@@ -381,6 +441,186 @@ async def test_retry_failed_run(client, monkeypatch):
     assert original_after["status"] == "failed"
 
 
+async def test_retry_blocks_write_replay_without_confirmation(client, monkeypatch):
+    """S5-补2/idempotency: retry of a run whose team binds a write-effect tool
+    or Dify workflow must be blocked unless the caller confirms the replay risk.
+
+    The default test team binds no tools (read-only), so the gate only fires
+    when an agent has non-empty ``workflow_refs`` or a dify/mcp tool is bound.
+    """
+    import uuid as _uuid
+
+    # Build a team whose only agent has workflow_refs (Dify workflow = write effect).
+    agent_resp = await client.post(
+        "/api/v1/agents",
+        json={
+            "key": f"wf-agent-{_uuid.uuid4().hex[:8]}",
+            "name": "Workflow Agent",
+            "role": "writer",
+            "model_ref": "openai-compatible:test-model",
+            "workflow_refs": ["dify-app-submit-001"],
+            "enabled": True,
+        },
+    )
+    assert agent_resp.status_code == 201, agent_resp.text
+    wf_agent = agent_resp.json()
+    team_resp = await client.post(
+        "/api/v1/teams",
+        json={
+            "key": f"wf-team-{_uuid.uuid4().hex[:8]}",
+            "name": "Workflow Team",
+            "mode": "coordinate",
+            "leader_agent_id": wf_agent["id"],
+            "member_agent_ids": [wf_agent["id"]],
+            "enabled": True,
+        },
+    )
+    assert team_resp.status_code == 201, team_resp.text
+    wf_team = team_resp.json()
+
+    task = await create_task(client, team_id=wf_team["id"])
+
+    async def fake_plan(_agent, _prompt, *, timeout_seconds):
+        return AgentExecutionResult(
+            run_id="planner-run",
+            output={
+                "summary": "提交一次工作流",
+                "recommended_team_id": wf_team["id"],
+                "steps": [
+                    {
+                        "id": "step-1",
+                        "title": "调用工作流",
+                        "assigned_agent_id": wf_agent["id"],
+                        "expected_output": "已提交",
+                    }
+                ],
+            },
+            usage=None,
+        )
+
+    monkeypatch.setattr("uloo.api.tasks.build_planner_agent", lambda: object())
+    monkeypatch.setattr("uloo.api.tasks.execute_agent", fake_plan)
+    planned = await client.post(f"/api/v1/tasks/{task['id']}/plan", json={})
+    assert planned.status_code == 201, planned.text
+    approved = await client.post(f"/api/v1/tasks/{task['id']}/approve")
+    assert approved.status_code == 200, approved.text
+
+    async def failing_team_run(_team, _prompt, *, timeout_seconds):
+        raise TimeoutError()
+
+    monkeypatch.setattr("uloo.api.runs.build_team", lambda definition, members, **kwargs: object())
+    monkeypatch.setattr("uloo.api.runs.execute_agent", failing_team_run)
+    response = await client.post(f"/api/v1/tasks/{task['id']}/runs", json={})
+    assert response.status_code == 504
+    original_run_id = response.json()["details"]["run_id"]
+
+    # Retry without confirming write replay -> 409 WRITE_REPLAY_NOT_CONFIRMED.
+    blocked = await client.post(f"/api/v1/runs/{original_run_id}/retry", json={})
+    assert blocked.status_code == 409, blocked.text
+    body = blocked.json()
+    assert body["code"] == "WRITE_REPLAY_NOT_CONFIRMED"
+    assert body["details"]["workflow_agents"] == [wf_agent["key"]]
+    assert body["details"]["write_tool_keys"] == []
+
+    # The original run is untouched (still failed), no new run was created.
+    original = (await client.get(f"/api/v1/runs/{original_run_id}")).json()
+    assert original["status"] == "failed"
+
+
+async def test_retry_proceeds_with_write_replay_confirmation(client, monkeypatch):
+    """S5-补2/idempotency: with ``confirm_write_replay=true`` the retry is allowed
+    and the new run executes as expected (caller took responsibility for replays)."""
+    import uuid as _uuid
+
+    agent_resp = await client.post(
+        "/api/v1/agents",
+        json={
+            "key": f"wf-agent-ok-{_uuid.uuid4().hex[:8]}",
+            "name": "Workflow Agent OK",
+            "role": "writer",
+            "model_ref": "openai-compatible:test-model",
+            "workflow_refs": ["dify-app-submit-002"],
+            "enabled": True,
+        },
+    )
+    wf_agent = agent_resp.json()
+    team_resp = await client.post(
+        "/api/v1/teams",
+        json={
+            "key": f"wf-team-ok-{_uuid.uuid4().hex[:8]}",
+            "name": "Workflow Team OK",
+            "mode": "coordinate",
+            "leader_agent_id": wf_agent["id"],
+            "member_agent_ids": [wf_agent["id"]],
+            "enabled": True,
+        },
+    )
+    wf_team = team_resp.json()
+    task = await create_task(client, team_id=wf_team["id"])
+
+    async def fake_plan(_agent, _prompt, *, timeout_seconds):
+        return AgentExecutionResult(
+            run_id="planner-run",
+            output={
+                "summary": "提交一次工作流",
+                "recommended_team_id": wf_team["id"],
+                "steps": [
+                    {
+                        "id": "step-1",
+                        "title": "调用工作流",
+                        "assigned_agent_id": wf_agent["id"],
+                        "expected_output": "已提交",
+                    }
+                ],
+            },
+            usage=None,
+        )
+
+    monkeypatch.setattr("uloo.api.tasks.build_planner_agent", lambda: object())
+    monkeypatch.setattr("uloo.api.tasks.execute_agent", fake_plan)
+    await client.post(f"/api/v1/tasks/{task['id']}/plan", json={})
+    await client.post(f"/api/v1/tasks/{task['id']}/approve")
+
+    call_count = 0
+
+    async def fake_team_run(_team, _prompt, *, timeout_seconds):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise TimeoutError()
+        return AgentExecutionResult(
+            run_id="agno-team-run-ok",
+            output={"content": "retry ok"},
+            usage={"total_tokens": 20},
+            member_results=[
+                {
+                    "agent_id": wf_agent["id"],
+                    "name": "Workflow Agent OK",
+                    "run_id": "member-run-ok",
+                    "output": {"content": "ok"},
+                    "usage": {"total_tokens": 10},
+                }
+            ],
+        )
+
+    monkeypatch.setattr("uloo.api.runs.build_team", lambda definition, members, **kwargs: object())
+    monkeypatch.setattr("uloo.api.runs.execute_agent", fake_team_run)
+    response = await client.post(f"/api/v1/tasks/{task['id']}/runs", json={})
+    assert response.status_code == 504
+    original_run_id = response.json()["details"]["run_id"]
+
+    # Retry with confirmation -> succeeds.
+    retry_resp = await client.post(
+        f"/api/v1/runs/{original_run_id}/retry",
+        json={"confirm_write_replay": True},
+    )
+    assert retry_resp.status_code == 201, retry_resp.text
+    retry_run = retry_resp.json()
+    assert retry_run["status"] == "succeeded"
+    assert retry_run["output"]["content"] == "retry ok"
+    assert retry_run["configuration_snapshot"]["retried_from"] == original_run_id
+
+
 async def test_retry_non_failed_run_rejected(client, monkeypatch):
     """S5-补2: Retry is only allowed for failed or cancelled runs."""
     task, team = await prepare_approved_task(client, monkeypatch)
@@ -448,8 +688,10 @@ async def test_continue_non_running_run_rejected(client, monkeypatch):
 async def test_cleanup_leftover_runs(client, db_session, monkeypatch):
     """S5-补2: cleanup_leftover_runs marks running runs as failed on startup."""
     import uuid as _uuid
+
     from sqlalchemy import select
-    from uloo.api.runs import cleanup_leftover_runs, _active_runs
+
+    from uloo.api.runs import _active_runs, cleanup_leftover_runs
     from uloo.models.run import Run
 
     task, team = await prepare_approved_task(client, monkeypatch)
@@ -652,6 +894,6 @@ async def test_retry_persists_intermediate_events(client, monkeypatch):
 
     event_types = [e["event_type"] for e in retry_run["events"]]
     assert event_types == ["run.started", "tool.summary", "agent.completed", "run.completed"]
-    tool_event = [e for e in retry_run["events"] if e["event_type"] == "tool.summary"][0]
+    tool_event = next(e for e in retry_run["events"] if e["event_type"] == "tool.summary")
     assert tool_event["payload"]["tool_name"] == "search"
     assert tool_event["payload"]["round"] == "initial"

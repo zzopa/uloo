@@ -5,10 +5,11 @@ Allows the BFF to push Dify workspace model provider credentials to Core
 at runtime, eliminating the need for .env configuration (S1-3).
 """
 
+from typing import overload
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field, SecretStr
 
-from ..runtime.models import ModelRegistry, RuntimeConfigurationError
 from ..security import RequestContext, require_service_context
 
 router = APIRouter(prefix="/models", tags=["models"])
@@ -45,6 +46,14 @@ _runtime_config: dict[str, dict[str, tuple[str, SecretStr, list[str]]]] = {}
 _runtime_aliases: dict[str, dict[str, str]] = {}
 
 
+@overload
+def get_runtime_config(workspace_id: None = None) -> dict[str, dict[str, tuple[str, SecretStr, list[str]]]]: ...
+
+
+@overload
+def get_runtime_config(workspace_id: str) -> dict[str, tuple[str, SecretStr, list[str]]]: ...
+
+
 def get_runtime_config(
     workspace_id: str | None = None,
 ) -> dict[str, tuple[str, SecretStr, list[str]]] | dict[str, dict[str, tuple[str, SecretStr, list[str]]]]:
@@ -56,6 +65,14 @@ def get_runtime_config(
     if workspace_id is None:
         return _runtime_config
     return _runtime_config.setdefault(workspace_id, {})
+
+
+@overload
+def get_runtime_aliases(workspace_id: None = None) -> dict[str, dict[str, str]]: ...
+
+
+@overload
+def get_runtime_aliases(workspace_id: str) -> dict[str, str]: ...
 
 
 def get_runtime_aliases(

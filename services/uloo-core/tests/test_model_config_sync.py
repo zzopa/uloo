@@ -17,12 +17,12 @@ _OTHER_WS = "20000000-0000-0000-0000-000000000002"
 
 
 def _settings_with_env(**overrides) -> Settings:
-    defaults = dict(
-        _env_file=None,
-        model_providers={"deepseek": "http://localhost:3000/v1"},
-        model_provider_api_keys={"deepseek": "sk-env-key"},
-        model_provider_aliases={"langgenius/deepseek/deepseek": "deepseek"},
-    )
+    defaults = {
+        "_env_file": None,
+        "model_providers": {"deepseek": "http://localhost:3000/v1"},
+        "model_provider_api_keys": {"deepseek": "sk-env-key"},
+        "model_provider_aliases": {"langgenius/deepseek/deepseek": "deepseek"},
+    }
     defaults.update(overrides)
     return Settings(**defaults)
 
@@ -43,7 +43,7 @@ class TestRuntimeConfigSync:
 
     def test_runtime_config_overrides_env(self):
         """Runtime-synced config should take priority over .env."""
-        from uloo.api.models import get_runtime_config, get_runtime_aliases
+        from uloo.api.models import get_runtime_config
 
         get_runtime_config().clear()
         get_runtime_config(_TEST_WS)["deepseek"] = (
@@ -63,7 +63,7 @@ class TestRuntimeConfigSync:
 
     def test_runtime_config_with_dify_alias(self):
         """Runtime aliases should resolve Dify provider IDs."""
-        from uloo.api.models import get_runtime_config, get_runtime_aliases
+        from uloo.api.models import get_runtime_aliases, get_runtime_config
 
         get_runtime_config().clear()
         get_runtime_aliases().clear()
@@ -217,7 +217,7 @@ class TestModelConfigSyncEndpoint:
 
     @pytest.fixture(autouse=True)
     def _clear_runtime(self):
-        from uloo.api.models import get_runtime_config, get_runtime_aliases
+        from uloo.api.models import get_runtime_aliases, get_runtime_config
 
         get_runtime_config().clear()
         get_runtime_aliases().clear()
@@ -227,8 +227,9 @@ class TestModelConfigSyncEndpoint:
 
     def test_sync_endpoint_accepts_config(self):
         from fastapi.testclient import TestClient
-        from uloo.main import app
+
         from uloo.config import settings
+        from uloo.main import app
 
         client = TestClient(app)
         resp = client.put(
@@ -270,8 +271,9 @@ class TestModelConfigSyncEndpoint:
     def test_sync_endpoint_isolates_by_workspace(self):
         """Config synced for one workspace must not be visible to another."""
         from fastapi.testclient import TestClient
-        from uloo.main import app
+
         from uloo.config import settings
+        from uloo.main import app
 
         client = TestClient(app)
         # Sync config for _TEST_WS

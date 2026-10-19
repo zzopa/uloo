@@ -3,8 +3,6 @@
 
 import uuid
 
-import pytest
-
 from uloo.config import Settings
 from uloo.models.agent import AgentDefinition
 from uloo.runtime.factory import validate_agent_runtime_config
@@ -43,7 +41,7 @@ class TestWorkflowToolCreation:
     def test_workflow_refs_with_workspace_creates_tools(self):
         """Workflow refs + workspace_id → tools are created, no error raised."""
         definition = _agent_with_workflows(["wf-001", "wf-002"])
-        model, tools = validate_agent_runtime_config(
+        _model, tools = validate_agent_runtime_config(
             definition,
             models=_configured_models(),
             workspace_id="ws-123",
@@ -54,7 +52,7 @@ class TestWorkflowToolCreation:
     def test_workflow_refs_without_workspace_skips_tool_creation(self):
         """Workflow refs but no workspace_id → no tools created, no error raised."""
         definition = _agent_with_workflows(["wf-001"])
-        model, tools = validate_agent_runtime_config(
+        _model, tools = validate_agent_runtime_config(
             definition,
             models=_configured_models(),
         )
@@ -64,7 +62,7 @@ class TestWorkflowToolCreation:
     def test_empty_workflow_refs_creates_no_tools(self):
         """Empty workflow_refs → no workflow tools, no error."""
         definition = _agent_with_workflows([])
-        model, tools = validate_agent_runtime_config(
+        _model, tools = validate_agent_runtime_config(
             definition,
             models=_configured_models(),
             workspace_id="ws-123",
@@ -88,7 +86,7 @@ class TestWorkflowToolCreation:
             enabled=True,
             version=1,
         )
-        model, tools = validate_agent_runtime_config(
+        _model, tools = validate_agent_runtime_config(
             definition,
             models=_configured_models(),
             workspace_id="ws-123",

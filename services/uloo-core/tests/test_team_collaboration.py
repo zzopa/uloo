@@ -4,14 +4,14 @@
 import uuid
 
 import pytest
+
 from uloo.schemas.team import (
-    ReviewPolicy,
     CompletionConditions,
-    TeamLimits,
+    ReviewPolicy,
     TeamCreate,
+    TeamLimits,
     TeamUpdate,
 )
-
 
 VALID_AGENT_1 = uuid.uuid4()
 VALID_AGENT_2 = uuid.uuid4()

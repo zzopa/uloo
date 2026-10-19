@@ -4,7 +4,7 @@
 import json
 import uuid
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,7 +19,9 @@ from ..models.team import TeamDefinition
 from ..runtime import build_planner_agent, execute_agent
 from ..runtime.models import RuntimeConfigurationError
 from ..runtime.resources import load_resources
+from ..schemas.run import RunCreate, RunDetailResponse
 from ..schemas.task import (
+    PreCheckIssue,
     TaskCreate,
     TaskDetailResponse,
     TaskDirectExecuteRequest,
@@ -28,12 +30,13 @@ from ..schemas.task import (
     TaskPlanDraft,
     TaskPlanRequest,
     TaskPlanResponse,
+    TaskPlanUpdate,
     TaskPreCheckResponse,
-    PreCheckIssue,
-    TaskSupplementRequest,
     TaskResponse,
+    TaskSupplementRequest,
 )
 from ..security import RequestContext, require_service_context
+from .runs import start_task_run
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 logger = get_logger(__name__)
@@ -143,6 +146,7 @@ async def plan_task(
     task = await _get_task_or_404(task_id, context.workspace_id, db)
     if task.status in {"running", "succeeded", "cancelled"}:
         raise ApiError(409, "INVALID_TASK_STATE", f"Task in status '{task.status}' cannot be replanned")
+    base_version = await db.scalar(select(func.max(TaskPlan.version)).where(TaskPlan.task_id == task.id)) or 0
 
     team_filters = [
         TeamDefinition.workspace_id == context.workspace_id,
@@ -227,7 +231,10 @@ async def plan_task(
     if invalid_agents:
         raise ApiError(502, "MODEL_ERROR", "Planner assigned Agents outside the selected team", details=invalid_agents)
 
-    latest_version = await db.scalar(select(func.max(TaskPlan.version)).where(TaskPlan.task_id == task.id))
+    task = await _get_task_or_404(task_id, context.workspace_id, db, for_update=True)
+    latest_version = await db.scalar(select(func.max(TaskPlan.version)).where(TaskPlan.task_id == task.id)) or 0
+    if task.status in {"running", "succeeded", "cancelled"} or latest_version != base_version:
+        raise ApiError(409, "VERSION_CONFLICT", "Task changed during planning; reload it before saving another plan")
     plan = TaskPlan(
         task_id=task.id,
         version=(latest_version or 0) + 1,
@@ -248,6 +255,57 @@ async def plan_task(
     task.status = "awaiting_approval"
     await db.flush()
     logger.info("task_plan_created", task_id=str(task.id), plan_id=str(plan.id), version=plan.version)
+    return TaskPlanResponse.model_validate(plan.to_dict())
+
+
+@router.patch("/{task_id}/plan", response_model=TaskPlanResponse)
+async def update_task_plan(
+    task_id: uuid.UUID,
+    body: TaskPlanUpdate,
+    context: RequestContext = Depends(require_service_context),
+    db: AsyncSession = transaction_session,
+):
+    """Save reviewed steps as a new immutable plan version."""
+    task = await _get_task_or_404(task_id, context.workspace_id, db, for_update=True)
+    if task.status in {"running", "succeeded", "cancelled"}:
+        raise ApiError(409, "INVALID_TASK_STATE", "An active or completed execution plan cannot be edited")
+    if task.current_plan_version != body.expected_version:
+        raise ApiError(409, "VERSION_CONFLICT", "Plan changed; reload it before saving")
+    previous = await db.scalar(select(TaskPlan).where(
+        TaskPlan.task_id == task.id, TaskPlan.version == body.expected_version,
+    ))
+    if previous is None:
+        raise ApiError(409, "PLAN_NOT_FOUND", "Generate a plan before editing it")
+    try:
+        team_id = uuid.UUID(body.recommended_team_id)
+    except ValueError as exc:
+        raise ApiError(422, "VALIDATION_ERROR", "recommended_team_id must be a UUID") from exc
+    team = await db.scalar(select(TeamDefinition).where(
+        TeamDefinition.id == team_id, TeamDefinition.workspace_id == context.workspace_id,
+        TeamDefinition.enabled == True, TeamDefinition.deleted_at.is_(None),
+    ))
+    if team is None:
+        raise ApiError(404, "TEAM_NOT_FOUND", "The selected team is missing or disabled in this workspace")
+    rows = await db.execute(select(AgentDefinition.id).where(
+        AgentDefinition.id.in_([member.agent_id for member in team.members]),
+        AgentDefinition.workspace_id == context.workspace_id,
+        AgentDefinition.enabled == True, AgentDefinition.deleted_at.is_(None),
+    ))
+    allowed = {str(agent_id) for agent_id in rows.scalars().all()}
+    for step in body.steps:
+        if step.assigned_agent_id not in allowed and not (team.mode == "route" and step.assigned_agent_id is None):
+            raise ApiError(422, "INVALID_PLAN_ASSIGNMENT", "Every step must use an enabled member of the selected team")
+    plan = TaskPlan(
+        task_id=task.id, version=previous.version + 1, summary=body.summary,
+        assumptions=body.assumptions, questions=body.questions, recommended_team_id=team.id,
+        steps=[{**step.model_dump(mode="json"), "status": "pending"} for step in body.steps],
+        approval_status="pending", runtime_type="agno", is_mock=False,
+    )
+    db.add(plan)
+    task.team_id = team.id
+    task.current_plan_version = plan.version
+    task.status = "awaiting_approval"
+    await db.flush()
     return TaskPlanResponse.model_validate(plan.to_dict())
 
 
@@ -384,36 +442,55 @@ async def supplement_task(
     )
 
 
-@router.post("/{task_id}/execute", response_model=TaskDetailResponse)
+@router.post("/{task_id}/execute", response_model=RunDetailResponse, status_code=status.HTTP_202_ACCEPTED)
 async def direct_execute_task(
+    task_id: uuid.UUID,
+    response: Response,
+    body: TaskDirectExecuteRequest | None = None,
+    context: RequestContext = Depends(require_service_context),
+    db: AsyncSession = transaction_session,
+):
+    """Prepare and start a background run in the same server request."""
+    prepared = await _prepare_task_execution(task_id, body=body, context=context, db=db)
+    return await start_task_run(
+        task_id, response=response, body=RunCreate(expected_plan_version=prepared.current_plan_version),
+        wait=False, context=context, db=db,
+    )
+
+
+async def _prepare_task_execution(
     task_id: uuid.UUID,
     body: TaskDirectExecuteRequest | None = None,
     context: RequestContext = Depends(require_service_context),
     db: AsyncSession = transaction_session,
 ):
-    """Create a minimal plan, auto-approve it, and mark the task ready for direct execution.
-
-    This bypasses the full Planner run for simple tasks. The frontend can then
-    call POST /tasks/{task_id}/runs to start execution.
-    """
+    """Prepare the team's plan without a manual confirmation stop."""
     task = await _get_task_or_404(task_id, context.workspace_id, db)
     if task.status in {"running", "succeeded", "cancelled"}:
         raise ApiError(409, "INVALID_TASK_STATE", f"Task in status '{task.status}' cannot be executed")
+    if body and body.expected_plan_version is not None and task.current_plan_version != body.expected_plan_version:
+        raise ApiError(409, "VERSION_CONFLICT", "Plan changed; reload it before executing")
 
-    # If a plan already exists and is approved, just return
-    if task.status == "awaiting_approval":
-        plans_result = await db.execute(
-            select(TaskPlan).where(TaskPlan.task_id == task.id).order_by(TaskPlan.version.desc())
-        )
-        latest_plan = plans_result.scalars().first()
-        if latest_plan and latest_plan.approval_status == "approved":
-            plans = await db.execute(
-                select(TaskPlan).where(TaskPlan.task_id == task.id).order_by(TaskPlan.version.asc())
-            )
-            return TaskDetailResponse(
-                **task.to_dict(),
-                plans=[TaskPlanResponse.model_validate(p.to_dict()) for p in plans.scalars().all()],
-            )
+    existing = await db.scalar(select(TaskPlan).where(
+        TaskPlan.task_id == task.id, TaskPlan.version == task.current_plan_version,
+    ))
+    if existing is None and not (task.team_id or (body and body.team_id)):
+        await plan_task(task_id, body=None, context=context, db=db)
+    task = await _get_task_or_404(task_id, context.workspace_id, db, for_update=True)
+    if task.status in {"running", "succeeded", "cancelled"}:
+        raise ApiError(409, "INVALID_TASK_STATE", "Task is no longer available for execution")
+    if body and body.expected_plan_version is not None and task.current_plan_version != body.expected_plan_version:
+        raise ApiError(409, "VERSION_CONFLICT", "Plan changed; reload it before executing")
+    existing = await db.scalar(select(TaskPlan).where(
+        TaskPlan.task_id == task.id, TaskPlan.version == task.current_plan_version,
+    ))
+    if existing:
+        if body and body.team_id and body.team_id != str(existing.recommended_team_id):
+            raise ApiError(409, "VERSION_CONFLICT", "Change the team in the plan editor before executing")
+        existing.approval_status = "approved"
+        task.status = "awaiting_approval"
+        await db.flush()
+        return await get_task(task_id, context=context, db=db)
 
     # Find a team
     team_filters = [
@@ -435,7 +512,7 @@ async def direct_execute_task(
     if not team:
         raise ApiError(409, "TEAM_NOT_FOUND", "No enabled team available for direct execution")
 
-    # Get first agent from team for the minimal plan
+    # Keep the team's membership order in the visible responsibility list.
     member_ids = [m.agent_id for m in team.members]
     agents_result = await db.execute(
         select(AgentDefinition).where(
@@ -445,11 +522,25 @@ async def direct_execute_task(
             AgentDefinition.enabled == True,
         )
     )
-    agents = list(agents_result.scalars().all())
-    if not agents:
-        raise ApiError(409, "INVALID_TEAM_CONFIGURATION", "Team has no enabled agents")
+    agent_by_id = {agent.id: agent for agent in agents_result.scalars().all()}
+    agents = [agent_by_id[agent_id] for agent_id in member_ids if agent_id in agent_by_id]
+    if not agents or len(agents) != len(member_ids):
+        raise ApiError(409, "INVALID_TEAM_CONFIGURATION", "All team members must exist and be enabled")
 
-    # Create a minimal single-step plan
+    steps: list[dict[str, object]] = [
+        {
+            "id": f"member-{index + 1}",
+            "title": f"{agent.name}: {agent.role}"[:256],
+            "description": task.query[:2000],
+            "assigned_agent_id": str(agent.id),
+            "depends_on": [],
+            "expected_output": agent.role,
+            "status": "pending",
+        }
+        for index, agent in enumerate(agents)
+    ]
+    if team.mode == "route":
+        steps = [{**steps[0], "title": task.title[:256], "assigned_agent_id": None, "expected_output": "Task result"}]
     latest_version = await db.scalar(select(func.max(TaskPlan.version)).where(TaskPlan.task_id == task.id))
     plan = TaskPlan(
         task_id=task.id,
@@ -458,17 +549,7 @@ async def direct_execute_task(
         assumptions=[],
         questions=[],
         recommended_team_id=team.id,
-        steps=[
-            {
-                "id": "direct-execute",
-                "title": "Execute task directly",
-                "description": task.query,
-                "assigned_agent_id": str(agents[0].id),
-                "depends_on": [],
-                "expected_output": "Task result",
-                "status": "pending",
-            }
-        ],
+        steps=steps,
         approval_status="approved",
         runtime_type="agno",
         is_mock=False,
@@ -479,6 +560,7 @@ async def direct_execute_task(
     task.status = "awaiting_approval"
     await db.flush()
     logger.info("task_direct_execute_plan", task_id=str(task.id), plan_id=str(plan.id))
+    await db.refresh(task)
 
     plans = await db.execute(select(TaskPlan).where(TaskPlan.task_id == task.id).order_by(TaskPlan.version.asc()))
     return TaskDetailResponse(
@@ -548,7 +630,7 @@ async def export_task(
     if runs:
         lines.append("## Runs\n")
         for run in runs:
-            lines.append(f"### Run {run.id[:8]}...")
+            lines.append(f"### Run {str(run.id)[:8]}...")
             lines.append(f"- **Status:** {run.status}")
             lines.append(f"- **Created:** {run.created_at}")
             if run.output:
@@ -568,8 +650,12 @@ async def _get_task_or_404(
     task_id: uuid.UUID,
     workspace_id: uuid.UUID,
     db: AsyncSession,
+    *,
+    for_update: bool = False,
 ) -> Task:
     stmt = select(Task).where(Task.id == task_id, Task.workspace_id == workspace_id)
+    if for_update:
+        stmt = stmt.with_for_update().execution_options(populate_existing=True)
     result = await db.execute(stmt)
     task = result.scalar_one_or_none()
     if not task:

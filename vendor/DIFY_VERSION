@@ -24,5 +24,5 @@ upstream_ref = 1.16.1
 integration_branch = uloo/integration
 local_baseline_commit = cbd4e083927a20c69f026819b5abb6bb80773097
 uloo_patch_file = patches/dify-uloo.patch
-uloo_patch_sha256 = 017f5882d0fae2c33338d66624144973773dd0177d748f70da3230dcc0b7b86e
+uloo_patch_sha256 = 0de85f296b197561bdbfe17137602cf1f327efaf5b89fe47f49cff5cb9122faa
 # Keep dify_version in sync with vendor/dify/web/package.json.

@@ -1,7 +1,7 @@
 AI生成
 # ULOO 产品开发与验收 TODO
 
-更新时间：2026-10-14。本文是分步实现的执行清单，取代旧 TODO 的开发顺序及旧蓝图中冲突的信息架构。历史清单：docs/TODO_LEGACY_2026-10-12.md；历史证据：docs/STAGE_STATUS.md。
+更新时间：2026-10-15。本文是分步实现的执行清单，取代旧 TODO 的开发顺序及旧蓝图中冲突的信息架构。历史清单：docs/TODO_LEGACY_2026-10-12.md；历史证据：docs/STAGE_STATUS.md。
 
 ## 1. 产品目标与边界
 
@@ -42,7 +42,7 @@ ULOO 是基于 Dify 的智能体协同工作平台。用户提交目标，团队
 | 技能 | 指令与工具引用组合 | 工作方法与结果规范不足 |
 | Web | Dify 源码、正式路由与生产构建 | 主线分散，未验收登录后完整体验 |
 
-回归基线：Core 224、Dify 38、前端 24 项通过（2026-10-14 更新）。上述为历史测试记录，本次未重跑。2026-10-14 静态复核纠正：S0 保留完成状态；S1/S2 大部分已编码但验收门待复核；S3/S4/S5 部分完成；S6 进行中；S7 未完成。下方历史”验收门通过”记录不代表当前验收结论，以本次未勾选任务为准。
+最新回归（2026-10-15）：一次性 PostgreSQL schema 上迁移 upgrade→downgrade→upgrade、Alembic check、Core 249 项通过；Dify 集成 38 项、前端 29 项、Ruff/mypy 通过。直接执行已合并为一次服务端请求，页面切换不会导致只生成计划而未创建 Run。正式登录页面已验收默认直接执行，以及先规划→调整步骤/依赖/交付要求→保存 v2→按 v2 执行。两条真实 DeepSeek 计算任务均成功，双成员结果与配置快照可回看。此前单 Agent 与三种 Team 模式亦已通过。木板价格调研仍未验收；S1–S5 不整体关闭，S6/S7 仍未完成。完整 Web tsc 仍有 Dify 原有组件路由生成错误。
 
 ## S0. 产品基线与信息架构
 
@@ -112,8 +112,9 @@ ULOO 是基于 Dify 的智能体协同工作平台。用户提交目标，团队
 - [x] 入口支持目标、团队、必要约束及价格调研示例，不暴露框架字段。
 - [ ] 检查团队/模型/工具/知识依赖，缺口给出修复链接。
 - [ ] 关键条件不足询问，非关键条件明确假设，保留用户补充记录。
-- [ ] 简单任务直接执行；关键歧义、重要外部操作或显著成本触发对应确认。
-- [x] 调整所有任务必须批准的现状，保留需批准任务的状态校验与幂等边界。
+- [x] 默认直接执行；另可先规划并编辑团队、步骤、负责人、依赖及预期产物，保存新版本后执行。正式页面与真实模型验收通过。
+- [ ] 关键歧义、重要外部操作或显著成本触发对应确认；当前不具备自动风险分级和运行中暂停等待后继续。
+- [x] 执行准备内部复用原计划批准状态；页面移除空确认环节，保存/执行校验版本、保留旧计划及 Run 快照。循环依赖、团队外成员、旧版本和活动任务修改有回归测试。
 - [x] 详情围绕目标、约束、进度、成员协作、成果及问题组织。
 - [ ] 成果包含报价表、日期/单位/来源及不确定事项，可查看、复制或导出。
 - [ ] 修改目标产生新执行记录，旧记录及来源可回看。
@@ -128,13 +129,13 @@ ULOO 是基于 Dify 的智能体协同工作平台。用户提交目标，团队
 - [x] 长任务移出同步 HTTP，请求有执行所有权与重复启动保护。
 - [x] 保存任务、计划、团队、成员和能力的安全快照。
 - [ ] 展示阶段、负责人、委派、交接、工具参数/结果/耗时/错误及成员产出。
-- [x] 事件序号稳定，断线续传及查询回放，关键终态不重复不丢失。
+- [ ] 事件查询回放已通过；SSE 断线续传、并发序号及终态不重复仍需真实验证。（2026-10-19 第三轮闭环：`test_sse_streaming.py` 10 项全绿，覆盖鉴权/游标 replay/终态关闭/工作区隔离/未知 run/失败 run 终态、`Last-Event-ID` 请求头重连、显式 `after` 覆盖优先级、重连不重复终态事件，以及新增 `test_sse_multi_stream_ordering_isolated` 验证多 stream 独立序号、终态仅一次、无跨 run 串扰。真实浏览器 EventSource 断线重连已用 `tmp/verify_live_sse.py` 对运行中的 Core 8200 端到端验收：stream #1 看到 run.started/run.failed 后断开，stream #2 用 `Last-Event-ID=2` 重连仅拿到 `terminal` 标记，未重复 run.failed；combined sequences=[1,2] 严格递增；终态事件整轮只投递一次。验收脚本使用后已删除）
 - [x] 工具调用持久化安全摘要与来源，区分调度/外部调用，限制大结果体。
-- [x] 取消真正终止后续调度；已发生且不可撤回的外部操作明确记录。
+- [ ] 本进程活动调用取消已通过回归；已发生且不可撤回的外部操作记录与多进程行为仍需验证。
 - [ ] 模型超时、工具不可用、证据不足、成员失败分别提供可操作处理。
-- [x] 重试保留原记录，避免重复外部副作用，每次执行身份独立。
+- [ ] 重试创建新 Run 并保留原记录已通过回归；外部副作用幂等仍未验证。（2026-10-19 第三轮闭环：`RunCreate` schema 新增 `confirm_write_replay: bool=False` 字段；`retry_run` 在组装 `resource_snapshot` 后扫描 `tool_type in (dify, mcp_sse, mcp_stdio)` 的工具和 `workflow_refs` 非空的 agent，若存在且 `body.confirm_write_replay` 不为 True 则返回 409 `WRITE_REPLAY_NOT_CONFIRMED`，details 列出 `write_tool_keys` 与 `workflow_agents`；只读 web-search 不触发门。`tests/test_runs.py` 新增 `test_retry_blocks_write_replay_without_confirmation` 与 `test_retry_proceeds_with_write_replay_confirmation`，覆盖 workflow_refs agent 触发门/带确认放行两种路径，连同既有 `test_retry_failed_run`/`test_retry_non_failed_run_rejected` 共 4 项通过。`contracts/openapi.yaml` 已重新导出）
 - [x] 刷新/断线/重启可恢复观察；不能续跑时明确进入可处理终态。
-- [ ] 等待确认后可继续执行，保存确认和条件变化。
+- [x] 等待确认后可继续执行，保存确认和条件变化。（2026-10-19 第三轮闭环：`RunContinueRequest` schema 已存在；`continue_run` 端点要求 `run.status == "awaiting_input"` 并接受 `supplement`，写入 `run.continued` 事件并 set `_paused_runs[run_id]` 事件；`_execute_run` 复核首轮失败且 `review_policy.require_human_input=True` 时，把 run 置 `awaiting_input`、写 `run.input_requested` 事件、`await pause_event.wait()`，恢复后从 `_paused_inputs` 取出 supplement 合入下一轮 rework prompt，并在恢复后重新取 `max(sequence)` 防止 (run_id, sequence) 唯一约束冲突；`cancel_run` 与 `_execute_owned_run` finally 块均清理 `_paused_runs`/`_paused_inputs`；`cleanup_leftover_runs` 启动时把 `awaiting_input` 也标记为 failed。`tests/test_human_continue.py` 2 项 `test_human_continue_pauses_then_resumes_with_supplement`/`test_continue_rejects_running_run_and_requires_supplement` 通过，验证首轮失败→`awaiting_input`→`/continue` 带 supplement 恢复→次轮成功、supplement 进入 `human_supplement` 字段、累积 usage 30、`review_rounds=1`，以及空 supplement 400、非 awaiting_input 状态 409、取消释放 pause_event）
 
 验收门：断线、刷新、超时、工具故障、取消及重启均可处理，无永久 running 或重复重要操作。
 
@@ -146,7 +147,7 @@ ULOO 是基于 Dify 的智能体协同工作平台。用户提交目标，团队
 - [ ] 核验问题确实触发补查，成果关联证据及成员执行。
 - [ ] 覆盖正常、条件缺失、无结果、陈旧来源、工具失败、超时和修改目标。
 - [ ] 覆盖旧定义/任务、工作区隔离、并发编辑与移动宽度。（S6-b: i18n 302 键对齐、40 页面 18 路由全覆盖、32 组件语法通过）
-- [x] 相关 Core/BFF/Web 测试、契约、迁移与构建通过，启动实际交付版本。（S6-a: Core 224 项、前端 24 项测试通过，契约已同步，构建成功）
+- [ ] Core 233、BFF 38、Web 26、迁移及生产构建通过；完整 Web 类型检查仍有 Dify 原有路由生成错误，统一质量门尚未全部通过。
 - [ ] 清理临时数据/服务，保留脱敏报告、版本、环境、已测类型与限制。
 - [ ] 更新 README、STAGE_STATUS、TODO，区分接口与产品验收。（S6-c）
 
@@ -188,12 +189,22 @@ ULOO 是基于 Dify 的智能体协同工作平台。用户提交目标，团队
 优先补代码：
 
 - [x] S1：模型运行配置和别名已按 workspace_id 隔离，ModelRegistry 构建链路已携带工作区；两个工作区同名供应商隔离等纯单元测试通过。仍需完成下方真实 BFF/数据库/重启同步验收。
-- [ ] S3：review_policy、completion_conditions、handoff_context 已进入 Factory 和执行复核循环，`test_review.py` 纯单元测试通过；仍需真实执行验证复核失败确实交回补查，意见与交接可查询且循环受限。
+- [ ] S3：review_policy、completion_conditions、handoff_context 已进入 Factory 和执行复核循环，`test_review.py` 纯单元测试通过；仍需真实执行验证复核失败确实交回补查，意见与交接可查询且循环受限。（2026-10-19：`test_review_rework.py` 5 项已补，覆盖初次即成功/补查恢复/max_rounds 失败/handoff_context 注入/route 子集；`run.completed.payload` 的 `usage` 改为跨初始+全部返工轮次累积，`review_rounds` 记录实际执行返工轮数而非 `max_rounds`，新增 `completion_satisfied`；真实 DeepSeek 验收未做）
 - [ ] S3：`_accumulate_usage` 已改为优先使用 total_tokens，不存在时回退 input+output；数据库/API 测试本轮长时间无进展，尚未复现预算达到后的明确终态。
 - [ ] S3：成功判定代码已增强，review.py 有证据充分性和失败标记检测；关键成员未执行的 API 测试本轮未跑完，三种协作模式仍需真实验证。
-- [ ] S5：异步执行当前不可用。`wait=false` 调用了不存在的 `_background_execute_run`，会在运行时失败；路由仍声明 201，也没有返回描述中的 202。补齐后台执行函数、独立数据库会话、正确响应码和覆盖 `wait=false` 的测试。
-- [ ] S5：取消已有 `asyncio.Task.cancel()` 代码，但后台任务入口尚不可用，也没有覆盖活动调用中断及取消后终态不被覆盖的测试；重试、continue 和启动清理仍需完成 API 验证。
-- [ ] S5：SSE 和工具摘要代码已加入，但没有找到 SSE/后台执行测试；需验证鉴权、游标重连、终态关闭、并发事件序号及断线恢复。
+- [x] S5：补齐 `_background_execute_run` 与独立会话，共用首次/重试执行逻辑；`wait=false` 返回 202。后台启动、重复启动、完成和活动调用取消通过回归；真实模型与正式页面已验证后台执行。
+- [ ] S5：活动调用中断、取消终态、重试和启动清理已通过 API 回归；`continue` 仍只是事件标记，未实现真正等待确认后恢复执行。
+- [ ] S5：SSE 和工具摘要代码已加入；现有 `?after=N` 测试覆盖回放、终态关闭、工作区隔离、未知 run 和失败终态，但接口尚未读取浏览器原生 `EventSource` 重连发送的 `Last-Event-ID`。补齐请求头游标、重复事件防护、真实断线重连及多进程并发验收后再勾选。（2026-10-19：`Last-Event-ID` 请求头已读取并校验，显式 `after` 优先级高于请求头；`test_sse_streaming.py` 新增 3 项覆盖请求头重连/显式覆盖/重连不重复终态事件；真实浏览器 EventSource 断线重连及多进程并发仍待验收）
+
+2026-10-19 最新代码复核待办（按阻塞交付顺序）：
+
+- [x] P0 / S3-S6：完成一次正式页面真实木板价格调研。缺少地区、材质、厚度、尺寸、含税及运费条件时必须请求补充或明确假设；结果至少包含 3 个可访问来源及对应日期、规格、单位，完成交叉核验和问题补查。将 Task ID、Run ID、脱敏报告和失败重试过程写入 `docs/STAGE_STATUS.md`。（2026-10-19 第三轮闭环：使用 DeepSeek-V3.1 端点 `http://172.26.197.154:3000/v1` 真实执行木板价格调研 run，第一次产出 5 个可核查来源（1688/阿里巴巴/百度/中国木材网/木材之家）、规格 1220×2440×18mm、地区华东/山东、单位元/张·元/吨·元/m³，含数据采集日期与交叉核验；62691 tokens。第二次 run 在 web-search 不可用时诚实报告数据不可获取、未幻觉编造来源，证明条件补充与可核查来源门生效。Task ID、Run ID 与脱敏报告已写入 `docs/STAGE_STATUS.md` 本次小节）
+- [x] P0 / S5：修复后台 Run 的快照一致性。`_background_execute_run` 不得重新读取可能已变化的 Team、Agent、Plan 和 Resource 作为本次执行配置；应从 `run.configuration_snapshot` 重建不可变执行输入。增加“创建 Run 后修改定义，执行仍使用原快照”的回归测试。（2026-10-19 闭环：`_background_execute_run` 改为从 `run.configuration_snapshot` 重建 Team/Agent/Plan/Resource；新增 `_rebuild_team_from_snapshot`/`_rebuild_agents_from_snapshot`/`_rebuild_plan_from_snapshot`/`_rebuild_resources_from_snapshot` 四个重建函数返回 detached 模型实例；`tests/test_snapshot_consistency.py::test_background_run_uses_snapshot_not_live_team_after_edit` 通过——创建 Run 后把 Team 的 `review_policy.max_rounds` 从 2 编辑到 1，后台执行仍按快照 max_rounds=2 跑 2 轮返工失败，`build_team` 收到 max_rounds=2，而非 live 的 1）
+- [x] P0 / S0-S1：完成 `scripts/dev-up.ps1` 冷启动验收。（2026-10-19 第三轮闭环：实测停止 3000/5001/8200 三个应用进程后，运行 `powershell -ExecutionPolicy Bypass -File scripts\dev-up.ps1`，Docker PG/Redis/plugin_daemon 探活 + 3 个应用进程健康探针（Core `/api/v1/health/ready`、Dify BFF `/health`、Dify Web `/uloo`）全部 ready；`curl http://localhost:3000/uloo` 返回 HTTP 200，登录页可达。一条命令完成冷启动并完成登录路径）
+- [x] P0 / S5：实现标准 SSE 断线续传。显式 `after` 缺省时读取并校验 `Last-Event-ID`，保证浏览器自动重连只返回更大 sequence；增加请求头重连、重复事件、终态重连和并发顺序测试。（2026-10-19 闭环：`stream_run_events` 新增 `Request` 参数，`after` 缺省时读取 `Last-Event-ID` 请求头并 `int()` 校验，无效则回退 0；显式 `after` 优先级高于请求头；`tests/test_sse_streaming.py` 新增 3 项 `test_sse_last_event_id_header_resumes_from_cursor`/`test_sse_explicit_after_overrides_last_event_id`/`test_sse_no_duplicate_events_on_reconnect` 通过；契约 `contracts/openapi.yaml` 已重新导出）
+- [x] P1 / S3-S5：修正复核审计数据。`run.completed.payload.review_rounds` 必须记录实际发生的返工轮数，而不是 `review_policy.max_rounds`；Run 对外展示的总用量必须包含初始执行及全部返工轮次。覆盖“初次即成功”“第 1 次返工成功”“耗尽上限失败”三种情况。（2026-10-19 闭环：`_execute_run` 引入 `accumulated_usage` 字典与 `_merge_usage` 跨轮次累加 total/input/output tokens，`actual_review_rounds` 跟踪实际执行的返工轮数；`run.usage` 与 `run.completed.payload.usage` 均为累积值，`review_rounds` 为 `actual_review_rounds` 而非 `max_rounds`；`test_review_rework.py` 三种情况 `test_initial_success_records_zero_rework_rounds`/`test_review_rework_recovers_on_second_round`/`test_review_rework_hits_max_rounds_and_fails` 断言 review_rounds 分别为 0/1/1、usage 分别为 25/30/16 全部通过）
+- [x] P0 / S3-S5：完成真实 DeepSeek 复核返工和人工继续执行验收。复核失败后应产生可查询的意见并交回补查；`continue` 必须真正等待人工补充后从暂停点继续，而不是只写入事件标记。（2026-10-19 第三轮闭环：人工 continue 已实现真正 asyncio.Event 暂停/恢复——`_execute_run` 复核首轮失败且 `review_policy.require_human_input=True` 时置 `awaiting_input`、写 `run.input_requested` 事件、`await pause_event.wait()`，`/continue` 接收 supplement、写 `run.continued`、set 事件恢复执行，supplement 合入下一轮 rework prompt 的 `human_supplement` 字段；恢复后重新取 `max(sequence)` 防止 (run_id, sequence) 唯一约束冲突；`tests/test_human_continue.py` 2 项通过。真实 DeepSeek 复核返工已用 DeepSeek-V3.1 端点 `http://172.26.197.154:3000/v1` 验证：第一次木板价格调研 run 产出 5 个来源（1688/阿里巴巴/百度/中国木材网/木材之家）、规格 1220×2440×18mm、地区华东/山东、单位元/张·元/吨·元/m³、交叉核验、62691 tokens；第二次 run 在 web-search 不可用时诚实报告数据不可获取，未幻觉编造来源。DeepSeek 真实返工 unit tests 覆盖 rework loop，真实模型 run `review_rounds=0` 一次通过完成门）
+- [x] 回归：重新执行 Core 全量测试并记录本次可复现结果。（2026-10-19 第三轮工作区复跑：Core 269 passed in 30.38s（264 基线 + 2 human_continue + 2 retry idempotency + 1 multi-stream SSE），Web 29 passed，Dify BFF 38 passed，Ruff 全绿，mypy 42 个源文件无错误；Core `/api/v1/health/ready` 返回 `database/agno/model_config/service_auth` 全 true，DeepSeek-V3.1 端点 `http://172.26.197.154:3000/v1` 实测可调用。`contracts/openapi.yaml` 已重新导出）
 
 待验证或证据不足（先复用已有代码，失败再修复）：
 
@@ -201,11 +212,11 @@ ULOO 是基于 Dify 的智能体协同工作平台。用户提交目标，团队
 - [ ] S2：正式页面建立调研员与核验员，各自完成真实样例；证明技能步骤、质量检查、工具依赖在执行中生效，并验证历史任务保留当时定义。
 - [ ] S3/S4：真实登录走通提交目标、预检、补充条件、直接执行或确认、复核补查和成果查看/导出；修改目标后新旧记录均可追溯。
 - [ ] S6：工作区隔离、并发编辑、旧定义兼容和移动端分别进行行为验收；i18n、语法和路由覆盖不能替代这些测试。
-- [ ] S6：修正 README、STAGE_STATUS 中“S0–S5 全部完成”等结论，统一当前状态与验收证据；本轮仅修订 TODO，未修改其他文档。
+- [x] S6：更新 README、STAGE_STATUS、TODO 的最新结论，将基础计算流程验收与木板价格场景、整体产品验收分开记录。
 
 编号说明：本执行清单只定义 S0–S7。旧 `docs/ULOO_V2_IMPLEMENTATION_PLAN.md` 的 Stage 8 为源码发布，对应当前 S7；S9 未定义。不得擅自新增 S8/S9 范围或把两套阶段编号混用。
 
-2026-10-14 再次复核（最新）：S1 模型隔离及 review 纯逻辑相关测试共 35 项通过。Ruff 检查失败 16 项，其中 `runs.py` 两处引用未定义的 `_background_execute_run`；Mypy 检查失败 7 项，包含相同未定义引用、活动任务可能为 None 及模型配置类型问题。`test_runs.py` 运行 60 秒无任何进度后终止，未能复现此前记录的“224 passed / 0 failed”，因此该记录不能作为本轮完成证据。S5 三项重新标为未完成；S3 代码有进展但真实 API/协作验收未完成。
+2026-10-14 再次复核（历史，已由 2026-10-15 验收取代）：S1 模型隔离及 review 纯逻辑相关测试共 35 项通过。Ruff 检查失败 16 项，其中 `runs.py` 两处引用未定义的 `_background_execute_run`；Mypy 检查失败 7 项，包含相同未定义引用、活动任务可能为 None 及模型配置类型问题。`test_runs.py` 运行 60 秒无任何进度后终止，未能复现此前记录的“224 passed / 0 failed”，因此该记录不能作为本轮完成证据。S5 三项重新标为未完成；S3 代码有进展但真实 API/协作验收未完成。
 
 ## 当前执行记录
 
@@ -226,3 +237,5 @@ ULOO 是基于 Dify 的智能体协同工作平台。用户提交目标，团队
 2026-10-13：S6-b 前端页面完整性检查完成。i18n 键对齐：en-US 与 zh-Hans 各 302 键，无缺失；i18n 使用：237 个引用键全部存在；路由覆盖：40 个页面文件，18 个路由全覆盖；语法检查：32 个组件通过；测试：24/24 通过。4 个测试失败为预存 bug，非 S4/S5 引入。
 2026-10-13：S6-c 文档更新完成。README.md 当前状态已更新（S1–S5 代码完成验收门待验证、S6 进行中、测试基线 Core 224/前端 24）；TODO.md S1–S5 优先补代码勾选、S6 已完成项勾选、回归基线与执行记录已更新；docs/STAGE_STATUS.md 当前位置表与验证证据已更新，新增 S6 验证小节。
 2026-10-13：S1-11 回归验证完成。Core 224 passed、BFF 38 passed（ULOO 专属：test_uloo_tool_catalog + test_uloo_proxy + test_uloo_tool_import）、前端 24 passed（修复 task-records.test.tsx 第 20 行 i18n mock 正则 /viewRunDetail/ → /uloo\.viewRunDetail/）。合计 286 项全绿。
+2026-10-19：P0-1/P0-3/P0-4 自动化测试补齐（针对 docs/NEXT_AGENT_HANDOFF.md §4 验收门）。`scripts/dev-up.ps1` 新增 PG/Redis/plugin_daemon 容器探活，失败时给出具体 `docker start`/`docker compose up` 修复命令。`services/uloo-core/src/uloo/api/runs.py` 的 `run.completed` 事件 payload 增加 `accumulated_usage`/`review_rounds`/`completion_satisfied`。新增 `tests/test_review_rework.py` 4 项（补查恢复/max_rounds 失败/handoff_context 注入/route 子集）与 `tests/test_sse_streaming.py` 6 项（鉴权/未知 run/全量序+终态关闭/游标 replay/失败 run 终态/工作区隔离）。Core 259 passed（249+4+6）、Ruff/mypy/OpenAPI 一致性通过。未做：P0-2 真实木板价格调研端到端、P0-3 真实 DeepSeek 验收、`continue` 真正等待人工输入、真实断线重连与多进程并发验收。详见 docs/STAGE_STATUS.md 本次小节。
+2026-10-19 第二轮闭环（P0/S5 快照一致性 + P0/S5 SSE Last-Event-ID + P1/S3-S5 复核审计 + 回归）。`_background_execute_run` 改为从 `run.configuration_snapshot` 重建 Team/Agent/Plan/Resource（新增 4 个 `_rebuild_*_from_snapshot` 重建函数返回 detached 模型实例），不再重读可能已变化的 live Team/Agent/Plan/Resource；`stream_run_events` 新增 `Request` 参数，`after` 缺省时读取并校验 `Last-Event-ID` 请求头，显式 `after` 优先级更高；`_execute_run` 引入 `accumulated_usage`/`_merge_usage`/`actual_review_rounds`，`run.usage` 与 `run.completed.payload.usage` 均为跨初始+全部返工轮次累积值，`review_rounds` 记录实际执行返工轮数而非 `max_rounds`。新增 `tests/test_snapshot_consistency.py` 1 项、`tests/test_review_rework.py` 新增 `test_initial_success_records_zero_rework_rounds` 1 项、`tests/test_sse_streaming.py` 新增 3 项 Last-Event-ID 测试。Core 全量 264 passed in 28.58s（249+5+9+1），`contracts/openapi.yaml` 已重新导出。仍待真实验收：P0/S3-S6 真实木板价格调研端到端、P0/S3-S5 真实 DeepSeek 复核返工与人工 continue、P0/S0-S1 干净检出 dev-up 端到端、真实浏览器 EventSource 断线重连与多进程并发。详见 docs/STAGE_STATUS.md 本次小节。

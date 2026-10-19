@@ -16,6 +16,7 @@ run repeatedly against the same database without leaking rows.
 """
 
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -37,10 +38,32 @@ settings.model_providers = {"openai-compatible": "https://models.example.test/v1
 settings.model_provider_api_keys = {"openai-compatible": SecretStr("server-secret")}
 
 
+@pytest.fixture
+def background_session(db_session, monkeypatch):
+    @asynccontextmanager
+    async def session_factory():
+        yield db_session
+
+    monkeypatch.setattr('uloo.api.runs.async_session_factory', session_factory)
+
+
+@pytest.fixture(autouse=True)
+def isolate_model_environment(monkeypatch):
+    """Unit fixtures must not merge real provider credentials from the host."""
+    for name in (
+        "ULOO_MODEL_PROVIDERS", "ULOO_MODEL_PROVIDER_API_KEYS", "ULOO_MODEL_PROVIDER_ALIASES", "ULOO_MODEL_CATALOG",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
 @pytest.fixture(scope="session")
 async def engine():
     """Session-scoped engine; verifies the migrated schema once per run."""
-    eng = create_async_engine(settings.database_url, poolclass=NullPool)
+    eng = create_async_engine(
+        settings.database_url,
+        connect_args={"server_settings": {"search_path": settings.db_schema}},
+        poolclass=NullPool,
+    )
 
     try:
         async with eng.connect() as conn:

@@ -94,10 +94,10 @@ index 34869760f20b938fd499600bad43c46e3f561e55..3b91699514f6694803e54d25d2526f0f
      "workflow",
 diff --git a/api/controllers/console/uloo_agents.py b/api/controllers/console/uloo_agents.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..6a064b788d506c2401986cb7cdc38eca1994fc39
+index 0000000000000000000000000000000000000000..8f764b4f2be2ca6493f738eac4cba2a29b8e2e36
 --- /dev/null
 +++ b/api/controllers/console/uloo_agents.py
-@@ -0,0 +1,218 @@
+@@ -0,0 +1,221 @@
 +"""Typed Console endpoints for managing ULOO Agent definitions."""
 +
 +from datetime import datetime
@@ -139,6 +139,7 @@ index 0000000000000000000000000000000000000000..6a064b788d506c2401986cb7cdc38eca
 +    tool_refs: list[str] = Field(default_factory=list)
 +    skill_refs: list[str] = Field(default_factory=list)
 +    knowledge_refs: list[str] = Field(default_factory=list)
++    workflow_refs: list[str] = Field(default_factory=list)
 +    output_schema: dict[str, Any] | None = None
 +    enabled: bool = True
 +
@@ -152,6 +153,7 @@ index 0000000000000000000000000000000000000000..6a064b788d506c2401986cb7cdc38eca
 +    tool_refs: list[str] | None = None
 +    skill_refs: list[str] | None = None
 +    knowledge_refs: list[str] | None = None
++    workflow_refs: list[str] | None = None
 +    output_schema: dict[str, Any] | None = None
 +    enabled: bool | None = None
 +    expected_version: int = Field(ge=1)
@@ -168,6 +170,7 @@ index 0000000000000000000000000000000000000000..6a064b788d506c2401986cb7cdc38eca
 +    tool_refs: list[str]
 +    skill_refs: list[str]
 +    knowledge_refs: list[str]
++    workflow_refs: list[str] = Field(default_factory=list)
 +    output_schema: dict[str, Any] | None = None
 +    enabled: bool
 +    version: int
@@ -715,18 +718,20 @@ index 0000000000000000000000000000000000000000..fef629fc7e9e540e68f8df08389c6036
 +    )
 diff --git a/api/controllers/console/uloo_runs.py b/api/controllers/console/uloo_runs.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..24e6e4e6b4f0d88f0fc594b51d73705649305af5
+index 0000000000000000000000000000000000000000..1281d2db8c276944c0d9467512428daf4b493cee
 --- /dev/null
 +++ b/api/controllers/console/uloo_runs.py
-@@ -0,0 +1,177 @@
+@@ -0,0 +1,254 @@
 +"""Typed Console endpoints for ULOO plan approval and durable Team Runs."""
 +
 +from datetime import datetime
 +from typing import Any
 +from uuid import UUID
 +
++from fields.base import ResponseModel
 +from flask import Response
 +from flask_restx import Resource
++from libs.login import current_account_with_tenant, login_required
 +from pydantic import BaseModel, Field
 +
 +from controllers.common.schema import (
@@ -734,8 +739,6 @@ index 0000000000000000000000000000000000000000..24e6e4e6b4f0d88f0fc594b51d737056
 +    register_response_schema_models,
 +    register_schema_models,
 +)
-+from fields.base import ResponseModel
-+from libs.login import current_account_with_tenant, login_required
 +
 +from . import console_ns
 +from .uloo_proxy import _proxy_request
@@ -744,6 +747,15 @@ index 0000000000000000000000000000000000000000..24e6e4e6b4f0d88f0fc594b51d737056
 +
 +class UlooRunCreatePayload(BaseModel):
 +    input: str | None = Field(default=None, min_length=1, max_length=100_000)
++    expected_plan_version: int | None = Field(default=None, ge=1)
++
++
++class UlooPlanApprovalPayload(BaseModel):
++    expected_version: int | None = Field(default=None, ge=1)
++
++
++class UlooRunStartQuery(BaseModel):
++    wait: bool = True
 +
 +
 +class UlooRunListQuery(BaseModel):
@@ -787,6 +799,7 @@ index 0000000000000000000000000000000000000000..24e6e4e6b4f0d88f0fc594b51d737056
 +    is_mock: bool
 +    agno_run_id: str | None = None
 +    input_text: str
++    configuration_snapshot: dict[str, Any] | None = None
 +    output: dict[str, Any] | None = None
 +    usage: dict[str, int] | None = None
 +    error_code: str | None = None
@@ -816,7 +829,14 @@ index 0000000000000000000000000000000000000000..24e6e4e6b4f0d88f0fc594b51d737056
 +    details: Any | None = None
 +
 +
-+register_schema_models(console_ns, UlooRunCreatePayload, UlooRunListQuery, UlooRunEventQuery)
++register_schema_models(
++    console_ns,
++    UlooRunCreatePayload,
++    UlooPlanApprovalPayload,
++    UlooRunStartQuery,
++    UlooRunListQuery,
++    UlooRunEventQuery,
++)
 +register_response_schema_models(
 +    console_ns,
 +    UlooPlanApprovalResponse,
@@ -836,8 +856,13 @@ index 0000000000000000000000000000000000000000..24e6e4e6b4f0d88f0fc594b51d737056
 +@console_ns.route("/uloo/tasks/<uuid:task_id>/approve")
 +class UlooTaskApproveApi(Resource):
 +    @console_ns.doc("approve_uloo_task_plan", params={"task_id": "Task ID"})
-+    @console_ns.response(200, "Plan approved", console_ns.models[UlooPlanApprovalResponse.__name__])
-+    @console_ns.response(409, "Plan cannot be approved", console_ns.models[UlooRunErrorResponse.__name__])
++    @console_ns.expect(console_ns.models[UlooPlanApprovalPayload.__name__])
++    @console_ns.response(
++        200, "Plan approved", console_ns.models[UlooPlanApprovalResponse.__name__]
++    )
++    @console_ns.response(
++        409, "Plan cannot be approved", console_ns.models[UlooRunErrorResponse.__name__]
++    )
 +    @setup_required
 +    @login_required
 +    @account_initialization_required
@@ -848,11 +873,23 @@ index 0000000000000000000000000000000000000000..24e6e4e6b4f0d88f0fc594b51d737056
 +
 +@console_ns.route("/uloo/tasks/<uuid:task_id>/runs")
 +class UlooTaskRunsApi(Resource):
-+    @console_ns.doc("start_uloo_task_run", params={"task_id": "Task ID"})
++    @console_ns.doc(
++        "start_uloo_task_run",
++        params={"task_id": "Task ID", **query_params_from_model(UlooRunStartQuery)},
++    )
 +    @console_ns.expect(console_ns.models[UlooRunCreatePayload.__name__])
-+    @console_ns.response(201, "Run completed", console_ns.models[UlooRunDetailResponse.__name__])
-+    @console_ns.response(409, "Plan approval required", console_ns.models[UlooRunErrorResponse.__name__])
-+    @console_ns.response(503, "Runtime unavailable", console_ns.models[UlooRunErrorResponse.__name__])
++    @console_ns.response(
++        201, "Run completed", console_ns.models[UlooRunDetailResponse.__name__]
++    )
++    @console_ns.response(
++        202, "Run started", console_ns.models[UlooRunDetailResponse.__name__]
++    )
++    @console_ns.response(
++        409, "Plan approval required", console_ns.models[UlooRunErrorResponse.__name__]
++    )
++    @console_ns.response(
++        503, "Runtime unavailable", console_ns.models[UlooRunErrorResponse.__name__]
++    )
 +    @setup_required
 +    @login_required
 +    @account_initialization_required
@@ -861,10 +898,45 @@ index 0000000000000000000000000000000000000000..24e6e4e6b4f0d88f0fc594b51d737056
 +        return _proxy_request(f"tasks/{task_id}/runs", _current_tenant_id())
 +
 +
++@console_ns.route("/uloo/runs/<uuid:run_id>/retry")
++class UlooRunRetryApi(Resource):
++    @console_ns.doc(
++        "retry_uloo_run",
++        params={"run_id": "Run ID", **query_params_from_model(UlooRunStartQuery)},
++    )
++    @console_ns.expect(console_ns.models[UlooRunCreatePayload.__name__])
++    @console_ns.response(
++        201, "Run completed", console_ns.models[UlooRunDetailResponse.__name__]
++    )
++    @console_ns.response(
++        202, "Run started", console_ns.models[UlooRunDetailResponse.__name__]
++    )
++    @setup_required
++    @login_required
++    @account_initialization_required
++    def post(self, run_id: UUID) -> Response:
++        return _proxy_request(f"runs/{run_id}/retry", _current_tenant_id())
++
++
++@console_ns.route("/uloo/runs/<uuid:run_id>/cancel")
++class UlooRunCancelApi(Resource):
++    @console_ns.doc("cancel_uloo_run", params={"run_id": "Run ID"})
++    @console_ns.response(
++        200, "Run cancelled", console_ns.models[UlooRunDetailResponse.__name__]
++    )
++    @setup_required
++    @login_required
++    @account_initialization_required
++    def post(self, run_id: UUID) -> Response:
++        return _proxy_request(f"runs/{run_id}/cancel", _current_tenant_id())
++
++
 +@console_ns.route("/uloo/runs")
 +class UlooRunsApi(Resource):
 +    @console_ns.doc("list_uloo_runs", params=query_params_from_model(UlooRunListQuery))
-+    @console_ns.response(200, "Success", console_ns.models[UlooRunListResponse.__name__])
++    @console_ns.response(
++        200, "Success", console_ns.models[UlooRunListResponse.__name__]
++    )
 +    @setup_required
 +    @login_required
 +    @account_initialization_required
@@ -876,8 +948,12 @@ index 0000000000000000000000000000000000000000..24e6e4e6b4f0d88f0fc594b51d737056
 +@console_ns.route("/uloo/runs/<uuid:run_id>")
 +class UlooRunApi(Resource):
 +    @console_ns.doc("get_uloo_run", params={"run_id": "Run ID"})
-+    @console_ns.response(200, "Success", console_ns.models[UlooRunDetailResponse.__name__])
-+    @console_ns.response(404, "Run not found", console_ns.models[UlooRunErrorResponse.__name__])
++    @console_ns.response(
++        200, "Success", console_ns.models[UlooRunDetailResponse.__name__]
++    )
++    @console_ns.response(
++        404, "Run not found", console_ns.models[UlooRunErrorResponse.__name__]
++    )
 +    @setup_required
 +    @login_required
 +    @account_initialization_required
@@ -888,8 +964,12 @@ index 0000000000000000000000000000000000000000..24e6e4e6b4f0d88f0fc594b51d737056
 +
 +@console_ns.route("/uloo/runs/<uuid:run_id>/events")
 +class UlooRunEventsApi(Resource):
-+    @console_ns.doc("list_uloo_run_events", params=query_params_from_model(UlooRunEventQuery))
-+    @console_ns.response(200, "Success", [console_ns.models[UlooRunEventResponse.__name__]])
++    @console_ns.doc(
++        "list_uloo_run_events", params=query_params_from_model(UlooRunEventQuery)
++    )
++    @console_ns.response(
++        200, "Success", [console_ns.models[UlooRunEventResponse.__name__]]
++    )
 +    @setup_required
 +    @login_required
 +    @account_initialization_required
@@ -976,18 +1056,20 @@ index 0000000000000000000000000000000000000000..424fecfe6cbc2ea2cae640f47d16a6ad
 +        return _proxy_request("health/ready", tenant_id)
 diff --git a/api/controllers/console/uloo_tasks.py b/api/controllers/console/uloo_tasks.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..d777086409022e6d53e2d5f9174b352d162dd836
+index 0000000000000000000000000000000000000000..d8e56e59acef02a1e857d5922f9847dd4314e3e6
 --- /dev/null
 +++ b/api/controllers/console/uloo_tasks.py
-@@ -0,0 +1,171 @@
+@@ -0,0 +1,265 @@
 +"""Typed Console endpoints for the ULOO Task main flow."""
 +
 +from datetime import datetime
 +from typing import Any
 +from uuid import UUID
 +
++from fields.base import ResponseModel
 +from flask import Response
 +from flask_restx import Resource
++from libs.login import current_account_with_tenant, login_required
 +from pydantic import BaseModel, Field
 +
 +from controllers.common.schema import (
@@ -995,11 +1077,10 @@ index 0000000000000000000000000000000000000000..d777086409022e6d53e2d5f9174b352d
 +    register_response_schema_models,
 +    register_schema_models,
 +)
-+from fields.base import ResponseModel
-+from libs.login import current_account_with_tenant, login_required
 +
 +from . import console_ns
 +from .uloo_proxy import _proxy_request
++from .uloo_runs import UlooRunDetailResponse
 +from .wraps import account_initialization_required, setup_required
 +
 +
@@ -1013,6 +1094,7 @@ index 0000000000000000000000000000000000000000..d777086409022e6d53e2d5f9174b352d
 +class UlooTasksCreatePayload(BaseModel):
 +    title: str = Field(min_length=1, max_length=512)
 +    query: str = Field(min_length=1, max_length=100_000)
++    constraints: str | None = Field(default=None, max_length=20_000)
 +    team_id: str | None = Field(default=None)
 +
 +
@@ -1020,6 +1102,8 @@ index 0000000000000000000000000000000000000000..d777086409022e6d53e2d5f9174b352d
 +    id: str
 +    title: str
 +    query: str
++    constraints: str | None = None
++    user_supplements: list[str] = Field(default_factory=list)
 +    status: str
 +    team_id: str | None = None
 +    session_id: str
@@ -1061,6 +1145,26 @@ index 0000000000000000000000000000000000000000..d777086409022e6d53e2d5f9174b352d
 +    feedback: str | None = Field(default=None, max_length=4000)
 +
 +
++class UlooTaskPlanUpdatePayload(BaseModel):
++    expected_version: int = Field(ge=1)
++    summary: str = Field(min_length=1, max_length=4000)
++    assumptions: list[str] = Field(default_factory=list)
++    questions: list[str] = Field(default_factory=list)
++    recommended_team_id: str
++    steps: list[UlooTaskPlanStep] = Field(min_length=1, max_length=30)
++
++
++class UlooTaskDirectExecutePayload(BaseModel):
++    team_id: str | None = None
++    expected_plan_version: int | None = Field(default=None, ge=1)
++
++
++class UlooTaskExportResponse(ResponseModel):
++    format: str
++    filename: str
++    content: str
++
++
 +class UlooTasksPageResponse(ResponseModel):
 +    items: list[UlooTaskResponse]
 +    total: int
@@ -1085,6 +1189,8 @@ index 0000000000000000000000000000000000000000..d777086409022e6d53e2d5f9174b352d
 +    UlooTasksListQuery,
 +    UlooTasksCreatePayload,
 +    UlooTaskPlanPayload,
++    UlooTaskPlanUpdatePayload,
++    UlooTaskDirectExecutePayload,
 +)
 +register_response_schema_models(
 +    console_ns,
@@ -1092,6 +1198,7 @@ index 0000000000000000000000000000000000000000..d777086409022e6d53e2d5f9174b352d
 +    UlooTasksDetailResponse,
 +    UlooTaskPlanResponse,
 +    UlooTaskErrorResponse,
++    UlooTaskExportResponse,
 +)
 +
 +
@@ -1102,9 +1209,15 @@ index 0000000000000000000000000000000000000000..d777086409022e6d53e2d5f9174b352d
 +
 +@console_ns.route("/uloo/tasks")
 +class UlooTasksApi(Resource):
-+    @console_ns.doc("list_uloo_tasks", params=query_params_from_model(UlooTasksListQuery))
-+    @console_ns.response(200, "Success", console_ns.models[UlooTasksPageResponse.__name__])
-+    @console_ns.response(503, "ULOO Core unavailable", console_ns.models[UlooTaskErrorResponse.__name__])
++    @console_ns.doc(
++        "list_uloo_tasks", params=query_params_from_model(UlooTasksListQuery)
++    )
++    @console_ns.response(
++        200, "Success", console_ns.models[UlooTasksPageResponse.__name__]
++    )
++    @console_ns.response(
++        503, "ULOO Core unavailable", console_ns.models[UlooTaskErrorResponse.__name__]
++    )
 +    @setup_required
 +    @login_required
 +    @account_initialization_required
@@ -1114,9 +1227,15 @@ index 0000000000000000000000000000000000000000..d777086409022e6d53e2d5f9174b352d
 +
 +    @console_ns.doc("create_uloo_task")
 +    @console_ns.expect(console_ns.models[UlooTasksCreatePayload.__name__])
-+    @console_ns.response(201, "Created", console_ns.models[UlooTasksDetailResponse.__name__])
-+    @console_ns.response(404, "Team not found", console_ns.models[UlooTaskErrorResponse.__name__])
-+    @console_ns.response(422, "Validation error", console_ns.models[UlooTaskErrorResponse.__name__])
++    @console_ns.response(
++        201, "Created", console_ns.models[UlooTasksDetailResponse.__name__]
++    )
++    @console_ns.response(
++        404, "Team not found", console_ns.models[UlooTaskErrorResponse.__name__]
++    )
++    @console_ns.response(
++        422, "Validation error", console_ns.models[UlooTaskErrorResponse.__name__]
++    )
 +    @setup_required
 +    @login_required
 +    @account_initialization_required
@@ -1128,8 +1247,12 @@ index 0000000000000000000000000000000000000000..d777086409022e6d53e2d5f9174b352d
 +@console_ns.route("/uloo/tasks/<uuid:task_id>")
 +class UlooTaskApi(Resource):
 +    @console_ns.doc("get_uloo_task", params={"task_id": "Task ID"})
-+    @console_ns.response(200, "Success", console_ns.models[UlooTasksDetailResponse.__name__])
-+    @console_ns.response(404, "Not found", console_ns.models[UlooTaskErrorResponse.__name__])
++    @console_ns.response(
++        200, "Success", console_ns.models[UlooTasksDetailResponse.__name__]
++    )
++    @console_ns.response(
++        404, "Not found", console_ns.models[UlooTaskErrorResponse.__name__]
++    )
 +    @setup_required
 +    @login_required
 +    @account_initialization_required
@@ -1142,15 +1265,66 @@ index 0000000000000000000000000000000000000000..d777086409022e6d53e2d5f9174b352d
 +class UlooTaskPlanApi(Resource):
 +    @console_ns.doc("plan_uloo_task", params={"task_id": "Task ID"})
 +    @console_ns.expect(console_ns.models[UlooTaskPlanPayload.__name__])
-+    @console_ns.response(201, "Plan created", console_ns.models[UlooTaskPlanResponse.__name__])
-+    @console_ns.response(409, "Task cannot be planned", console_ns.models[UlooTaskErrorResponse.__name__])
-+    @console_ns.response(503, "Planner model unavailable", console_ns.models[UlooTaskErrorResponse.__name__])
++    @console_ns.response(
++        201, "Plan created", console_ns.models[UlooTaskPlanResponse.__name__]
++    )
++    @console_ns.response(
++        409, "Task cannot be planned", console_ns.models[UlooTaskErrorResponse.__name__]
++    )
++    @console_ns.response(
++        503,
++        "Planner model unavailable",
++        console_ns.models[UlooTaskErrorResponse.__name__],
++    )
 +    @setup_required
 +    @login_required
 +    @account_initialization_required
 +    def post(self, task_id: UUID) -> Response:
 +        """Create a structured plan with the configured real Agno Planner."""
 +        return _proxy_request(f"tasks/{task_id}/plan", _current_tenant_id())
++
++    @console_ns.doc("update_uloo_task_plan", params={"task_id": "Task ID"})
++    @console_ns.expect(console_ns.models[UlooTaskPlanUpdatePayload.__name__])
++    @console_ns.response(
++        200, "New plan version saved", console_ns.models[UlooTaskPlanResponse.__name__]
++    )
++    @console_ns.response(
++        409,
++        "Plan changed or task running",
++        console_ns.models[UlooTaskErrorResponse.__name__],
++    )
++    @setup_required
++    @login_required
++    @account_initialization_required
++    def patch(self, task_id: UUID) -> Response:
++        return _proxy_request(f"tasks/{task_id}/plan", _current_tenant_id())
++
++
++@console_ns.route("/uloo/tasks/<uuid:task_id>/execute")
++class UlooTaskDirectExecuteApi(Resource):
++    @console_ns.doc("start_uloo_direct_execution", params={"task_id": "Task ID"})
++    @console_ns.expect(console_ns.models[UlooTaskDirectExecutePayload.__name__])
++    @console_ns.response(
++        202, "Background run started", console_ns.models[UlooRunDetailResponse.__name__]
++    )
++    @setup_required
++    @login_required
++    @account_initialization_required
++    def post(self, task_id: UUID) -> Response:
++        return _proxy_request(f"tasks/{task_id}/execute", _current_tenant_id())
++
++
++@console_ns.route("/uloo/tasks/<uuid:task_id>/export")
++class UlooTaskExportApi(Resource):
++    @console_ns.doc("export_uloo_task", params={"task_id": "Task ID"})
++    @console_ns.response(
++        200, "Task exported", console_ns.models[UlooTaskExportResponse.__name__]
++    )
++    @setup_required
++    @login_required
++    @account_initialization_required
++    def get(self, task_id: UUID) -> Response:
++        return _proxy_request(f"tasks/{task_id}/export", _current_tenant_id())
 diff --git a/api/controllers/console/uloo_teams.py b/api/controllers/console/uloo_teams.py
 new file mode 100644
 index 0000000000000000000000000000000000000000..97172d72e393cd1d4263dc635a60ec4711cb328a
@@ -1930,10 +2104,10 @@ index 0000000000000000000000000000000000000000..4366bb02b8dce1a5b7f7e0c0a32db102
 +    return {"workflows": workflows_out}
 diff --git a/api/tests/unit_tests/controllers/console/test_uloo_proxy.py b/api/tests/unit_tests/controllers/console/test_uloo_proxy.py
 new file mode 100644
-index 0000000000000000000000000000000000000000..dd3aef0a25ce18f127a04b7314a1cc5f2578b46a
+index 0000000000000000000000000000000000000000..811392ae6ad03c49ab32b42653293fdc74bf7c32
 --- /dev/null
 +++ b/api/tests/unit_tests/controllers/console/test_uloo_proxy.py
-@@ -0,0 +1,209 @@
+@@ -0,0 +1,211 @@
 +from __future__ import annotations
 +
 +import json
@@ -1980,6 +2154,8 @@ index 0000000000000000000000000000000000000000..dd3aef0a25ce18f127a04b7314a1cc5f
 +    assert "/console/api/uloo/tasks" in typed_routes
 +    assert "/console/api/uloo/tasks/<uuid:task_id>" in typed_routes
 +    assert "/console/api/uloo/tasks/<uuid:task_id>/plan" in typed_routes
++    plan_rule = next(rule for rule in rules if rule.rule == "/console/api/uloo/tasks/<uuid:task_id>/plan")
++    assert {"POST", "PATCH"} <= plan_rule.methods
 +    assert "/console/api/uloo/tasks/<uuid:task_id>/approve" in typed_routes
 +    assert "/console/api/uloo/tasks/<uuid:task_id>/runs" in typed_routes
 +    assert "/console/api/uloo/runs" in typed_routes
@@ -2626,10 +2802,10 @@ index a28155f4eea82dee4bafebdbc5d53adb2801a17e..747e804e75280e9b709d619d67ddf9da
    workflow,
 diff --git a/packages/contracts/generated/api/console/uloo/orpc.gen.ts b/packages/contracts/generated/api/console/uloo/orpc.gen.ts
 new file mode 100644
-index 0000000000000000000000000000000000000000..1166e339d4e245bdeef07995b335f694141fe826
+index 0000000000000000000000000000000000000000..97711916fe4a007a1d8a7b58def1a2aa660d8bee
 --- /dev/null
 +++ b/packages/contracts/generated/api/console/uloo/orpc.gen.ts
-@@ -0,0 +1,435 @@
+@@ -0,0 +1,553 @@
 +// This file is auto-generated by @hey-api/openapi-ts
 +
 +import { oc } from '@orpc/contract'
@@ -2650,6 +2826,8 @@ index 0000000000000000000000000000000000000000..1166e339d4e245bdeef07995b335f694
 +  zGetUlooRunsByRunIdResponse,
 +  zGetUlooRunsQuery,
 +  zGetUlooRunsResponse,
++  zGetUlooTasksByTaskIdExportPath,
++  zGetUlooTasksByTaskIdExportResponse,
 +  zGetUlooTasksByTaskIdPath,
 +  zGetUlooTasksByTaskIdResponse,
 +  zGetUlooTasksQuery,
@@ -2659,6 +2837,9 @@ index 0000000000000000000000000000000000000000..1166e339d4e245bdeef07995b335f694
 +  zPatchUlooAgentsByAgentIdBody,
 +  zPatchUlooAgentsByAgentIdPath,
 +  zPatchUlooAgentsByAgentIdResponse,
++  zPatchUlooTasksByTaskIdPlanBody,
++  zPatchUlooTasksByTaskIdPlanPath,
++  zPatchUlooTasksByTaskIdPlanResponse,
 +  zPostUlooAgentsBody,
 +  zPostUlooAgentsByAgentIdTestRunsBody,
 +  zPostUlooAgentsByAgentIdTestRunsPath,
@@ -2666,14 +2847,25 @@ index 0000000000000000000000000000000000000000..1166e339d4e245bdeef07995b335f694
 +  zPostUlooAgentsByAgentIdValidatePath,
 +  zPostUlooAgentsByAgentIdValidateResponse,
 +  zPostUlooAgentsResponse,
++  zPostUlooRunsByRunIdCancelPath,
++  zPostUlooRunsByRunIdCancelResponse,
++  zPostUlooRunsByRunIdRetryBody,
++  zPostUlooRunsByRunIdRetryPath,
++  zPostUlooRunsByRunIdRetryQuery,
++  zPostUlooRunsByRunIdRetryResponse,
 +  zPostUlooTasksBody,
++  zPostUlooTasksByTaskIdApproveBody,
 +  zPostUlooTasksByTaskIdApprovePath,
 +  zPostUlooTasksByTaskIdApproveResponse,
++  zPostUlooTasksByTaskIdExecuteBody,
++  zPostUlooTasksByTaskIdExecutePath,
++  zPostUlooTasksByTaskIdExecuteResponse,
 +  zPostUlooTasksByTaskIdPlanBody,
 +  zPostUlooTasksByTaskIdPlanPath,
 +  zPostUlooTasksByTaskIdPlanResponse,
 +  zPostUlooTasksByTaskIdRunsBody,
 +  zPostUlooTasksByTaskIdRunsPath,
++  zPostUlooTasksByTaskIdRunsQuery,
 +  zPostUlooTasksByTaskIdRunsResponse,
 +  zPostUlooTasksResponse,
 +} from './zod.gen'
@@ -2852,6 +3044,21 @@ index 0000000000000000000000000000000000000000..1166e339d4e245bdeef07995b335f694
 +  ready,
 +}
 +
++export const post4 = oc
++  .route({
++    inputStructure: 'detailed',
++    method: 'POST',
++    operationId: 'postUlooRunsByRunIdCancel',
++    path: '/uloo/runs/{run_id}/cancel',
++    tags: ['console'],
++  })
++  .input(z.object({ params: zPostUlooRunsByRunIdCancelPath }))
++  .output(zPostUlooRunsByRunIdCancelResponse)
++
++export const cancel = {
++  post: post4,
++}
++
 +/**
 + * Read ordered events after the optional sequence cursor
 + */
@@ -2876,6 +3083,28 @@ index 0000000000000000000000000000000000000000..1166e339d4e245bdeef07995b335f694
 +  get: get5,
 +}
 +
++export const post5 = oc
++  .route({
++    inputStructure: 'detailed',
++    method: 'POST',
++    operationId: 'postUlooRunsByRunIdRetry',
++    path: '/uloo/runs/{run_id}/retry',
++    successStatus: 201,
++    tags: ['console'],
++  })
++  .input(
++    z.object({
++      body: zPostUlooRunsByRunIdRetryBody,
++      params: zPostUlooRunsByRunIdRetryPath,
++      query: zPostUlooRunsByRunIdRetryQuery.optional(),
++    }),
++  )
++  .output(zPostUlooRunsByRunIdRetryResponse)
++
++export const retry = {
++  post: post5,
++}
++
 +/**
 + * Get one Team Run and its events
 + */
@@ -2893,7 +3122,9 @@ index 0000000000000000000000000000000000000000..1166e339d4e245bdeef07995b335f694
 +
 +export const byRunId = {
 +  get: get6,
++  cancel,
 +  events,
++  retry,
 +}
 +
 +/**
@@ -2919,7 +3150,7 @@ index 0000000000000000000000000000000000000000..1166e339d4e245bdeef07995b335f694
 +/**
 + * Approve the current task plan
 + */
-+export const post4 = oc
++export const post6 = oc
 +  .route({
 +    inputStructure: 'detailed',
 +    method: 'POST',
@@ -2928,17 +3159,71 @@ index 0000000000000000000000000000000000000000..1166e339d4e245bdeef07995b335f694
 +    summary: 'Approve the current task plan',
 +    tags: ['console'],
 +  })
-+  .input(z.object({ params: zPostUlooTasksByTaskIdApprovePath }))
++  .input(
++    z.object({
++      body: zPostUlooTasksByTaskIdApproveBody,
++      params: zPostUlooTasksByTaskIdApprovePath,
++    }),
++  )
 +  .output(zPostUlooTasksByTaskIdApproveResponse)
 +
 +export const approve = {
-+  post: post4,
++  post: post6,
 +}
++
++export const post7 = oc
++  .route({
++    inputStructure: 'detailed',
++    method: 'POST',
++    operationId: 'postUlooTasksByTaskIdExecute',
++    path: '/uloo/tasks/{task_id}/execute',
++    successStatus: 202,
++    tags: ['console'],
++  })
++  .input(
++    z.object({
++      body: zPostUlooTasksByTaskIdExecuteBody,
++      params: zPostUlooTasksByTaskIdExecutePath,
++    }),
++  )
++  .output(zPostUlooTasksByTaskIdExecuteResponse)
++
++export const execute = {
++  post: post7,
++}
++
++export const get8 = oc
++  .route({
++    inputStructure: 'detailed',
++    method: 'GET',
++    operationId: 'getUlooTasksByTaskIdExport',
++    path: '/uloo/tasks/{task_id}/export',
++    tags: ['console'],
++  })
++  .input(z.object({ params: zGetUlooTasksByTaskIdExportPath }))
++  .output(zGetUlooTasksByTaskIdExportResponse)
++
++export const export_ = {
++  get: get8,
++}
++
++export const patch2 = oc
++  .route({
++    inputStructure: 'detailed',
++    method: 'PATCH',
++    operationId: 'patchUlooTasksByTaskIdPlan',
++    path: '/uloo/tasks/{task_id}/plan',
++    tags: ['console'],
++  })
++  .input(
++    z.object({ body: zPatchUlooTasksByTaskIdPlanBody, params: zPatchUlooTasksByTaskIdPlanPath }),
++  )
++  .output(zPatchUlooTasksByTaskIdPlanResponse)
 +
 +/**
 + * Create a structured plan with the configured real Agno Planner
 + */
-+export const post5 = oc
++export const post8 = oc
 +  .route({
 +    inputStructure: 'detailed',
 +    method: 'POST',
@@ -2952,13 +3237,14 @@ index 0000000000000000000000000000000000000000..1166e339d4e245bdeef07995b335f694
 +  .output(zPostUlooTasksByTaskIdPlanResponse)
 +
 +export const plan = {
-+  post: post5,
++  patch: patch2,
++  post: post8,
 +}
 +
 +/**
 + * Execute an approved task with the configured real Agno Team
 + */
-+export const post6 = oc
++export const post9 = oc
 +  .route({
 +    inputStructure: 'detailed',
 +    method: 'POST',
@@ -2968,17 +3254,23 @@ index 0000000000000000000000000000000000000000..1166e339d4e245bdeef07995b335f694
 +    summary: 'Execute an approved task with the configured real Agno Team',
 +    tags: ['console'],
 +  })
-+  .input(z.object({ body: zPostUlooTasksByTaskIdRunsBody, params: zPostUlooTasksByTaskIdRunsPath }))
++  .input(
++    z.object({
++      body: zPostUlooTasksByTaskIdRunsBody,
++      params: zPostUlooTasksByTaskIdRunsPath,
++      query: zPostUlooTasksByTaskIdRunsQuery.optional(),
++    }),
++  )
 +  .output(zPostUlooTasksByTaskIdRunsResponse)
 +
 +export const runs2 = {
-+  post: post6,
++  post: post9,
 +}
 +
 +/**
 + * Get one task with its plans
 + */
-+export const get8 = oc
++export const get9 = oc
 +  .route({
 +    inputStructure: 'detailed',
 +    method: 'GET',
@@ -2991,8 +3283,10 @@ index 0000000000000000000000000000000000000000..1166e339d4e245bdeef07995b335f694
 +  .output(zGetUlooTasksByTaskIdResponse)
 +
 +export const byTaskId = {
-+  get: get8,
++  get: get9,
 +  approve,
++  execute,
++  export: export_,
 +  plan,
 +  runs: runs2,
 +}
@@ -3000,7 +3294,7 @@ index 0000000000000000000000000000000000000000..1166e339d4e245bdeef07995b335f694
 +/**
 + * List tasks in the current workspace
 + */
-+export const get9 = oc
++export const get10 = oc
 +  .route({
 +    inputStructure: 'detailed',
 +    method: 'GET',
@@ -3015,7 +3309,7 @@ index 0000000000000000000000000000000000000000..1166e339d4e245bdeef07995b335f694
 +/**
 + * Create a task and persist the user's original request
 + */
-+export const post7 = oc
++export const post10 = oc
 +  .route({
 +    inputStructure: 'detailed',
 +    method: 'POST',
@@ -3029,15 +3323,15 @@ index 0000000000000000000000000000000000000000..1166e339d4e245bdeef07995b335f694
 +  .output(zPostUlooTasksResponse)
 +
 +export const tasks = {
-+  get: get9,
-+  post: post7,
++  get: get10,
++  post: post10,
 +  byTaskId,
 +}
 +
 +/**
 + * List Teams in the current workspace (enabled by default)
 + */
-+export const get10 = oc
++export const get11 = oc
 +  .route({
 +    inputStructure: 'detailed',
 +    method: 'GET',
@@ -3050,7 +3344,7 @@ index 0000000000000000000000000000000000000000..1166e339d4e245bdeef07995b335f694
 +  .output(zGetUlooTeamsResponse)
 +
 +export const teams = {
-+  get: get10,
++  get: get11,
 +}
 +
 +export const uloo = {
@@ -3067,11 +3361,10 @@ index 0000000000000000000000000000000000000000..1166e339d4e245bdeef07995b335f694
 +}
 diff --git a/packages/contracts/generated/api/console/uloo/types.gen.ts b/packages/contracts/generated/api/console/uloo/types.gen.ts
 new file mode 100644
-index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1be26b5843
+index 0000000000000000000000000000000000000000..51c835cf249ae79f04981a47689c3a2df024fc39
 --- /dev/null
 +++ b/packages/contracts/generated/api/console/uloo/types.gen.ts
-@@ -0,0 +1,908 @@
-+// AI生成
+@@ -0,0 +1,859 @@
 +// This file is auto-generated by @hey-api/openapi-ts
 +
 +export type ClientOptions = {
@@ -3128,7 +3421,7 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +  tool_refs: Array<string>
 +  updated_at?: string | null
 +  version: number
-+  workflow_refs: Array<string>
++  workflow_refs?: Array<string>
 +}
 +
 +export type UlooAgentUpdatePayload = {
@@ -3201,6 +3494,9 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +
 +export type UlooRunDetailResponse = {
 +  agno_run_id?: string | null
++  configuration_snapshot?: {
++    [key: string]: unknown
++  } | null
 +  created_at?: string | null
 +  error_code?: string | null
 +  error_message?: string | null
@@ -3247,6 +3543,11 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +  status?: string | null
 +}
 +
++export type UlooRunCreatePayload = {
++  expected_plan_version?: number | null
++  input?: string | null
++}
++
 +export type UlooTasksPageResponse = {
 +  items: Array<UlooTaskResponse>
 +  limit: number
@@ -3263,13 +3564,14 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +}
 +
 +export type UlooTasksCreatePayload = {
++  constraints?: string | null
 +  query: string
 +  team_id?: string | null
 +  title: string
-+  constraints?: string | null
 +}
 +
 +export type UlooTasksDetailResponse = {
++  constraints?: string | null
 +  created_at?: string | null
 +  current_plan_version: number
 +  id: string
@@ -3279,26 +3581,12 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +  status: string
 +  team_id?: string | null
 +  title: string
-+  constraints?: string | null
-+  user_supplements?: Array<string>
 +  updated_at?: string | null
++  user_supplements?: Array<string>
 +}
 +
-+export type UlooPreCheckIssue = {
-+  category: 'team' | 'model' | 'tool' | 'knowledge'
-+  status: 'ok' | 'missing' | 'misconfigured'
-+  detail: string
-+  fix_link?: string | null
-+}
-+
-+export type UlooTaskPreCheckResponse = {
-+  ready: boolean
-+  issues: Array<UlooPreCheckIssue>
-+}
-+
-+export type UlooTaskSupplementPayload = {
-+  supplements: Array<string>
-+  constraints?: string | null
++export type UlooPlanApprovalPayload = {
++  expected_version?: number | null
 +}
 +
 +export type UlooPlanApprovalResponse = {
@@ -3308,8 +3596,24 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +  version: number
 +}
 +
-+export type UlooTaskPlanPayload = {
-+  feedback?: string | null
++export type UlooTaskDirectExecutePayload = {
++  expected_plan_version?: number | null
++  team_id?: string | null
++}
++
++export type UlooTaskExportResponse = {
++  content: string
++  filename: string
++  format: string
++}
++
++export type UlooTaskPlanUpdatePayload = {
++  assumptions?: Array<string>
++  expected_version: number
++  questions?: Array<string>
++  recommended_team_id: string
++  steps: Array<UlooTaskPlanStep>
++  summary: string
 +}
 +
 +export type UlooTaskPlanResponse = {
@@ -3333,12 +3637,14 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +  version: number
 +}
 +
-+export type UlooRunCreatePayload = {
-+  input?: string | null
++export type UlooTaskPlanPayload = {
++  feedback?: string | null
 +}
 +
 +export type UlooTTeamsPageResponse = {
-+  items: Array<UlooTeamResponse>
++  items: Array<{
++    [key: string]: unknown
++  }>
 +  limit: number
 +  offset: number
 +  total: number
@@ -3352,82 +3658,6 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +  trace_id: string
 +}
 +
-+export type UlooTeamLimits = {
-+  max_iterations: number
-+  max_tokens: number
-+  timeout_seconds: number
-+  total_token_budget: number
-+}
-+
-+export type UlooReviewPolicy = {
-+  criteria: Array<string>
-+  max_rounds: number
-+  require_unanimous: boolean
-+}
-+
-+export type UlooCompletionConditions = {
-+  all_members_executed: boolean
-+  custom: string
-+  no_unresolved_errors: boolean
-+}
-+
-+export type UlooMemoryPolicy = {
-+  read_scopes: Array<'project' | 'team' | 'agent'>
-+  write_scope: 'project' | 'team' | 'agent'
-+}
-+
-+export type UlooTeamCreatePayload = {
-+  completion?: UlooCompletionConditions
-+  description?: string | null
-+  enabled?: boolean
-+  handoff_context?: string
-+  instructions?: Array<string>
-+  key: string
-+  leader_agent_id?: string | null
-+  limits?: UlooTeamLimits
-+  member_agent_ids?: Array<string>
-+  memory_policy?: UlooMemoryPolicy
-+  mode: string
-+  name: string
-+  review_policy?: UlooReviewPolicy
-+}
-+
-+export type UlooTeamResponse = {
-+  completion: UlooCompletionConditions
-+  created_at?: string | null
-+  description?: string | null
-+  enabled: boolean
-+  handoff_context: string
-+  id: string
-+  instructions: Array<string>
-+  key: string
-+  leader_agent_id?: string | null
-+  limits: UlooTeamLimits
-+  member_agent_ids: Array<string>
-+  memory_policy: UlooMemoryPolicy
-+  mode: string
-+  name: string
-+  review_policy: UlooReviewPolicy
-+  updated_at?: string | null
-+  version: number
-+}
-+
-+export type UlooTeamUpdatePayload = {
-+  completion?: UlooCompletionConditions | null
-+  description?: string | null
-+  enabled?: boolean | null
-+  expected_version: number
-+  handoff_context?: string | null
-+  instructions?: Array<string> | null
-+  leader_agent_id?: string | null
-+  limits?: UlooTeamLimits | null
-+  member_agent_ids?: Array<string> | null
-+  memory_policy?: UlooMemoryPolicy | null
-+  mode?: string | null
-+  name?: string | null
-+  review_policy?: UlooReviewPolicy | null
-+}
-+
 +export type UlooFeatureCapabilities = {
 +  agent_test_runs: boolean
 +  agents: boolean
@@ -3439,6 +3669,9 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +
 +export type UlooRunResponse = {
 +  agno_run_id?: string | null
++  configuration_snapshot?: {
++    [key: string]: unknown
++  } | null
 +  created_at?: string | null
 +  error_code?: string | null
 +  error_message?: string | null
@@ -3463,6 +3696,7 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +}
 +
 +export type UlooTaskResponse = {
++  constraints?: string | null
 +  created_at?: string | null
 +  current_plan_version: number
 +  id: string
@@ -3471,9 +3705,8 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +  status: string
 +  team_id?: string | null
 +  title: string
-+  constraints?: string | null
-+  user_supplements?: Array<string>
 +  updated_at?: string | null
++  user_supplements?: Array<string>
 +}
 +
 +export type UlooTaskPlanStep = {
@@ -3720,6 +3953,22 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +export type GetUlooRunsByRunIdResponse =
 +  GetUlooRunsByRunIdResponses[keyof GetUlooRunsByRunIdResponses]
 +
++export type PostUlooRunsByRunIdCancelData = {
++  body?: never
++  path: {
++    run_id: string
++  }
++  query?: never
++  url: '/uloo/runs/{run_id}/cancel'
++}
++
++export type PostUlooRunsByRunIdCancelResponses = {
++  200: UlooRunDetailResponse
++}
++
++export type PostUlooRunsByRunIdCancelResponse =
++  PostUlooRunsByRunIdCancelResponses[keyof PostUlooRunsByRunIdCancelResponses]
++
 +export type GetUlooRunsByRunIdEventsData = {
 +  body?: never
 +  path: {
@@ -3737,6 +3986,25 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +
 +export type GetUlooRunsByRunIdEventsResponse =
 +  GetUlooRunsByRunIdEventsResponses[keyof GetUlooRunsByRunIdEventsResponses]
++
++export type PostUlooRunsByRunIdRetryData = {
++  body: UlooRunCreatePayload
++  path: {
++    run_id: string
++  }
++  query?: {
++    wait?: boolean
++  }
++  url: '/uloo/runs/{run_id}/retry'
++}
++
++export type PostUlooRunsByRunIdRetryResponses = {
++  201: UlooRunDetailResponse
++  202: UlooRunDetailResponse
++}
++
++export type PostUlooRunsByRunIdRetryResponse =
++  PostUlooRunsByRunIdRetryResponses[keyof PostUlooRunsByRunIdRetryResponses]
 +
 +export type GetUlooTasksData = {
 +  body?: never
@@ -3805,7 +4073,7 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +  GetUlooTasksByTaskIdResponses[keyof GetUlooTasksByTaskIdResponses]
 +
 +export type PostUlooTasksByTaskIdApproveData = {
-+  body?: never
++  body: UlooPlanApprovalPayload
 +  path: {
 +    task_id: string
 +  }
@@ -3826,6 +4094,61 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +
 +export type PostUlooTasksByTaskIdApproveResponse =
 +  PostUlooTasksByTaskIdApproveResponses[keyof PostUlooTasksByTaskIdApproveResponses]
++
++export type PostUlooTasksByTaskIdExecuteData = {
++  body: UlooTaskDirectExecutePayload
++  path: {
++    task_id: string
++  }
++  query?: never
++  url: '/uloo/tasks/{task_id}/execute'
++}
++
++export type PostUlooTasksByTaskIdExecuteResponses = {
++  202: UlooRunDetailResponse
++}
++
++export type PostUlooTasksByTaskIdExecuteResponse =
++  PostUlooTasksByTaskIdExecuteResponses[keyof PostUlooTasksByTaskIdExecuteResponses]
++
++export type GetUlooTasksByTaskIdExportData = {
++  body?: never
++  path: {
++    task_id: string
++  }
++  query?: never
++  url: '/uloo/tasks/{task_id}/export'
++}
++
++export type GetUlooTasksByTaskIdExportResponses = {
++  200: UlooTaskExportResponse
++}
++
++export type GetUlooTasksByTaskIdExportResponse =
++  GetUlooTasksByTaskIdExportResponses[keyof GetUlooTasksByTaskIdExportResponses]
++
++export type PatchUlooTasksByTaskIdPlanData = {
++  body: UlooTaskPlanUpdatePayload
++  path: {
++    task_id: string
++  }
++  query?: never
++  url: '/uloo/tasks/{task_id}/plan'
++}
++
++export type PatchUlooTasksByTaskIdPlanErrors = {
++  409: UlooTaskErrorResponse
++}
++
++export type PatchUlooTasksByTaskIdPlanError =
++  PatchUlooTasksByTaskIdPlanErrors[keyof PatchUlooTasksByTaskIdPlanErrors]
++
++export type PatchUlooTasksByTaskIdPlanResponses = {
++  200: UlooTaskPlanResponse
++}
++
++export type PatchUlooTasksByTaskIdPlanResponse =
++  PatchUlooTasksByTaskIdPlanResponses[keyof PatchUlooTasksByTaskIdPlanResponses]
 +
 +export type PostUlooTasksByTaskIdPlanData = {
 +  body: UlooTaskPlanPayload
@@ -3856,7 +4179,9 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +  path: {
 +    task_id: string
 +  }
-+  query?: never
++  query?: {
++    wait?: boolean
++  }
 +  url: '/uloo/tasks/{task_id}/runs'
 +}
 +
@@ -3870,91 +4195,11 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +
 +export type PostUlooTasksByTaskIdRunsResponses = {
 +  201: UlooRunDetailResponse
++  202: UlooRunDetailResponse
 +}
 +
 +export type PostUlooTasksByTaskIdRunsResponse =
 +  PostUlooTasksByTaskIdRunsResponses[keyof PostUlooTasksByTaskIdRunsResponses]
-+
-+export type GetUlooTasksByTaskIdPrecheckData = {
-+  body?: never
-+  path: {
-+    task_id: string
-+  }
-+  query?: never
-+  url: '/uloo/tasks/{task_id}/precheck'
-+}
-+
-+export type GetUlooTasksByTaskIdPrecheckResponses = {
-+  200: UlooTaskPreCheckResponse
-+}
-+
-+export type GetUlooTasksByTaskIdPrecheckResponse =
-+  GetUlooTasksByTaskIdPrecheckResponses[keyof GetUlooTasksByTaskIdPrecheckResponses]
-+
-+export type PostUlooTasksByTaskIdSupplementData = {
-+  body: UlooTaskSupplementPayload
-+  path: {
-+    task_id: string
-+  }
-+  query?: never
-+  url: '/uloo/tasks/{task_id}/supplement'
-+}
-+
-+export type PostUlooTasksByTaskIdSupplementErrors = {
-+  409: UlooTaskErrorResponse
-+}
-+
-+export type PostUlooTasksByTaskIdSupplementError =
-+  PostUlooTasksByTaskIdSupplementErrors[keyof PostUlooTasksByTaskIdSupplementErrors]
-+
-+export type PostUlooTasksByTaskIdSupplementResponses = {
-+  200: UlooTasksDetailResponse
-+}
-+
-+export type PostUlooTasksByTaskIdSupplementResponse =
-+  PostUlooTasksByTaskIdSupplementResponses[keyof PostUlooTasksByTaskIdSupplementResponses]
-+
-+export type UlooTaskDirectExecutePayload = {
-+  team_id?: string | null
-+}
-+
-+export type PostUlooTasksByTaskIdExecuteData = {
-+  body?: UlooTaskDirectExecutePayload
-+  path: {
-+    task_id: string
-+  }
-+  query?: never
-+  url: '/uloo/tasks/{task_id}/execute'
-+}
-+
-+export type PostUlooTasksByTaskIdExecuteResponses = {
-+  200: UlooTasksDetailResponse
-+}
-+
-+export type PostUlooTasksByTaskIdExecuteResponse =
-+  PostUlooTasksByTaskIdExecuteResponses[keyof PostUlooTasksByTaskIdExecuteResponses]
-+
-+export type UlooTaskExportResponse = {
-+  format: 'markdown'
-+  filename: string
-+  content: string
-+}
-+
-+export type GetUlooTasksByTaskIdExportData = {
-+  body?: never
-+  path: {
-+    task_id: string
-+  }
-+  query?: never
-+  url: '/uloo/tasks/{task_id}/export'
-+}
-+
-+export type GetUlooTasksByTaskIdExportResponses = {
-+  200: UlooTaskExportResponse
-+}
-+
-+export type GetUlooTasksByTaskIdExportResponse =
-+  GetUlooTasksByTaskIdExportResponses[keyof GetUlooTasksByTaskIdExportResponses]
 +
 +export type GetUlooTeamsData = {
 +  body?: never
@@ -3981,10 +4226,10 @@ index 0000000000000000000000000000000000000000..fec6b941d42ce05569161d8926a73b1b
 +export type GetUlooTeamsResponse = GetUlooTeamsResponses[keyof GetUlooTeamsResponses]
 diff --git a/packages/contracts/generated/api/console/uloo/zod.gen.ts b/packages/contracts/generated/api/console/uloo/zod.gen.ts
 new file mode 100644
-index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e8fee64b1
+index 0000000000000000000000000000000000000000..57f1bc058ac2590b48c3d8c9c69be4adb3baee32
 --- /dev/null
 +++ b/packages/contracts/generated/api/console/uloo/zod.gen.ts
-@@ -0,0 +1,554 @@
+@@ -0,0 +1,662 @@
 +// This file is auto-generated by @hey-api/openapi-ts
 +
 +import * as z from 'zod'
@@ -4019,6 +4264,7 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 +  role: z.string().min(1).max(256),
 +  skill_refs: z.array(z.string()).optional(),
 +  tool_refs: z.array(z.string()).optional(),
++  workflow_refs: z.array(z.string()).optional(),
 +})
 +
 +/**
@@ -4040,6 +4286,7 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 +  tool_refs: z.array(z.string()),
 +  updated_at: z.iso.datetime().nullish(),
 +  version: z.int(),
++  workflow_refs: z.array(z.string()).optional(),
 +})
 +
 +/**
@@ -4067,6 +4314,7 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 +  role: z.string().min(1).max(256).nullish(),
 +  skill_refs: z.array(z.string()).nullish(),
 +  tool_refs: z.array(z.string()).nullish(),
++  workflow_refs: z.array(z.string()).nullish(),
 +})
 +
 +/**
@@ -4137,6 +4385,7 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 + */
 +export const zUlooRunDetailResponse = z.object({
 +  agno_run_id: z.string().nullish(),
++  configuration_snapshot: z.record(z.string(), z.unknown()).nullish(),
 +  created_at: z.iso.datetime().nullish(),
 +  error_code: z.string().nullish(),
 +  error_message: z.string().nullish(),
@@ -4158,6 +4407,14 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 +})
 +
 +/**
++ * UlooRunCreatePayload
++ */
++export const zUlooRunCreatePayload = z.object({
++  expected_plan_version: z.int().gte(1).nullish(),
++  input: z.string().min(1).max(100000).nullish(),
++})
++
++/**
 + * UlooTaskErrorResponse
 + */
 +export const zUlooTaskErrorResponse = z.object({
@@ -4172,9 +4429,17 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 + * UlooTasksCreatePayload
 + */
 +export const zUlooTasksCreatePayload = z.object({
++  constraints: z.string().max(20000).nullish(),
 +  query: z.string().min(1).max(100000),
 +  team_id: z.string().nullish(),
 +  title: z.string().min(1).max(512),
++})
++
++/**
++ * UlooPlanApprovalPayload
++ */
++export const zUlooPlanApprovalPayload = z.object({
++  expected_version: z.int().gte(1).nullish(),
 +})
 +
 +/**
@@ -4188,17 +4453,27 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 +})
 +
 +/**
++ * UlooTaskDirectExecutePayload
++ */
++export const zUlooTaskDirectExecutePayload = z.object({
++  expected_plan_version: z.int().gte(1).nullish(),
++  team_id: z.string().nullish(),
++})
++
++/**
++ * UlooTaskExportResponse
++ */
++export const zUlooTaskExportResponse = z.object({
++  content: z.string(),
++  filename: z.string(),
++  format: z.string(),
++})
++
++/**
 + * UlooTaskPlanPayload
 + */
 +export const zUlooTaskPlanPayload = z.object({
 +  feedback: z.string().max(4000).nullish(),
-+})
-+
-+/**
-+ * UlooRunCreatePayload
-+ */
-+export const zUlooRunCreatePayload = z.object({
-+  input: z.string().min(1).max(100000).nullish(),
 +})
 +
 +/**
@@ -4251,6 +4526,7 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 + */
 +export const zUlooRunResponse = z.object({
 +  agno_run_id: z.string().nullish(),
++  configuration_snapshot: z.record(z.string(), z.unknown()).nullish(),
 +  created_at: z.iso.datetime().nullish(),
 +  error_code: z.string().nullish(),
 +  error_message: z.string().nullish(),
@@ -4284,6 +4560,7 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 + * UlooTaskResponse
 + */
 +export const zUlooTaskResponse = z.object({
++  constraints: z.string().nullish(),
 +  created_at: z.iso.datetime().nullish(),
 +  current_plan_version: z.int(),
 +  id: z.string(),
@@ -4293,6 +4570,7 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 +  team_id: z.string().nullish(),
 +  title: z.string(),
 +  updated_at: z.iso.datetime().nullish(),
++  user_supplements: z.array(z.string()).optional(),
 +})
 +
 +/**
@@ -4316,6 +4594,18 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 +  id: z.string(),
 +  status: z.string(),
 +  title: z.string(),
++})
++
++/**
++ * UlooTaskPlanUpdatePayload
++ */
++export const zUlooTaskPlanUpdatePayload = z.object({
++  assumptions: z.array(z.string()).optional(),
++  expected_version: z.int().gte(1),
++  questions: z.array(z.string()).optional(),
++  recommended_team_id: z.string(),
++  steps: z.array(zUlooTaskPlanStep).min(1).max(30),
++  summary: z.string().min(1).max(4000),
 +})
 +
 +/**
@@ -4344,6 +4634,7 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 + * UlooTasksDetailResponse
 + */
 +export const zUlooTasksDetailResponse = z.object({
++  constraints: z.string().nullish(),
 +  created_at: z.iso.datetime().nullish(),
 +  current_plan_version: z.int(),
 +  id: z.string(),
@@ -4354,6 +4645,7 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 +  team_id: z.string().nullish(),
 +  title: z.string(),
 +  updated_at: z.iso.datetime().nullish(),
++  user_supplements: z.array(z.string()).optional(),
 +})
 +
 +export const zGetUlooAgentsQuery = z.object({
@@ -4456,6 +4748,15 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 + */
 +export const zGetUlooRunsByRunIdResponse = zUlooRunDetailResponse
 +
++export const zPostUlooRunsByRunIdCancelPath = z.object({
++  run_id: z.uuid(),
++})
++
++/**
++ * Run cancelled
++ */
++export const zPostUlooRunsByRunIdCancelResponse = zUlooRunDetailResponse
++
 +export const zGetUlooRunsByRunIdEventsPath = z.object({
 +  run_id: z.uuid(),
 +})
@@ -4468,6 +4769,21 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 + * Success
 + */
 +export const zGetUlooRunsByRunIdEventsResponse = z.array(zUlooRunEventResponse)
++
++export const zPostUlooRunsByRunIdRetryBody = zUlooRunCreatePayload
++
++export const zPostUlooRunsByRunIdRetryPath = z.object({
++  run_id: z.uuid(),
++})
++
++export const zPostUlooRunsByRunIdRetryQuery = z.object({
++  wait: z.boolean().optional().default(true),
++})
++
++/**
++ * Run completed
++ */
++export const zPostUlooRunsByRunIdRetryResponse = zUlooRunDetailResponse
 +
 +export const zGetUlooTasksQuery = z.object({
 +  limit: z.int().gte(1).lte(100).optional().default(20),
@@ -4497,6 +4813,8 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 + */
 +export const zGetUlooTasksByTaskIdResponse = zUlooTasksDetailResponse
 +
++export const zPostUlooTasksByTaskIdApproveBody = zUlooPlanApprovalPayload
++
 +export const zPostUlooTasksByTaskIdApprovePath = z.object({
 +  task_id: z.uuid(),
 +})
@@ -4505,6 +4823,37 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 + * Plan approved
 + */
 +export const zPostUlooTasksByTaskIdApproveResponse = zUlooPlanApprovalResponse
++
++export const zPostUlooTasksByTaskIdExecuteBody = zUlooTaskDirectExecutePayload
++
++export const zPostUlooTasksByTaskIdExecutePath = z.object({
++  task_id: z.uuid(),
++})
++
++/**
++ * Background run started
++ */
++export const zPostUlooTasksByTaskIdExecuteResponse = zUlooRunDetailResponse
++
++export const zGetUlooTasksByTaskIdExportPath = z.object({
++  task_id: z.uuid(),
++})
++
++/**
++ * Task exported
++ */
++export const zGetUlooTasksByTaskIdExportResponse = zUlooTaskExportResponse
++
++export const zPatchUlooTasksByTaskIdPlanBody = zUlooTaskPlanUpdatePayload
++
++export const zPatchUlooTasksByTaskIdPlanPath = z.object({
++  task_id: z.uuid(),
++})
++
++/**
++ * New plan version saved
++ */
++export const zPatchUlooTasksByTaskIdPlanResponse = zUlooTaskPlanResponse
 +
 +export const zPostUlooTasksByTaskIdPlanBody = zUlooTaskPlanPayload
 +
@@ -4521,6 +4870,10 @@ index 0000000000000000000000000000000000000000..9a91d817572b9e78e9feb39ca5bef03e
 +
 +export const zPostUlooTasksByTaskIdRunsPath = z.object({
 +  task_id: z.uuid(),
++})
++
++export const zPostUlooTasksByTaskIdRunsQuery = z.object({
++  wait: z.boolean().optional().default(true),
 +})
 +
 +/**
@@ -5140,11 +5493,11 @@ index 0000000000000000000000000000000000000000..e3b3b932e943c96a531d79e42dc5748d
 +}
 diff --git a/web/features/uloo/__tests__/dashboard.test.tsx b/web/features/uloo/__tests__/dashboard.test.tsx
 new file mode 100644
-index 0000000000000000000000000000000000000000..0327ba622956c68e0aedf9d3f23e8ff9287749b3
+index 0000000000000000000000000000000000000000..bfb370eeb10605a9c3fcbe181e3605dec16f3767
 --- /dev/null
 +++ b/web/features/uloo/__tests__/dashboard.test.tsx
-@@ -0,0 +1,170 @@
-+import { fireEvent, screen, waitFor } from '@testing-library/react'
+@@ -0,0 +1,228 @@
++import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 +import { beforeEach, describe, expect, it, vi } from 'vitest'
 +import { UlooDashboard } from '@/features/uloo/dashboard'
 +import { UlooTasksList } from '@/features/uloo/tasks-list'
@@ -5236,7 +5589,7 @@ index 0000000000000000000000000000000000000000..0327ba622956c68e0aedf9d3f23e8ff9
 +  it('blocks empty submissions (no navigation, no request)', async () => {
 +    const fetchMock = stubFetch(baseStub([]))
 +    renderWithConsoleQuery(<UlooDashboard />)
-+    fireEvent.click(screen.getByRole('button', { name: /uloo\.planTask/i }))
++    fireEvent.click(screen.getByRole('button', { name: /uloo\.directExecute/i }))
 +
 +    expect(push).not.toHaveBeenCalled()
 +    // Only the two initial GETs happened; no POST was issued.
@@ -5312,6 +5665,64 @@ index 0000000000000000000000000000000000000000..0327ba622956c68e0aedf9d3f23e8ff9
 +      },
 +      { timeout: 3000 },
 +    )
++  })
++
++  it('runs by default without an approval stop and navigates to the running record', async () => {
++    const seen: string[] = []
++    stubFetch(
++      baseStub([], (input, init) => {
++        const url = urlOf(input)
++        seen.push(url)
++        if (url.includes('/execute'))
++          return jsonResponse({ id: 'direct-run', status: 'running' }, 202)
++        if (methodOf(input, init) === 'POST') return jsonResponse({ id: 'direct-task' }, 201)
++        return jsonResponse({}, 404)
++      }),
++    )
++    renderWithConsoleQuery(<UlooDashboard />)
++    fireEvent.change(screen.getByPlaceholderText('uloo.taskInputPlaceholder'), {
++      target: { value: 'Calculate 12 + 7' },
++    })
++    fireEvent.click(screen.getByRole('button', { name: 'uloo.directExecute' }))
++    await waitFor(() => expect(push).toHaveBeenCalledWith('/uloo/runs/direct-run'))
++    expect(seen.some((url) => url.includes('/execute'))).toBe(true)
++    expect(
++      seen.some(
++        (url) => url.includes('/runs') || url.includes('/approve') || url.includes('/plan'),
++      ),
++    ).toBe(false)
++  })
++
++  it('does not require a follow-up start request after leaving during execution preparation', async () => {
++    let resolveExecution!: (response: Response) => void
++    const pendingExecution = new Promise<Response>((resolve) => {
++      resolveExecution = resolve
++    })
++    const seen: string[] = []
++    stubFetch(
++      baseStub([], (input, init) => {
++        const url = urlOf(input)
++        seen.push(url)
++        if (url.endsWith('/execute')) return pendingExecution
++        if (methodOf(input, init) === 'POST') return jsonResponse({ id: 'leaving-task' }, 201)
++        return jsonResponse({}, 404)
++      }),
++    )
++    const view = renderWithConsoleQuery(<UlooDashboard />)
++    fireEvent.change(screen.getByPlaceholderText('uloo.taskInputPlaceholder'), {
++      target: { value: 'Research' },
++    })
++    fireEvent.click(screen.getByRole('button', { name: 'uloo.directExecute' }))
++    await waitFor(() =>
++      expect(seen.some((url) => url.endsWith('/leaving-task/execute'))).toBe(true),
++    )
++    view.unmount()
++    await act(async () => {
++      resolveExecution(await jsonResponse({ id: 'background-run', status: 'running' }, 202))
++    })
++    expect(seen.filter((url) => url.includes('/execute'))).toHaveLength(1)
++    expect(seen.some((url) => url.includes('/runs') || url.includes('/approve'))).toBe(false)
++    expect(push).not.toHaveBeenCalled()
 +  })
 +})
 diff --git a/web/features/uloo/__tests__/integration-settings.test.tsx b/web/features/uloo/__tests__/integration-settings.test.tsx
@@ -5661,32 +6072,245 @@ index 0000000000000000000000000000000000000000..f3e7a475ae995c0c21ec5da39ef2aad9
 +})
 diff --git a/web/features/uloo/__tests__/task-records.test.tsx b/web/features/uloo/__tests__/task-records.test.tsx
 new file mode 100644
-index 0000000000000000000000000000000000000000..f602e354fb1d2cee08c9dcc68aa97d45526dcb71
+index 0000000000000000000000000000000000000000..400be84349b2d6f7e65c2c77274f1f9d031b3827
 --- /dev/null
 +++ b/web/features/uloo/__tests__/task-records.test.tsx
-@@ -0,0 +1,23 @@
+@@ -0,0 +1,236 @@
 +// AI生成
-+import { screen } from '@testing-library/react'
++import { screen, waitFor, within } from '@testing-library/react'
++import userEvent from '@testing-library/user-event'
 +import { expect, it, vi } from 'vitest'
 +import { renderWithConsoleQuery } from '@/test/console/query-data'
++import { UlooRunDetail } from '../runs/detail'
 +import { UlooTaskDetail } from '../task-detail'
 +
-+vi.mock('@/next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
++const { push } = vi.hoisted(() => ({ push: vi.fn() }))
++vi.mock('@/next/navigation', () => ({ useRouter: () => ({ push }) }))
 +
 +it('queries records for the current task and links its team and execution', async () => {
 +  const calls: URL[] = []
-+  vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-+    const url = new URL(input instanceof Request ? input.url : String(input), 'http://localhost')
-+    calls.push(url)
-+    const body = url.pathname.endsWith('/runs')
-+      ? { items: [{ id: 'run-1', status: 'succeeded', created_at: '2026-10-12T00:00:00Z' }], total: 1, offset: 0, limit: 100 }
-+      : { id: 'task-1', title: 'Research', query: 'Prices', status: 'draft', team_id: 'team-1', session_id: 'session-1', current_plan_version: 0, plans: [] }
-+    return new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } })
-+  }))
++  vi.stubGlobal(
++    'fetch',
++    vi.fn(async (input: RequestInfo | URL) => {
++      const url = new URL(input instanceof Request ? input.url : String(input), 'http://localhost')
++      calls.push(url)
++      const body = url.pathname.endsWith('/runs')
++        ? {
++            items: [{ id: 'run-1', status: 'succeeded', created_at: '2026-10-12T00:00:00Z' }],
++            total: 1,
++            offset: 0,
++            limit: 100,
++          }
++        : {
++            id: 'task-1',
++            title: 'Research',
++            query: 'Prices',
++            status: 'draft',
++            team_id: 'team-1',
++            session_id: 'session-1',
++            current_plan_version: 0,
++            plans: [],
++          }
++      return new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } })
++    }),
++  )
 +  renderWithConsoleQuery(<UlooTaskDetail taskId="task-1" />)
-+  expect(await screen.findByRole('link', { name: /uloo\.viewRunDetail/ })).toHaveAttribute('href', '/uloo/runs/run-1')
-+  expect(screen.getByRole('link', { name: 'team-1' })).toHaveAttribute('href', '/uloo/resources/teams/team-1')
-+  expect(calls.find(url => url.pathname.endsWith('/runs'))?.searchParams.get('task_id')).toBe('task-1')
++  expect(await screen.findByRole('link', { name: /uloo\.viewRunDetail/ })).toHaveAttribute(
++    'href',
++    '/uloo/runs/run-1',
++  )
++  expect(screen.getByRole('link', { name: 'team-1' })).toHaveAttribute(
++    'href',
++    '/uloo/resources/teams/team-1',
++  )
++  expect(calls.find((url) => url.pathname.endsWith('/runs'))?.searchParams.get('task_id')).toBe(
++    'task-1',
++  )
++})
++
++it('starts direct execution in the background and navigates to its running record', async () => {
++  push.mockClear()
++  const calls: URL[] = []
++  vi.stubGlobal(
++    'fetch',
++    vi.fn(async (input: RequestInfo | URL) => {
++      const url = new URL(input instanceof Request ? input.url : String(input), 'http://localhost')
++      calls.push(url)
++      const requestMethod = input instanceof Request ? input.method : 'GET'
++      const body =
++        url.pathname.endsWith('/runs') || url.pathname.endsWith('/execute')
++          ? requestMethod === 'POST'
++            ? {
++                id: 'run-2',
++                workspace_id: 'ws-1',
++                task_id: 'task-2',
++                plan_id: 'plan-1',
++                team_id: 'team-1',
++                status: 'running',
++                runtime_type: 'agno',
++                is_mock: false,
++                input_text: 'Compute',
++                events: [],
++              }
++            : { items: [], total: 0, offset: 0, limit: 100 }
++          : {
++              id: 'task-2',
++              title: 'Compute',
++              query: '12 + 7',
++              status: 'draft',
++              team_id: 'team-1',
++              session_id: 'session-1',
++              current_plan_version: 0,
++              plans: [],
++            }
++      return new Response(JSON.stringify(body), {
++        status: requestMethod === 'POST' && url.pathname.endsWith('/execute') ? 202 : 200,
++        headers: { 'Content-Type': 'application/json' },
++      })
++    }),
++  )
++  const user = userEvent.setup()
++  renderWithConsoleQuery(<UlooTaskDetail taskId="task-2" />)
++  await user.click(await screen.findByRole('button', { name: 'uloo.directExecute' }))
++  await waitFor(() => expect(push).toHaveBeenCalledWith('/uloo/runs/run-2'))
++  expect(calls.some((url) => url.pathname.endsWith('/execute'))).toBe(true)
++  expect(
++    calls.some((url) => url.pathname.endsWith('/approve') || url.searchParams.has('wait')),
++  ).toBe(false)
++})
++
++it('refreshes a running record until the completed result is visible', async () => {
++  let reads = 0
++  vi.stubGlobal(
++    'fetch',
++    vi.fn(async () => {
++      reads++
++      const body = {
++        id: 'run-3',
++        workspace_id: 'ws-1',
++        task_id: 'task-3',
++        plan_id: 'plan-1',
++        team_id: 'team-1',
++        status: reads === 1 ? 'running' : 'succeeded',
++        runtime_type: 'agno',
++        is_mock: false,
++        input_text: '12 + 7',
++        usage: { input_tokens: 16, output_tokens: 7, total_tokens: 23 },
++        events: [],
++        output: reads === 1 ? null : { answer: 19 },
++      }
++      return new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } })
++    }),
++  )
++  renderWithConsoleQuery(<UlooRunDetail runId="run-3" />)
++  expect(await screen.findByText('running')).toBeInTheDocument()
++  expect(await screen.findByText('succeeded', {}, { timeout: 3000 })).toBeInTheDocument()
++  expect(screen.getByText(/"answer": 19/)).toBeInTheDocument()
++  expect(screen.getByText('16')).toBeInTheDocument()
++  expect(screen.getByText('7')).toBeInTheDocument()
++})
++
++it('saves editable steps as a new version and executes exactly that version', async () => {
++  push.mockClear()
++  const user = userEvent.setup()
++  const plan = {
++    id: 'plan-1',
++    task_id: 'editable-task',
++    version: 1,
++    summary: 'Initial plan',
++    assumptions: [],
++    questions: [],
++    recommended_team_id: 'team-1',
++    approval_status: 'pending',
++    runtime_type: 'agno',
++    is_mock: false,
++    steps: [
++      {
++        id: 'first',
++        title: 'Calculate',
++        description: 'Calculate 12 + 7',
++        assigned_agent_id: 'agent-1',
++        depends_on: [],
++        expected_output: 'Answer',
++        status: 'pending',
++      },
++    ],
++  }
++  let plans = [plan]
++  const writes: Array<{ path: string; body: Record<string, unknown> }> = []
++  vi.stubGlobal(
++    'fetch',
++    vi.fn(async (input: RequestInfo | URL) => {
++      const request = input as Request
++      const url = new URL(request.url)
++      let body: unknown
++      if (request.method === 'PATCH') {
++        const edited = await request.json()
++        writes.push({ path: url.pathname, body: edited })
++        const next = { ...plan, ...edited, id: 'plan-2', version: 2 }
++        plans = [plan, next]
++        body = next
++      } else if (request.method === 'POST') {
++        writes.push({ path: url.pathname, body: await request.json() })
++        body = { id: 'edited-run' }
++      } else if (url.pathname.endsWith('/teams')) {
++        body = {
++          items: [
++            {
++              id: 'team-1',
++              name: 'Arithmetic team',
++              mode: 'coordinate',
++              member_agent_ids: ['agent-1'],
++            },
++          ],
++        }
++      } else if (url.pathname.endsWith('/agents')) {
++        body = { items: [{ id: 'agent-1', name: 'Analyst', role: 'Calculate' }] }
++      } else if (url.pathname.endsWith('/runs')) {
++        body = { items: [] }
++      } else {
++        body = {
++          id: 'editable-task',
++          title: 'Arithmetic',
++          query: '12 + 7',
++          status: 'awaiting_approval',
++          team_id: 'team-1',
++          session_id: 'session-1',
++          current_plan_version: plans.length,
++          plans,
++        }
++      }
++      return new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json' } })
++    }),
++  )
++  renderWithConsoleQuery(<UlooTaskDetail taskId="editable-task" />)
++  await user.click(await screen.findByRole('button', { name: 'uloo.editPlan' }))
++  expect(screen.getByRole('button', { name: 'uloo.approveAndRunDemo' })).toBeDisabled()
++  const form = screen.getByRole('form', { name: 'uloo.editPlan' })
++  await user.clear(within(form).getByRole('textbox', { name: 'uloo.resourceName' }))
++  await user.type(
++    within(form).getByRole('textbox', { name: 'uloo.resourceName' }),
++    'Independent arithmetic check',
++  )
++  await user.click(within(form).getByRole('button', { name: 'uloo.addResource uloo.planStep' }))
++  const added = within(within(form).getByRole('group', { name: 'uloo.planStep 2' }))
++  await user.type(added.getByRole('textbox', { name: 'uloo.resourceName' }), 'Summarize')
++  await user.selectOptions(added.getByRole('combobox', { name: 'uloo.agents' }), 'agent-1')
++  await user.click(added.getByRole('checkbox', { name: 'Independent arithmetic check' }))
++  await user.click(within(form).getByRole('button', { name: 'uloo.savePlan' }))
++  await waitFor(() =>
++    expect(screen.queryByRole('form', { name: 'uloo.editPlan' })).not.toBeInTheDocument(),
++  )
++  expect(writes[0]?.body.expected_version).toBe(1)
++  expect((writes[0]?.body.steps as Array<{ depends_on: string[] }>)[1]?.depends_on).toEqual([
++    'first',
++  ])
++  expect(screen.getByText('1. Calculate', { exact: true })).toBeInTheDocument()
++  await user.click(screen.getByRole('button', { name: 'uloo.approveAndRunDemo' }))
++  await waitFor(() => expect(push).toHaveBeenCalledWith('/uloo/runs/edited-run'))
++  expect(writes[1]?.path).toMatch(/\/execute$/)
++  expect(writes[1]?.body.expected_plan_version).toBe(2)
++  expect(writes).toHaveLength(2)
 +})
 diff --git a/web/features/uloo/__tests__/tools.test.tsx b/web/features/uloo/__tests__/tools.test.tsx
 new file mode 100644
@@ -6099,7 +6723,7 @@ index 0000000000000000000000000000000000000000..8dc683ec60786a9b89c370a6886cf075
 +}
 diff --git a/web/features/uloo/agents/agent-form-dialog.tsx b/web/features/uloo/agents/agent-form-dialog.tsx
 new file mode 100644
-index 0000000000000000000000000000000000000000..daece1bde1fd27bbbdc7ff2363963f680016cfe0
+index 0000000000000000000000000000000000000000..e7659fa9e4a1efb36d5b6b3707dde2f48c0743d4
 --- /dev/null
 +++ b/web/features/uloo/agents/agent-form-dialog.tsx
 @@ -0,0 +1,370 @@
@@ -6238,7 +6862,7 @@ index 0000000000000000000000000000000000000000..daece1bde1fd27bbbdc7ff2363963f68
 +    for (const m of difyModels.data?.models ?? []) {
 +      if (m.model_ref && !seen.has(m.model_ref)) {
 +        seen.add(m.model_ref)
-+        opts.push({ value: m.model_ref, label: `${m.label} · ${m.provider_label ?? 'Dify'}` })
++        opts.push({ value: m.model_ref, label: m.label })
 +      }
 +    }
 +    return opts
@@ -7640,10 +8264,10 @@ index 0000000000000000000000000000000000000000..800b1e1e134ac591d0bf340e6effa944
 +}
 diff --git a/web/features/uloo/dashboard.tsx b/web/features/uloo/dashboard.tsx
 new file mode 100644
-index 0000000000000000000000000000000000000000..4b5c9852044759fc54b41bd07d4e921684b198b6
+index 0000000000000000000000000000000000000000..da61b41bf003640579e4acb44da8ab1e56049bc6
 --- /dev/null
 +++ b/web/features/uloo/dashboard.tsx
-@@ -0,0 +1,321 @@
+@@ -0,0 +1,341 @@
 +// AI生成
 +'use client'
 +
@@ -7702,6 +8326,8 @@ index 0000000000000000000000000000000000000000..4b5c9852044759fc54b41bd07d4e9216
 +
 +  const createTask = useMutation(consoleQuery.uloo.tasks.post.mutationOptions())
 +  const planTask = useMutation(consoleQuery.uloo.tasks.byTaskId.plan.post.mutationOptions())
++  const executeTask = useMutation(consoleQuery.uloo.tasks.byTaskId.execute.post.mutationOptions())
++  const busy = createTask.isPending || planTask.isPending || executeTask.isPending
 +
 +  const teamsData = teamsQuery.data as UlooTTeamsPageResponse | undefined
 +  const tasksData = tasksQuery.data as UlooTasksPageResponse | undefined
@@ -7729,6 +8355,7 @@ index 0000000000000000000000000000000000000000..4b5c9852044759fc54b41bd07d4e9216
 +
 +  function submitTask(event: React.FormEvent<HTMLFormElement>) {
 +    event.preventDefault()
++    const planFirst = (event.nativeEvent as SubmitEvent).submitter?.getAttribute('value') === 'plan'
 +    const trimmed = query.trim()
 +    if (!trimmed) {
 +      toast.error(t(($) => $.taskRequired))
@@ -7748,6 +8375,19 @@ index 0000000000000000000000000000000000000000..4b5c9852044759fc54b41bd07d4e9216
 +        onSuccess: (task) => {
 +          const createdTask = task as UlooTasksDetailResponse
 +          toast.success(t(($) => $.taskCreated))
++          if (!planFirst) {
++            executeTask.mutate(
++              { params: { task_id: createdTask.id }, body: {} },
++              {
++                onSuccess: (run) => router.push(routes.run(run.id)),
++                onError: (error) => {
++                  toast.error(getUlooErrorInfo(error).message)
++                  router.push(routes.task(createdTask.id))
++                },
++              },
++            )
++            return
++          }
 +          planTask.mutate(
 +            { params: { task_id: createdTask.id }, body: {} },
 +            {
@@ -7816,16 +8456,20 @@ index 0000000000000000000000000000000000000000..4b5c9852044759fc54b41bd07d4e9216
 +                  <span className="text-[11px] text-text-tertiary">
 +                    {t(($) => $.taskInputHint)}
 +                  </span>
-+                  <Button
-+                    type="submit"
-+                    variant="primary"
-+                    size="small"
-+                    loading={!preview && (createTask.isPending || planTask.isPending)}
-+                  >
-+                    {preview || (!createTask.isPending && !planTask.isPending)
-+                      ? t(($) => $.planTask)
-+                      : t(($) => $.planningTask)}
-+                  </Button>
++                  <div className="flex gap-2">
++                    <Button
++                      type="submit"
++                      value="execute"
++                      variant="primary"
++                      size="small"
++                      loading={!preview && busy}
++                    >
++                      {t(($) => $.directExecute)}
++                    </Button>
++                    <Button type="submit" value="plan" size="small" disabled={!preview && busy}>
++                      {t(($) => $.planTask)}
++                    </Button>
++                  </div>
 +                </div>
 +              </div>
 +
@@ -8245,17 +8889,17 @@ index 0000000000000000000000000000000000000000..8d443732fe454f192d709fc6a1a39e8d
 +}
 diff --git a/web/features/uloo/runs/detail.tsx b/web/features/uloo/runs/detail.tsx
 new file mode 100644
-index 0000000000000000000000000000000000000000..f972192825e3b3e23337a93abc45f3a36649d410
+index 0000000000000000000000000000000000000000..6fe476b66a43f0c53bb28f8c9bead3220495dcec
 --- /dev/null
 +++ b/web/features/uloo/runs/detail.tsx
-@@ -0,0 +1,329 @@
+@@ -0,0 +1,371 @@
 +// AI生成
 +'use client'
 +
-+import { useState } from 'react'
 +import { Button } from '@langgenius/dify-ui/button'
 +import { toast } from '@langgenius/dify-ui/toast'
 +import { useMutation, useQuery } from '@tanstack/react-query'
++import { useState } from 'react'
 +import { useTranslation } from 'react-i18next'
 +import Link from '@/next/link'
 +import { useRouter } from '@/next/navigation'
@@ -8298,19 +8942,26 @@ index 0000000000000000000000000000000000000000..f972192825e3b3e23337a93abc45f3a3
 +    }),
 +    enabled: !preview,
 +    retry: 1,
++    refetchInterval: (query) => (query.state.data?.status === 'running' ? 1000 : false),
 +  })
-+  const startRun = useMutation(consoleQuery.uloo.tasks.byTaskId.runs.post.mutationOptions())
++  const startRun = useMutation(consoleQuery.uloo.runs.byRunId.retry.post.mutationOptions())
++  const cancelRun = useMutation(consoleQuery.uloo.runs.byRunId.cancel.post.mutationOptions())
 +
 +  function retryRun() {
 +    if (!run?.task_id) return
 +    startRun.mutate(
-+      { params: { task_id: run.task_id }, body: {} },
++      { params: { run_id: runId }, query: { wait: false }, body: {} },
 +      {
 +        onSuccess: (newRun: { id: string }) => router.push(routes.run(newRun.id)),
 +        onError: (error: unknown) => toast.error(getUlooErrorInfo(error).message),
 +      },
 +    )
 +  }
++
++  if (!preview && runQuery.isPending)
++    return (
++      <div role="status" className="h-40 animate-pulse rounded-xl bg-background-section-burn" />
++    )
 +
 +  if (!preview && (runQuery.isError || !runQuery.data))
 +    return <UlooUnavailableState runtimeHref={routes.runtime} />
@@ -8343,14 +8994,17 @@ index 0000000000000000000000000000000000000000..f972192825e3b3e23337a93abc45f3a3
 +  const startedAt = run?.started_at ? new Date(run.started_at) : null
 +  const finishedAt = run?.finished_at ? new Date(run.finished_at) : null
 +  const durationMs = startedAt && finishedAt ? finishedAt.getTime() - startedAt.getTime() : null
-+  const durationText = durationMs != null
-+    ? durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(1)}s`
-+    : '—'
++  const durationText =
++    durationMs != null
++      ? durationMs < 1000
++        ? `${durationMs}ms`
++        : `${(durationMs / 1000).toFixed(1)}s`
++      : '—'
 +
 +  // Usage breakdown
 +  const totalTokens = run?.usage?.total_tokens ?? 0
-+  const promptTokens = run?.usage?.prompt_tokens ?? 0
-+  const completionTokens = run?.usage?.completion_tokens ?? 0
++  const promptTokens = run?.usage?.input_tokens ?? 0
++  const completionTokens = run?.usage?.output_tokens ?? 0
 +
 +  // Error analysis
 +  const isFailed = status === 'failed'
@@ -8362,14 +9016,20 @@ index 0000000000000000000000000000000000000000..f972192825e3b3e23337a93abc45f3a3
 +    INVALID_TEAM_CONFIGURATION: t(($) => $.errorSuggestionTeam),
 +    RuntimeConfigurationError: t(($) => $.errorSuggestionRuntime),
 +  }
-+  const suggestion = errorCode ? (errorSuggestions[errorCode] ?? t(($) => $.errorSuggestionGeneric)) : ''
++  const suggestion = errorCode
++    ? (errorSuggestions[errorCode] ?? t(($) => $.errorSuggestionGeneric))
++    : ''
 +
 +  // Status badge class
-+  const statusBadgeClass = {
-+    running: 'bg-components-badge-status-light-warning-bg text-components-badge-status-light-warning-text',
-+    succeeded: 'bg-components-badge-status-light-success-bg text-components-badge-status-light-success-text',
-+    failed: 'bg-components-badge-status-light-error-bg text-components-badge-status-light-error-text',
-+  }[status as string] ?? 'bg-background-section-burn text-text-tertiary'
++  const statusBadgeClass =
++    {
++      running:
++        'bg-components-badge-status-light-warning-bg text-components-badge-status-light-warning-text',
++      succeeded:
++        'bg-components-badge-status-light-success-bg text-components-badge-status-light-success-text',
++      failed:
++        'bg-components-badge-status-light-error-bg text-components-badge-status-light-error-text',
++    }[status as string] ?? 'bg-background-section-burn text-text-tertiary'
 +
 +  return (
 +    <div className="space-y-6">
@@ -8384,7 +9044,27 @@ index 0000000000000000000000000000000000000000..f972192825e3b3e23337a93abc45f3a3
 +            {status}
 +          </span>
 +        }
-+        actions={preview ? <UlooPreviewBanner /> : undefined}
++        actions={
++          preview ? (
++            <UlooPreviewBanner />
++          ) : status === 'running' ? (
++            <Button
++              size="small"
++              loading={cancelRun.isPending}
++              onClick={() =>
++                cancelRun.mutate(
++                  { params: { run_id: runId } },
++                  {
++                    onSuccess: () => void runQuery.refetch(),
++                    onError: (error) => toast.error(getUlooErrorInfo(error).message),
++                  },
++                )
++              }
++            >
++              {t(($) => $.cancel)}
++            </Button>
++          ) : undefined
++        }
 +      />
 +      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
 +        {[
@@ -8425,9 +9105,9 @@ index 0000000000000000000000000000000000000000..f972192825e3b3e23337a93abc45f3a3
 +        </section>
 +      )}
 +      {!preview && isFailed && (
-+        <section className="rounded-2xl border border-components-panel-border-subtle bg-components-panel-danger-bg p-5">
++        <section className="bg-components-panel-danger-bg rounded-2xl border border-components-panel-border-subtle p-5">
 +          <div className="flex items-center gap-2">
-+            <span className="i-ri-error-warning-line text-lg text-components-badge-status-light-error-text" />
++            <span className="text-components-badge-status-light-error-text i-ri-error-warning-line text-lg" />
 +            <h2 className="text-sm font-semibold text-text-primary">
 +              {t(($) => $.runErrorDiagnostics)}
 +            </h2>
@@ -8435,7 +9115,7 @@ index 0000000000000000000000000000000000000000..f972192825e3b3e23337a93abc45f3a3
 +          <div className="mt-4 space-y-3">
 +            {errorCode && (
 +              <div className="flex items-center gap-2">
-+                <span className="rounded-md bg-components-badge-status-light-error-bg px-2 py-1 text-xs font-mono font-semibold text-components-badge-status-light-error-text">
++                <span className="text-components-badge-status-light-error-text rounded-md bg-components-badge-status-light-error-bg px-2 py-1 font-mono text-xs font-semibold">
 +                  {errorCode}
 +                </span>
 +              </div>
@@ -8542,15 +9222,21 @@ index 0000000000000000000000000000000000000000..f972192825e3b3e23337a93abc45f3a3
 +            <div className="mt-4 grid gap-3 sm:grid-cols-3">
 +              <div className="rounded-lg bg-background-section-burn p-3">
 +                <div className="text-xs text-text-tertiary">{t(($) => $.runTotalTokens)}</div>
-+                <div className="mt-1 font-mono text-sm font-medium text-text-primary">{totalTokens}</div>
++                <div className="mt-1 font-mono text-sm font-medium text-text-primary">
++                  {totalTokens}
++                </div>
 +              </div>
 +              <div className="rounded-lg bg-background-section-burn p-3">
 +                <div className="text-xs text-text-tertiary">{t(($) => $.runPromptTokens)}</div>
-+                <div className="mt-1 font-mono text-sm font-medium text-text-primary">{promptTokens}</div>
++                <div className="mt-1 font-mono text-sm font-medium text-text-primary">
++                  {promptTokens}
++                </div>
 +              </div>
 +              <div className="rounded-lg bg-background-section-burn p-3">
 +                <div className="text-xs text-text-tertiary">{t(($) => $.runCompletionTokens)}</div>
-+                <div className="mt-1 font-mono text-sm font-medium text-text-primary">{completionTokens}</div>
++                <div className="mt-1 font-mono text-sm font-medium text-text-primary">
++                  {completionTokens}
++                </div>
 +              </div>
 +            </div>
 +          )}
@@ -9626,23 +10312,24 @@ index 0000000000000000000000000000000000000000..e1a4c82a202d97498591a1fcc8035e66
 +}
 diff --git a/web/features/uloo/task-detail.tsx b/web/features/uloo/task-detail.tsx
 new file mode 100644
-index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc8627d70004
+index 0000000000000000000000000000000000000000..55ad0cfc85573859dfd8e637e89681885d87102c
 --- /dev/null
 +++ b/web/features/uloo/task-detail.tsx
-@@ -0,0 +1,467 @@
+@@ -0,0 +1,523 @@
 +// AI生成
 +'use client'
 +
-+import { useState } from 'react'
 +import { Button } from '@langgenius/dify-ui/button'
 +import { toast } from '@langgenius/dify-ui/toast'
 +import { useMutation, useQuery } from '@tanstack/react-query'
++import { useState } from 'react'
 +import { useTranslation } from 'react-i18next'
 +import Link from '@/next/link'
 +import { useRouter } from '@/next/navigation'
-+import { consoleQuery } from '@/service/client'
++import { consoleClient, consoleQuery } from '@/service/client'
 +import { getUlooErrorInfo } from './agents/error'
 +import { createUlooRoutes } from './routes'
++import { UlooTaskPlanEditor } from './task-plan-editor'
 +import { UlooTaskStageTracker } from './task-stage-tracker'
 +
 +const STATUS_TONE: Record<string, string> = {
@@ -9674,27 +10361,34 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +      input: { params: { task_id: taskId } },
 +    }),
 +    retry: 1,
++    refetchInterval: (query) => (query.state.data?.status === 'running' ? 1000 : false),
 +  })
 +  const planTask = useMutation(consoleQuery.uloo.tasks.byTaskId.plan.post.mutationOptions())
++  const teamsQuery = useQuery({
++    ...consoleQuery.uloo.teams.get.queryOptions({
++      input: { query: { enabled: true, limit: 100 } },
++    }),
++    enabled: Boolean(taskQuery.data?.plans?.length),
++  })
++  const agentsQuery = useQuery({
++    ...consoleQuery.uloo.agents.get.queryOptions({
++      input: { query: { enabled: true, limit: 100 } },
++    }),
++    enabled: Boolean(taskQuery.data?.plans?.length),
++  })
 +  const taskRuns = useQuery({
-+    ...consoleQuery.uloo.runs.get.queryOptions({ input: { query: { task_id: taskId, limit: 100 } } }),
++    ...consoleQuery.uloo.runs.get.queryOptions({
++      input: { query: { task_id: taskId, limit: 100 } },
++    }),
 +    enabled: taskQuery.isSuccess,
 +    retry: 1,
++    refetchInterval: taskQuery.data?.status === 'running' ? 1000 : false,
 +  })
-+  const approveTask = useMutation(consoleQuery.uloo.tasks.byTaskId.approve.post.mutationOptions())
-+  const startRun = useMutation(consoleQuery.uloo.tasks.byTaskId.runs.post.mutationOptions())
-+  const directExecuteTask = useMutation({
-+    mutationFn: async () => {
-+      const res = await fetch(`/console/api/uloo/tasks/${taskId}/execute`, {
-+        method: 'POST',
-+        headers: { 'Content-Type': 'application/json' },
-+        body: JSON.stringify({}),
-+      })
-+      if (!res.ok) throw new Error(await res.text())
-+      return res.json()
-+    },
-+  })
++  const directExecuteTask = useMutation(
++    consoleQuery.uloo.tasks.byTaskId.execute.post.mutationOptions(),
++  )
 +  const [exporting, setExporting] = useState(false)
++  const [editingPlan, setEditingPlan] = useState(false)
 +
 +  function generatePlan() {
 +    planTask.mutate(
@@ -9707,50 +10401,35 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +  }
 +
 +  function approveAndRun() {
-+    approveTask.mutate(
-+      { params: { task_id: taskId } },
++    if (!taskQuery.data || editingPlan) return
++    directExecuteTask.mutate(
 +      {
-+        onSuccess: () => {
-+          startRun.mutate(
-+            { params: { task_id: taskId }, body: {} },
-+            {
-+              onSuccess: (run) => router.push(routes.run(run.id)),
-+              onError: (error) => {
-+                toast.error(getUlooErrorInfo(error).message)
-+                void taskQuery.refetch()
-+              },
-+            },
-+          )
-+        },
++        params: { task_id: taskId },
++        body: { expected_plan_version: taskQuery.data.current_plan_version },
++      },
++      {
++        onSuccess: (run) => router.push(routes.run(run.id)),
 +        onError: (error) => toast.error(getUlooErrorInfo(error).message),
 +      },
 +    )
 +  }
 +
 +  function directExecuteAndRun() {
-+    directExecuteTask.mutate(undefined, {
-+      onSuccess: () => {
-+        startRun.mutate(
-+          { params: { task_id: taskId }, body: {} },
-+          {
-+            onSuccess: (run) => router.push(routes.run(run.id)),
-+            onError: (error) => {
-+              toast.error(getUlooErrorInfo(error).message)
-+              void taskQuery.refetch()
-+            },
-+          },
-+        )
++    directExecuteTask.mutate(
++      { params: { task_id: taskId }, body: {} },
++      {
++        onSuccess: (run) => router.push(routes.run(run.id)),
++        onError: (error) => toast.error(getUlooErrorInfo(error).message),
 +      },
-+      onError: (error) => toast.error(getUlooErrorInfo(error).message),
-+    })
++    )
 +  }
 +
 +  async function exportTask() {
 +    setExporting(true)
 +    try {
-+      const res = await fetch(`/console/api/uloo/tasks/${taskId}/export`)
-+      if (!res.ok) throw new Error(await res.text())
-+      const data = await res.json()
++      const data = await consoleClient.uloo.tasks.byTaskId.export.get({
++        params: { task_id: taskId },
++      })
 +      const blob = new Blob([data.content], { type: 'text/markdown' })
 +      const url = URL.createObjectURL(blob)
 +      const a = document.createElement('a')
@@ -9793,19 +10472,18 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +  if (taskQuery.isError || !taskQuery.data) {
 +    return (
 +      <div className="rounded-xl border border-components-panel-border bg-background-default p-6">
-+        <div className="mx-auto i-ri-error-warning-line text-2xl text-components-badge-status-light-error-text" />
++        <div className="text-components-badge-status-light-error-text mx-auto i-ri-error-warning-line text-2xl" />
 +        <div className="mt-3 text-center text-sm font-semibold text-text-primary">
 +          {t(($) => $.coreUnavailableTitle)}
 +        </div>
-+        <div className="mt-1 text-center text-xs text-text-secondary">{t(($) => $.coreUnavailableDetail)}</div>
++        <div className="mt-1 text-center text-xs text-text-secondary">
++          {t(($) => $.coreUnavailableDetail)}
++        </div>
 +        <div className="mt-4 flex items-center justify-center gap-3">
 +          <Button size="small" onClick={() => void taskQuery.refetch()}>
 +            {t(($) => $.retry)}
 +          </Button>
-+          <Link
-+            href={routes.tasks}
-+            className="text-xs font-medium text-text-accent"
-+          >
++          <Link href={routes.tasks} className="text-xs font-medium text-text-accent">
 +            {t(($) => $.backToTasks)}
 +          </Link>
 +        </div>
@@ -9815,6 +10493,7 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +
 +  const task = taskQuery.data
 +  const plans = task.plans ?? []
++  const latestPlan = plans.find((plan) => plan.version === task.current_plan_version)
 +  const activeStage =
 +    task.status === 'succeeded'
 +      ? 3
@@ -9858,7 +10537,9 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +      <div className="grid gap-4 lg:grid-cols-2">
 +        {/* 目标 */}
 +        <section className="rounded-2xl border border-components-panel-border bg-background-default p-5">
-+          <h2 className="text-sm font-semibold text-text-primary">{t(($) => $.detailSectionGoal)}</h2>
++          <h2 className="text-sm font-semibold text-text-primary">
++            {t(($) => $.detailSectionGoal)}
++          </h2>
 +          <div className="mt-3 rounded-lg bg-background-section-burn px-4 py-3">
 +            <div className="text-xs font-medium text-text-tertiary">{t(($) => $.taskQuery)}</div>
 +            <p className="mt-1 text-sm leading-6 whitespace-pre-wrap text-text-primary">
@@ -9905,7 +10586,16 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +            <div className="rounded-lg border border-divider-subtle px-3 py-2">
 +              <div className="text-text-tertiary">{t(($) => $.autoSelectTeam)}</div>
 +              <div className="mt-0.5 font-medium text-text-secondary">
-+                {task.team_id ? <Link href={routes.team(task.team_id)} className="text-text-accent">{task.team_id}</Link> : t(($) => $.autoSelectTeam)}
++                {task.team_id ? (
++                  <Link href={routes.team(task.team_id)} className="text-text-accent">
++                    {String(
++                      teamsQuery.data?.items?.find((team) => team.id === task.team_id)?.name ??
++                        task.team_id,
++                    )}
++                  </Link>
++                ) : (
++                  t(($) => $.autoSelectTeam)
++                )}
 +              </div>
 +            </div>
 +          </div>
@@ -9913,7 +10603,9 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +
 +        {/* 约束 */}
 +        <section className="rounded-2xl border border-components-panel-border bg-background-default p-5">
-+          <h2 className="text-sm font-semibold text-text-primary">{t(($) => $.detailSectionConstraints)}</h2>
++          <h2 className="text-sm font-semibold text-text-primary">
++            {t(($) => $.detailSectionConstraints)}
++          </h2>
 +          {task.constraints ? (
 +            <div className="mt-3 rounded-lg bg-background-section-burn px-4 py-3">
 +              <p className="text-sm leading-6 whitespace-pre-wrap text-text-primary">
@@ -9927,7 +10619,9 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +          )}
 +          {task.user_supplements && task.user_supplements.length > 0 && (
 +            <div className="mt-3">
-+              <div className="text-xs font-medium text-text-secondary">{t(($) => $.userSupplementsLabel)}</div>
++              <div className="text-xs font-medium text-text-secondary">
++                {t(($) => $.userSupplementsLabel)}
++              </div>
 +              <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-text-tertiary">
 +                {task.user_supplements.map((supplement, index) => (
 +                  <li key={index}>{supplement}</li>
@@ -9952,7 +10646,7 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +              <Button
 +                size="small"
 +                variant="secondary"
-+                loading={directExecuteTask.isPending || startRun.isPending}
++                loading={directExecuteTask.isPending}
 +                onClick={directExecuteAndRun}
 +              >
 +                {t(($) => $.directExecute)}
@@ -9960,15 +10654,35 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +            </div>
 +          )}
 +          {plans.length > 0 && !['running', 'succeeded', 'cancelled'].includes(task.status) && (
-+            <Button
-+              size="small"
-+              loading={approveTask.isPending || startRun.isPending}
-+              onClick={approveAndRun}
-+            >
-+              {t(($) => $.approveAndRunDemo)}
-+            </Button>
++            <div className="flex flex-wrap gap-2">
++              <Button
++                size="small"
++                disabled={editingPlan || directExecuteTask.isPending}
++                onClick={() => setEditingPlan(true)}
++              >
++                {t(($) => $.editPlan)}
++              </Button>
++              <Button
++                size="small"
++                disabled={editingPlan}
++                loading={directExecuteTask.isPending}
++                onClick={approveAndRun}
++              >
++                {t(($) => $.approveAndRunDemo)}
++              </Button>
++            </div>
 +          )}
 +        </div>
++        {editingPlan && latestPlan && (
++          <UlooTaskPlanEditor
++            key={latestPlan.id}
++            plan={latestPlan}
++            onCancel={() => setEditingPlan(false)}
++            onSaved={() => {
++              void taskQuery.refetch().then(() => setEditingPlan(false))
++            }}
++          />
++        )}
 +        {plans.length === 0 ? (
 +          <div className="mt-3 rounded-xl border border-dashed border-divider-subtle bg-background-section-burn px-4 py-8 text-center">
 +            <div className="mx-auto i-ri-time-line text-2xl text-text-quaternary" />
@@ -9981,7 +10695,7 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +          </div>
 +        ) : (
 +          <div className="mt-3 space-y-2">
-+            {plans.map((plan) => (
++            {[...plans].reverse().map((plan) => (
 +              <div
 +                key={plan.id}
 +                className="rounded-xl border border-divider-subtle px-4 py-3 text-xs"
@@ -9990,7 +10704,11 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +                  <div className="font-medium text-text-primary">{plan.summary}</div>
 +                  <span className="text-components-badge-status-light-success-text rounded-md bg-components-badge-status-light-success-bg px-2 py-0.5 text-[10px] font-semibold">
 +                    {plan.runtime_type} ·{' '}
-+                    {plan.is_mock ? t(($) => $.simulatedResponseLabel) : t(($) => $.realPlan)}
++                    {plan.is_mock
++                      ? t(($) => $.simulatedResponseLabel)
++                      : plan.planner_run_id
++                        ? t(($) => $.realPlan)
++                        : t(($) => $.executionPlan)}
 +                  </span>
 +                </div>
 +                <div className="mt-1 text-text-tertiary">
@@ -10011,10 +10729,7 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +                )}
 +                <div className="mt-3 space-y-2">
 +                  {plan.steps.map((step, index) => (
-+                    <div
-+                      key={step.id}
-+                      className="rounded-lg bg-background-section-burn px-3 py-2"
-+                    >
++                    <div key={step.id} className="rounded-lg bg-background-section-burn px-3 py-2">
 +                      <div className="font-medium text-text-primary">
 +                        {index + 1}. {step.title}
 +                      </div>
@@ -10022,9 +10737,21 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +                        <div className="mt-1 text-text-tertiary">{step.description}</div>
 +                      )}
 +                      <div className="mt-1 font-mono text-[10px] text-text-quaternary">
-+                        {step.assigned_agent_id ?? t(($) => $.unassignedAgent)}
++                        {agentsQuery.data?.items?.find(
++                          (agent) => agent.id === step.assigned_agent_id,
++                        )?.name ??
++                          step.assigned_agent_id ??
++                          t(($) => $.unassignedAgent)}
 +                        {step.expected_output && ` · ${step.expected_output}`}
 +                      </div>
++                      {step.depends_on.length > 0 && (
++                        <div className="mt-1 text-text-tertiary">
++                          {t(($) => $.planDependencies)}:{' '}
++                          {step.depends_on
++                            .map((id) => plan.steps.find((item) => item.id === id)?.title ?? id)
++                            .join(', ')}
++                        </div>
++                      )}
 +                    </div>
 +                  ))}
 +                </div>
@@ -10038,27 +10765,36 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +        {/* 成果 */}
 +        <section className="rounded-2xl border border-components-panel-border bg-background-default p-5">
 +          <div className="flex items-center justify-between gap-3">
-+            <h2 className="text-sm font-semibold text-text-primary">{t(($) => $.detailSectionResults)}</h2>
-+            <Button
-+              size="small"
-+              variant="secondary"
-+              loading={exporting}
-+              onClick={exportTask}
-+            >
-+              <span className="i-ri-download-line mr-1" />
++            <h2 className="text-sm font-semibold text-text-primary">
++              {t(($) => $.detailSectionResults)}
++            </h2>
++            <Button size="small" variant="secondary" loading={exporting} onClick={exportTask}>
++              <span className="mr-1 i-ri-download-line" />
 +              {t(($) => $.exportTask)}
 +            </Button>
 +          </div>
-+          {taskRuns.isLoading && <p className="mt-3 text-xs text-text-tertiary" role="status">{t(($) => $.loadingRuns)}</p>}
-+          {taskRuns.isError && <p className="mt-3 text-xs text-text-tertiary" role="alert">{t(($) => $.runsUnavailable)}</p>}
++          {taskRuns.isLoading && (
++            <p className="mt-3 text-xs text-text-tertiary" role="status">
++              {t(($) => $.loadingRuns)}
++            </p>
++          )}
++          {taskRuns.isError && (
++            <p className="mt-3 text-xs text-text-tertiary" role="alert">
++              {t(($) => $.runsUnavailable)}
++            </p>
++          )}
 +          {taskRuns.data?.items.length === 0 && (
 +            <div className="mt-3 rounded-lg border border-dashed border-divider-subtle px-4 py-6 text-center">
 +              <div className="text-xs text-text-tertiary">{t(($) => $.noRunsYet)}</div>
 +            </div>
 +          )}
 +          <div className="mt-3 space-y-2">
-+            {taskRuns.data?.items.map(run => (
-+              <Link key={run.id} href={routes.run(run.id)} className="block rounded-lg border border-divider-subtle px-3 py-2 text-xs text-text-accent hover:bg-state-base-hover">
++            {taskRuns.data?.items.map((run) => (
++              <Link
++                key={run.id}
++                href={routes.run(run.id)}
++                className="block rounded-lg border border-divider-subtle px-3 py-2 text-xs text-text-accent hover:bg-state-base-hover"
++              >
 +                {formatTime(run.created_at)} · {run.status} · {t(($) => $.viewRunDetail)}
 +              </Link>
 +            ))}
@@ -10067,12 +10803,16 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +
 +        {/* 问题 */}
 +        <section className="rounded-2xl border border-components-panel-border bg-background-default p-5">
-+          <h2 className="text-sm font-semibold text-text-primary">{t(($) => $.detailSectionIssues)}</h2>
-+          {plans.length > 0 && plans[0].questions.length > 0 ? (
++          <h2 className="text-sm font-semibold text-text-primary">
++            {t(($) => $.detailSectionIssues)}
++          </h2>
++          {latestPlan && latestPlan.questions.length > 0 ? (
 +            <div className="mt-3">
-+              <div className="text-xs font-medium text-text-secondary">{t(($) => $.planQuestionsLabel)}</div>
++              <div className="text-xs font-medium text-text-secondary">
++                {t(($) => $.planQuestionsLabel)}
++              </div>
 +              <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-text-tertiary">
-+                {plans[0].questions.map((question, index) => (
++                {latestPlan.questions.map((question, index) => (
 +                  <li key={index}>{question}</li>
 +                ))}
 +              </ul>
@@ -10082,11 +10822,13 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +              <div className="text-xs text-text-tertiary">{t(($) => $.noIssues)}</div>
 +            </div>
 +          )}
-+          {plans.length > 0 && plans[0].assumptions.length > 0 && (
++          {latestPlan && latestPlan.assumptions.length > 0 && (
 +            <div className="mt-3">
-+              <div className="text-xs font-medium text-text-secondary">{t(($) => $.planAssumptions)}</div>
++              <div className="text-xs font-medium text-text-secondary">
++                {t(($) => $.planAssumptions)}
++              </div>
 +              <ul className="mt-1 list-disc space-y-1 pl-4 text-xs text-text-tertiary">
-+                {plans[0].assumptions.map((assumption, index) => (
++                {latestPlan.assumptions.map((assumption, index) => (
 +                  <li key={index}>{assumption}</li>
 +                ))}
 +              </ul>
@@ -10095,6 +10837,248 @@ index 0000000000000000000000000000000000000000..f5fdd6156807b175c0cb8c4b679fcc86
 +        </section>
 +      </div>
 +    </div>
++  )
++}
+diff --git a/web/features/uloo/task-plan-editor.tsx b/web/features/uloo/task-plan-editor.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..79aca80047617b93e8a7c1e7b723d7887cfb884c
+--- /dev/null
++++ b/web/features/uloo/task-plan-editor.tsx
+@@ -0,0 +1,236 @@
++'use client'
++
++import type {
++  UlooTaskPlanResponse,
++  UlooTaskPlanStep,
++} from '@dify/contracts/api/console/uloo/types.gen'
++import { Button } from '@langgenius/dify-ui/button'
++import { Checkbox } from '@langgenius/dify-ui/checkbox'
++import { Input } from '@langgenius/dify-ui/input'
++import { Textarea } from '@langgenius/dify-ui/textarea'
++import { useMutation, useQuery } from '@tanstack/react-query'
++import { useState } from 'react'
++import { useTranslation } from 'react-i18next'
++import { consoleQuery } from '@/service/client'
++import { getUlooErrorInfo } from './agents/error'
++
++export function UlooTaskPlanEditor({
++  plan,
++  onSaved,
++  onCancel,
++}: {
++  plan: UlooTaskPlanResponse
++  onSaved: () => void
++  onCancel: () => void
++}) {
++  const { t } = useTranslation('uloo')
++  const [summary, setSummary] = useState(plan.summary ?? '')
++  const [teamId, setTeamId] = useState(plan.recommended_team_id ?? '')
++  const [steps, setSteps] = useState(plan.steps)
++  const [error, setError] = useState('')
++  const teamsQuery = useQuery(
++    consoleQuery.uloo.teams.get.queryOptions({ input: { query: { enabled: true, limit: 100 } } }),
++  )
++  const agentsQuery = useQuery(
++    consoleQuery.uloo.agents.get.queryOptions({ input: { query: { enabled: true, limit: 100 } } }),
++  )
++  const save = useMutation(consoleQuery.uloo.tasks.byTaskId.plan.patch.mutationOptions())
++  const teams = teamsQuery.data?.items ?? []
++  const team = teams.find((item) => item.id === teamId)
++  const members =
++    agentsQuery.data?.items.filter(
++      (agent) => Array.isArray(team?.member_agent_ids) && team.member_agent_ids.includes(agent.id),
++    ) ?? []
++  const ready = teamsQuery.isSuccess && agentsQuery.isSuccess
++
++  function updateStep(id: string, changes: Partial<UlooTaskPlanStep>) {
++    setSteps((current) => current.map((step) => (step.id === id ? { ...step, ...changes } : step)))
++  }
++
++  function submit(event: React.FormEvent) {
++    event.preventDefault()
++    setError('')
++    save.mutate(
++      {
++        params: { task_id: plan.task_id },
++        body: {
++          expected_version: plan.version,
++          summary: summary.trim(),
++          recommended_team_id: teamId,
++          assumptions: plan.assumptions,
++          questions: plan.questions,
++          steps,
++        },
++      },
++      { onSuccess: onSaved, onError: (failure) => setError(getUlooErrorInfo(failure).message) },
++    )
++  }
++
++  return (
++    <form onSubmit={submit} className="mt-4 space-y-4" aria-label={t(($) => $.editPlan)}>
++      <p className="text-xs text-text-tertiary">{t(($) => $.planEditHint)}</p>
++      <fieldset disabled={save.isPending} className="space-y-4">
++        <label className="block space-y-1 text-xs text-text-secondary">
++          <span>{t(($) => $.planSummary)}</span>
++          <Textarea required maxLength={4000} value={summary} onValueChange={setSummary} />
++        </label>
++        <label className="block space-y-1 text-xs text-text-secondary">
++          <span>{t(($) => $.teams)}</span>
++          <select
++            required
++            value={teamId}
++            onChange={(event) => {
++              setTeamId(event.target.value)
++              setSteps((current) => current.map((step) => ({ ...step, assigned_agent_id: null })))
++            }}
++            className="w-full rounded-lg border border-divider-subtle bg-background-default p-2"
++          >
++            {!teams.some((item) => item.id === teamId) && <option value={teamId}>{teamId}</option>}
++            {teams.map((item) => (
++              <option key={String(item.id)} value={String(item.id)}>
++                {String(item.name)}
++              </option>
++            ))}
++          </select>
++        </label>
++        {steps.map((step, index) => (
++          <fieldset key={step.id} className="space-y-3 rounded-xl border border-divider-subtle p-4">
++            <legend className="px-1 text-xs font-medium text-text-primary">
++              {t(($) => $.planStep)} {index + 1}
++            </legend>
++            <label className="block space-y-1 text-xs text-text-secondary">
++              <span>{t(($) => $.resourceName)}</span>
++              <Input
++                required
++                maxLength={256}
++                value={step.title}
++                onChange={(event) => updateStep(step.id, { title: event.target.value })}
++              />
++            </label>
++            <label className="block space-y-1 text-xs text-text-secondary">
++              <span>{t(($) => $.description)}</span>
++              <Textarea
++                maxLength={2000}
++                value={step.description ?? ''}
++                onValueChange={(value) => updateStep(step.id, { description: value })}
++              />
++            </label>
++            <label className="block space-y-1 text-xs text-text-secondary">
++              <span>{t(($) => $.agents)}</span>
++              <select
++                required={team?.mode !== 'route'}
++                value={step.assigned_agent_id ?? ''}
++                onChange={(event) =>
++                  updateStep(step.id, { assigned_agent_id: event.target.value || null })
++                }
++                className="w-full rounded-lg border border-divider-subtle bg-background-default p-2"
++              >
++                <option value="">{t(($) => $.unassignedAgent)}</option>
++                {step.assigned_agent_id &&
++                  !members.some((agent) => agent.id === step.assigned_agent_id) && (
++                    <option value={step.assigned_agent_id} disabled>
++                      {step.assigned_agent_id}
++                    </option>
++                  )}
++                {members.map((agent) => (
++                  <option key={agent.id} value={agent.id}>
++                    {agent.name} · {agent.role}
++                  </option>
++                ))}
++              </select>
++            </label>
++            <label className="block space-y-1 text-xs text-text-secondary">
++              <span>{t(($) => $.expectedOutput)}</span>
++              <Textarea
++                value={step.expected_output ?? ''}
++                onValueChange={(value) => updateStep(step.id, { expected_output: value })}
++              />
++            </label>
++            <div className="space-y-2 text-xs text-text-secondary">
++              <div>{t(($) => $.planDependencies)}</div>
++              {steps
++                .filter((other) => other.id !== step.id)
++                .map((other) => (
++                  <label key={other.id} className="flex items-center gap-2">
++                    <Checkbox
++                      checked={step.depends_on.includes(other.id)}
++                      onCheckedChange={(checked) =>
++                        updateStep(step.id, {
++                          depends_on: checked
++                            ? [...step.depends_on, other.id]
++                            : step.depends_on.filter((id) => id !== other.id),
++                        })
++                      }
++                    />
++                    {other.title}
++                  </label>
++                ))}
++            </div>
++            <Button
++              type="button"
++              size="small"
++              disabled={steps.length === 1}
++              onClick={() =>
++                setSteps((current) =>
++                  current
++                    .filter((item) => item.id !== step.id)
++                    .map((item) => ({
++                      ...item,
++                      depends_on: item.depends_on.filter((id) => id !== step.id),
++                    })),
++                )
++              }
++            >
++              {t(($) => $.delete)}
++            </Button>
++          </fieldset>
++        ))}
++        <Button
++          type="button"
++          size="small"
++          disabled={steps.length >= 30}
++          onClick={() =>
++            setSteps((current) => [
++              ...current,
++              {
++                id: crypto.randomUUID(),
++                title: '',
++                description: '',
++                assigned_agent_id: null,
++                depends_on: [],
++                expected_output: '',
++                status: 'pending',
++              },
++            ])
++          }
++        >
++          {t(($) => $.addResource)} {t(($) => $.planStep)}
++        </Button>
++      </fieldset>
++      {(teamsQuery.isError || agentsQuery.isError) && (
++        <p role="alert" className="text-xs text-text-warning">
++          {t(($) => $.coreUnavailableDetail)}
++        </p>
++      )}
++      {error && (
++        <p role="alert" className="text-xs text-text-warning">
++          {error}
++        </p>
++      )}
++      <div className="flex gap-2">
++        <Button
++          type="submit"
++          variant="primary"
++          size="small"
++          disabled={!ready}
++          loading={save.isPending}
++        >
++          {t(($) => $.savePlan)}
++        </Button>
++        <Button type="button" size="small" disabled={save.isPending} onClick={onCancel}>
++          {t(($) => $.cancel)}
++        </Button>
++      </div>
++    </form>
 +  )
 +}
 diff --git a/web/features/uloo/task-stage-tracker.tsx b/web/features/uloo/task-stage-tracker.tsx
@@ -11578,11 +12562,22 @@ index 599f4ac059513cb2e6d1d8d24522bd9938051c0c..13075c655efa98367482f6dea47eed7f
  export type Namespace = (typeof namespaces)[number]
 diff --git a/web/i18n/ar-TN/uloo.json b/web/i18n/ar-TN/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..63395e8b8f61aafdb3de06eb6206b8daed6be3b0
+index 0000000000000000000000000000000000000000..90219d9ad576c7e8bfea857b939769f9b0dbc726
 --- /dev/null
 +++ b/web/i18n/ar-TN/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "تعديل الخطة",
++  "savePlan": "حفظ إصدار جديد",
++  "planSummary": "ملخص الخطة",
++  "planStep": "خطوة",
++  "planDependencies": "الخطوات المسبقة",
++  "planEditHint": "تنشئ التعديلات إصدارًا جديدًا. تُنفّذ الخطة المحفوظة وينسّق Agno بين الأعضاء.",
++  "taskInputHint": "نفّذ مباشرة أو خطّط أولًا لمراجعة الخطوات وتعديلها.",
++  "planTask": "التخطيط أولًا",
++  "taskStatusAwaitingApproval": "جاهز للتنفيذ",
++  "planReady": "خطة التنفيذ",
++  "approveAndRunDemo": "تنفيذ هذه الخطة",
 +  "navWork": "العمل",
 +  "navOperations": "عمليات التشغيل والمخرجات",
 +  "navResources": "الموارد",
@@ -11653,11 +12648,22 @@ index 0000000000000000000000000000000000000000..63395e8b8f61aafdb3de06eb6206b8da
 +}
 diff --git a/web/i18n/de-DE/uloo.json b/web/i18n/de-DE/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..1a9962262bce937d801bf3f70226584f6826b742
+index 0000000000000000000000000000000000000000..1632f17153a3db07ff39f969b856f9e36e73eeff
 --- /dev/null
 +++ b/web/i18n/de-DE/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "Plan bearbeiten",
++  "savePlan": "Neue Version speichern",
++  "planSummary": "Planzusammenfassung",
++  "planStep": "Schritt",
++  "planDependencies": "Voraussetzungen",
++  "planEditHint": "Änderungen erstellen eine neue Version. Der gespeicherte Plan wird ausgeführt; Agno koordiniert die Mitglieder.",
++  "taskInputHint": "Sofort ausführen oder zuerst planen, um Schritte zu prüfen und zu bearbeiten.",
++  "planTask": "Zuerst planen",
++  "taskStatusAwaitingApproval": "Bereit zur Ausführung",
++  "planReady": "Ausführungsplan",
++  "approveAndRunDemo": "Diesen Plan ausführen",
 +  "navWork": "Arbeit",
 +  "navOperations": "Läufe & Ergebnisse",
 +  "navResources": "Ressourcen",
@@ -11728,11 +12734,17 @@ index 0000000000000000000000000000000000000000..1a9962262bce937d801bf3f70226584f
 +}
 diff --git a/web/i18n/en-US/uloo.json b/web/i18n/en-US/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..c1f0918622cce9d299217caf4ec95c4155bc7134
+index 0000000000000000000000000000000000000000..487118ed0549d9a81a9981a5c61415ab51683123
 --- /dev/null
 +++ b/web/i18n/en-US/uloo.json
-@@ -0,0 +1,304 @@
+@@ -0,0 +1,310 @@
 +{
++  "editPlan": "Edit plan",
++  "savePlan": "Save new version",
++  "planSummary": "Plan summary",
++  "planStep": "Step",
++  "planDependencies": "Prerequisites",
++  "planEditHint": "Changes create a new version. Execution uses the saved plan; Agno coordinates members.",
 +  "createTeam": "Create team",
 +  "editTeam": "Edit team",
 +  "teamLeader": "Coordination lead",
@@ -11883,14 +12895,14 @@ index 0000000000000000000000000000000000000000..c1f0918622cce9d299217caf4ec95c41
 +  "taskHeroTitle": "What should the agent team accomplish today?",
 +  "taskHeroHint": "Describe a business task. ULOO will plan a team, run the agents in real time, and deliver a consolidated result.",
 +  "taskInputPlaceholder": "e.g. Research competitors A/B/C and produce a comparison report on capabilities, pricing, and positioning…",
-+  "taskInputHint": "Multiline input is supported. No model is called before planning starts.",
++  "taskInputHint": "Run immediately, or plan first to review and edit the steps.",
 +  "exampleTasks": "Try these examples",
 +  "autoSelectTeam": "Auto-select team",
 +  "autoSelectTeamHint": "The planner recommends a team based on the task",
 +  "advancedOptions": "Advanced options",
 +  "sessionLabel": "Project / Session",
 +  "sessionHint": "Used for later memory retrieval and tracing",
-+  "planTask": "Plan task",
++  "planTask": "Plan first",
 +  "planningTask": "Generating a real plan…",
 +  "taskRequired": "Please enter a task",
 +  "taskCreateFailed": "Failed to create task",
@@ -11900,7 +12912,7 @@ index 0000000000000000000000000000000000000000..c1f0918622cce9d299217caf4ec95c41
 +  "noRecentTasksHint": "Start your first task from the input above.",
 +  "taskStatusDraft": "Draft",
 +  "taskStatusPlanning": "Planning",
-+  "taskStatusAwaitingApproval": "Awaiting approval",
++  "taskStatusAwaitingApproval": "Ready to run",
 +  "taskStatusRunning": "Running",
 +  "taskStatusSucceeded": "Completed",
 +  "taskStatusFailed": "Failed",
@@ -11951,9 +12963,9 @@ index 0000000000000000000000000000000000000000..c1f0918622cce9d299217caf4ec95c41
 +  "flowDelivery": "Consolidated delivery",
 +  "recommendedTeam": "Planner-recommended team",
 +  "previewPlanHint": "This plan demonstrates the product flow and is never written to production data.",
-+  "planReady": "Awaiting approval",
++  "planReady": "Execution plan",
 +  "expectedOutput": "Expected output",
-+  "approveAndRunDemo": "Approve plan and start run",
++  "approveAndRunDemo": "Run this plan",
 +  "agentExecution": "Live multi-Agent execution",
 +  "previewEventsHint": "Demo event stream showing the intended Run/Event/SSE experience.",
 +  "finishRunDemo": "Complete demo run",
@@ -12038,11 +13050,22 @@ index 0000000000000000000000000000000000000000..c1f0918622cce9d299217caf4ec95c41
 +}
 diff --git a/web/i18n/es-ES/uloo.json b/web/i18n/es-ES/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..ecad6d138549bc7de2975222367be76db42eec20
+index 0000000000000000000000000000000000000000..a783ab0b46973e8dedc4cf09d145f79aafa9b453
 --- /dev/null
 +++ b/web/i18n/es-ES/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "Editar plan",
++  "savePlan": "Guardar nueva versión",
++  "planSummary": "Resumen del plan",
++  "planStep": "Paso",
++  "planDependencies": "Requisitos previos",
++  "planEditHint": "Los cambios crean una nueva versión. Se ejecuta el plan guardado y Agno coordina a los miembros.",
++  "taskInputHint": "Ejecuta ahora o planifica primero para revisar y editar los pasos.",
++  "planTask": "Planificar primero",
++  "taskStatusAwaitingApproval": "Listo para ejecutar",
++  "planReady": "Plan de ejecución",
++  "approveAndRunDemo": "Ejecutar este plan",
 +  "navWork": "Trabajo",
 +  "navOperations": "Ejecuciones y activos",
 +  "navResources": "Recursos",
@@ -12113,11 +13136,22 @@ index 0000000000000000000000000000000000000000..ecad6d138549bc7de2975222367be76d
 +}
 diff --git a/web/i18n/fa-IR/uloo.json b/web/i18n/fa-IR/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..8fe905ff5b96114c4e48a07fd10de136db07a51f
+index 0000000000000000000000000000000000000000..ded1b147c3652183cb87819995f1fa561b56461c
 --- /dev/null
 +++ b/web/i18n/fa-IR/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "ویرایش برنامه",
++  "savePlan": "ذخیره نسخه جدید",
++  "planSummary": "خلاصه برنامه",
++  "planStep": "مرحله",
++  "planDependencies": "مراحل پیش‌نیاز",
++  "planEditHint": "تغییرات نسخه جدیدی ایجاد می‌کنند. برنامه ذخیره‌شده اجرا می‌شود و Agno اعضا را هماهنگ می‌کند.",
++  "taskInputHint": "مستقیم اجرا کنید یا ابتدا برای بررسی و ویرایش مراحل برنامه‌ریزی کنید.",
++  "planTask": "ابتدا برنامه‌ریزی",
++  "taskStatusAwaitingApproval": "آماده اجرا",
++  "planReady": "برنامه اجرا",
++  "approveAndRunDemo": "اجرای این برنامه",
 +  "navWork": "کار",
 +  "navOperations": "اجراها و خروجی‌ها",
 +  "navResources": "منابع",
@@ -12188,11 +13222,22 @@ index 0000000000000000000000000000000000000000..8fe905ff5b96114c4e48a07fd10de136
 +}
 diff --git a/web/i18n/fr-FR/uloo.json b/web/i18n/fr-FR/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..3383914998f886fe6065e407269e864f5bd4cbe9
+index 0000000000000000000000000000000000000000..2ad3be5d88cc5b7db00c47c7a96643c5fdc3bcfd
 --- /dev/null
 +++ b/web/i18n/fr-FR/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "Modifier le plan",
++  "savePlan": "Enregistrer une nouvelle version",
++  "planSummary": "Résumé du plan",
++  "planStep": "Étape",
++  "planDependencies": "Prérequis",
++  "planEditHint": "Les modifications créent une nouvelle version. Le plan enregistré est exécuté ; Agno coordonne les membres.",
++  "taskInputHint": "Exécutez immédiatement ou planifiez pour vérifier et modifier les étapes.",
++  "planTask": "Planifier d’abord",
++  "taskStatusAwaitingApproval": "Prêt à exécuter",
++  "planReady": "Plan d’exécution",
++  "approveAndRunDemo": "Exécuter ce plan",
 +  "navWork": "Travail",
 +  "navOperations": "Exécutions et livrables",
 +  "navResources": "Ressources",
@@ -12263,11 +13308,22 @@ index 0000000000000000000000000000000000000000..3383914998f886fe6065e407269e864f
 +}
 diff --git a/web/i18n/hi-IN/uloo.json b/web/i18n/hi-IN/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..b720e6acdada6fbba4ede5c6e1aef22a4ed786b5
+index 0000000000000000000000000000000000000000..30364a9e5ba5703a296b53320bb79a13b03f2e19
 --- /dev/null
 +++ b/web/i18n/hi-IN/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "योजना संपादित करें",
++  "savePlan": "नया संस्करण सहेजें",
++  "planSummary": "योजना सारांश",
++  "planStep": "चरण",
++  "planDependencies": "पूर्वापेक्षित चरण",
++  "planEditHint": "बदलाव नया संस्करण बनाते हैं। सहेजी गई योजना चलती है; Agno सदस्यों का समन्वय करता है।",
++  "taskInputHint": "तुरंत चलाएँ या चरण देखने और बदलने के लिए पहले योजना बनाएँ।",
++  "planTask": "पहले योजना बनाएँ",
++  "taskStatusAwaitingApproval": "चलाने के लिए तैयार",
++  "planReady": "निष्पादन योजना",
++  "approveAndRunDemo": "यह योजना चलाएँ",
 +  "navWork": "कार्य",
 +  "navOperations": "रन और परिणाम",
 +  "navResources": "संसाधन",
@@ -12338,11 +13394,22 @@ index 0000000000000000000000000000000000000000..b720e6acdada6fbba4ede5c6e1aef22a
 +}
 diff --git a/web/i18n/id-ID/uloo.json b/web/i18n/id-ID/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..de902143c7b8d986ce7dab4ed8232daa388cac3e
+index 0000000000000000000000000000000000000000..528dcde20a8ecfae77f81692140e4525ac195578
 --- /dev/null
 +++ b/web/i18n/id-ID/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "Edit rencana",
++  "savePlan": "Simpan versi baru",
++  "planSummary": "Ringkasan rencana",
++  "planStep": "Langkah",
++  "planDependencies": "Prasyarat",
++  "planEditHint": "Perubahan membuat versi baru. Rencana tersimpan dijalankan; Agno mengoordinasikan anggota.",
++  "taskInputHint": "Jalankan langsung atau rencanakan dahulu untuk meninjau dan mengedit langkah.",
++  "planTask": "Rencanakan dahulu",
++  "taskStatusAwaitingApproval": "Siap dijalankan",
++  "planReady": "Rencana eksekusi",
++  "approveAndRunDemo": "Jalankan rencana ini",
 +  "navWork": "Pekerjaan",
 +  "navOperations": "Eksekusi & hasil",
 +  "navResources": "Sumber daya",
@@ -12413,11 +13480,22 @@ index 0000000000000000000000000000000000000000..de902143c7b8d986ce7dab4ed8232daa
 +}
 diff --git a/web/i18n/it-IT/uloo.json b/web/i18n/it-IT/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..195894cce708459f4a5620de4e2b118599265f2f
+index 0000000000000000000000000000000000000000..fb0dcb017bee4cff1b8219609f943f2209207013
 --- /dev/null
 +++ b/web/i18n/it-IT/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "Modifica piano",
++  "savePlan": "Salva nuova versione",
++  "planSummary": "Riepilogo del piano",
++  "planStep": "Passaggio",
++  "planDependencies": "Prerequisiti",
++  "planEditHint": "Le modifiche creano una nuova versione. Si esegue il piano salvato; Agno coordina i membri.",
++  "taskInputHint": "Esegui subito oppure pianifica per verificare e modificare i passaggi.",
++  "planTask": "Pianifica prima",
++  "taskStatusAwaitingApproval": "Pronto per eseguire",
++  "planReady": "Piano di esecuzione",
++  "approveAndRunDemo": "Esegui questo piano",
 +  "navWork": "Lavoro",
 +  "navOperations": "Esecuzioni e risultati",
 +  "navResources": "Risorse",
@@ -12488,11 +13566,22 @@ index 0000000000000000000000000000000000000000..195894cce708459f4a5620de4e2b1185
 +}
 diff --git a/web/i18n/ja-JP/uloo.json b/web/i18n/ja-JP/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..99520009c960a3553b259475ef7f795ba92a786d
+index 0000000000000000000000000000000000000000..f59c99baed9d04b1c847a02f3c6267c4a230b735
 --- /dev/null
 +++ b/web/i18n/ja-JP/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "計画を編集",
++  "savePlan": "新しい版を保存",
++  "planSummary": "計画の概要",
++  "planStep": "ステップ",
++  "planDependencies": "前提ステップ",
++  "planEditHint": "変更は新しい版として保存されます。保存した計画で実行し、Agno がメンバーを調整します。",
++  "taskInputHint": "すぐに実行するか、先に計画して手順を確認・編集できます。",
++  "planTask": "先に計画",
++  "taskStatusAwaitingApproval": "実行待ち",
++  "planReady": "実行計画",
++  "approveAndRunDemo": "この計画を実行",
 +  "navWork": "作業",
 +  "navOperations": "実行と成果物",
 +  "navResources": "リソース",
@@ -12563,11 +13652,22 @@ index 0000000000000000000000000000000000000000..99520009c960a3553b259475ef7f795b
 +}
 diff --git a/web/i18n/ko-KR/uloo.json b/web/i18n/ko-KR/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..2fbea4a72cba742e965d8cdf50c2b0be87ea459a
+index 0000000000000000000000000000000000000000..fdb93b6242a4bc71fe2caa6d68bb7c1b94df4853
 --- /dev/null
 +++ b/web/i18n/ko-KR/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "계획 편집",
++  "savePlan": "새 버전 저장",
++  "planSummary": "계획 요약",
++  "planStep": "단계",
++  "planDependencies": "선행 단계",
++  "planEditHint": "변경 사항은 새 버전으로 저장됩니다. 저장된 계획으로 실행하며 Agno가 구성원을 조율합니다.",
++  "taskInputHint": "바로 실행하거나 먼저 계획하여 단계를 확인하고 수정하세요.",
++  "planTask": "먼저 계획",
++  "taskStatusAwaitingApproval": "실행 대기",
++  "planReady": "실행 계획",
++  "approveAndRunDemo": "이 계획 실행",
 +  "navWork": "작업",
 +  "navOperations": "실행 및 결과물",
 +  "navResources": "리소스",
@@ -12638,11 +13738,22 @@ index 0000000000000000000000000000000000000000..2fbea4a72cba742e965d8cdf50c2b0be
 +}
 diff --git a/web/i18n/nl-NL/uloo.json b/web/i18n/nl-NL/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..136b121cabe0afa1e20187117ecb5214cbffb643
+index 0000000000000000000000000000000000000000..b2f71d37d7238c711859940db14176d656ccf82e
 --- /dev/null
 +++ b/web/i18n/nl-NL/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "Plan bewerken",
++  "savePlan": "Nieuwe versie opslaan",
++  "planSummary": "Plansamenvatting",
++  "planStep": "Stap",
++  "planDependencies": "Vereisten",
++  "planEditHint": "Wijzigingen maken een nieuwe versie. Het opgeslagen plan wordt uitgevoerd; Agno coördineert de leden.",
++  "taskInputHint": "Voer direct uit of plan eerst om stappen te bekijken en te bewerken.",
++  "planTask": "Eerst plannen",
++  "taskStatusAwaitingApproval": "Klaar voor uitvoering",
++  "planReady": "Uitvoeringsplan",
++  "approveAndRunDemo": "Dit plan uitvoeren",
 +  "navWork": "Werk",
 +  "navOperations": "Runs en resultaten",
 +  "navResources": "Bronnen",
@@ -12713,11 +13824,22 @@ index 0000000000000000000000000000000000000000..136b121cabe0afa1e20187117ecb5214
 +}
 diff --git a/web/i18n/pl-PL/uloo.json b/web/i18n/pl-PL/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..11620a9fbdbf4fd85faf5c61be91d0eaeae6f02b
+index 0000000000000000000000000000000000000000..97d63870343af263b5a3b91c0567d2b8b957039d
 --- /dev/null
 +++ b/web/i18n/pl-PL/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "Edytuj plan",
++  "savePlan": "Zapisz nową wersję",
++  "planSummary": "Podsumowanie planu",
++  "planStep": "Krok",
++  "planDependencies": "Wymagane kroki",
++  "planEditHint": "Zmiany tworzą nową wersję. Wykonywany jest zapisany plan; Agno koordynuje członków.",
++  "taskInputHint": "Uruchom od razu lub najpierw zaplanuj, aby sprawdzić i zmienić kroki.",
++  "planTask": "Najpierw zaplanuj",
++  "taskStatusAwaitingApproval": "Gotowe do uruchomienia",
++  "planReady": "Plan wykonania",
++  "approveAndRunDemo": "Uruchom ten plan",
 +  "navWork": "Praca",
 +  "navOperations": "Uruchomienia i wyniki",
 +  "navResources": "Zasoby",
@@ -12788,11 +13910,22 @@ index 0000000000000000000000000000000000000000..11620a9fbdbf4fd85faf5c61be91d0ea
 +}
 diff --git a/web/i18n/pt-BR/uloo.json b/web/i18n/pt-BR/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..ab547fbb2d3081a8662b9e58dbcd1e0d7e736ca8
+index 0000000000000000000000000000000000000000..cd5f2f142d501bd57138784d48d115d11466617b
 --- /dev/null
 +++ b/web/i18n/pt-BR/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "Editar plano",
++  "savePlan": "Salvar nova versão",
++  "planSummary": "Resumo do plano",
++  "planStep": "Etapa",
++  "planDependencies": "Pré-requisitos",
++  "planEditHint": "As alterações criam uma nova versão. O plano salvo é executado; Agno coordena os membros.",
++  "taskInputHint": "Execute agora ou planeje primeiro para revisar e editar as etapas.",
++  "planTask": "Planejar primeiro",
++  "taskStatusAwaitingApproval": "Pronto para executar",
++  "planReady": "Plano de execução",
++  "approveAndRunDemo": "Executar este plano",
 +  "navWork": "Trabalho",
 +  "navOperations": "Execuções e ativos",
 +  "navResources": "Recursos",
@@ -12863,11 +13996,22 @@ index 0000000000000000000000000000000000000000..ab547fbb2d3081a8662b9e58dbcd1e0d
 +}
 diff --git a/web/i18n/ro-RO/uloo.json b/web/i18n/ro-RO/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..505ca2af32f2bc0a815a724183be3f87090dbbaa
+index 0000000000000000000000000000000000000000..f2b3e7ebbca3866f7b808f3dc7c538c11b0764fe
 --- /dev/null
 +++ b/web/i18n/ro-RO/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "Editează planul",
++  "savePlan": "Salvează o versiune nouă",
++  "planSummary": "Rezumatul planului",
++  "planStep": "Pas",
++  "planDependencies": "Condiții prealabile",
++  "planEditHint": "Modificările creează o versiune nouă. Se execută planul salvat; Agno coordonează membrii.",
++  "taskInputHint": "Execută imediat sau planifică întâi pentru a verifica și edita pașii.",
++  "planTask": "Planifică întâi",
++  "taskStatusAwaitingApproval": "Gata de executare",
++  "planReady": "Plan de execuție",
++  "approveAndRunDemo": "Execută acest plan",
 +  "navWork": "Lucru",
 +  "navOperations": "Execuții și rezultate",
 +  "navResources": "Resurse",
@@ -12938,11 +14082,22 @@ index 0000000000000000000000000000000000000000..505ca2af32f2bc0a815a724183be3f87
 +}
 diff --git a/web/i18n/ru-RU/uloo.json b/web/i18n/ru-RU/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..b9f90b7e94d68f35b1aa42d305e71fc6ac98f04b
+index 0000000000000000000000000000000000000000..74a108de1e3bd69d5a397276e7db09e155729384
 --- /dev/null
 +++ b/web/i18n/ru-RU/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "Изменить план",
++  "savePlan": "Сохранить новую версию",
++  "planSummary": "Описание плана",
++  "planStep": "Шаг",
++  "planDependencies": "Предыдущие шаги",
++  "planEditHint": "Изменения создают новую версию. Выполняется сохранённый план; Agno координирует участников.",
++  "taskInputHint": "Запустите сразу или сначала составьте план, чтобы проверить и изменить шаги.",
++  "planTask": "Сначала план",
++  "taskStatusAwaitingApproval": "Готово к запуску",
++  "planReady": "План выполнения",
++  "approveAndRunDemo": "Выполнить этот план",
 +  "navWork": "Работа",
 +  "navOperations": "Запуски и результаты",
 +  "navResources": "Ресурсы",
@@ -13013,11 +14168,22 @@ index 0000000000000000000000000000000000000000..b9f90b7e94d68f35b1aa42d305e71fc6
 +}
 diff --git a/web/i18n/sl-SI/uloo.json b/web/i18n/sl-SI/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..453ebc890cfc602d3e29d4c28f4c9d6205d93cdc
+index 0000000000000000000000000000000000000000..cfa536321abc4c1b945a1fecde1c4b24e048d00e
 --- /dev/null
 +++ b/web/i18n/sl-SI/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "Uredi načrt",
++  "savePlan": "Shrani novo različico",
++  "planSummary": "Povzetek načrta",
++  "planStep": "Korak",
++  "planDependencies": "Predhodni koraki",
++  "planEditHint": "Spremembe ustvarijo novo različico. Izvede se shranjeni načrt; Agno usklajuje člane.",
++  "taskInputHint": "Izvedite takoj ali najprej načrtujte, da preverite in uredite korake.",
++  "planTask": "Najprej načrtuj",
++  "taskStatusAwaitingApproval": "Pripravljeno za izvedbo",
++  "planReady": "Načrt izvedbe",
++  "approveAndRunDemo": "Izvedi ta načrt",
 +  "navWork": "Delo",
 +  "navOperations": "Izvajanja in rezultati",
 +  "navResources": "Viri",
@@ -13088,11 +14254,22 @@ index 0000000000000000000000000000000000000000..453ebc890cfc602d3e29d4c28f4c9d62
 +}
 diff --git a/web/i18n/th-TH/uloo.json b/web/i18n/th-TH/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..d8b61fa674a6a160dcff17c7afd2466646ac3919
+index 0000000000000000000000000000000000000000..474cf999de5ad549d3162d524ab5844942b82d3a
 --- /dev/null
 +++ b/web/i18n/th-TH/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "แก้ไขแผน",
++  "savePlan": "บันทึกเวอร์ชันใหม่",
++  "planSummary": "สรุปแผน",
++  "planStep": "ขั้นตอน",
++  "planDependencies": "ขั้นตอนที่ต้องทำก่อน",
++  "planEditHint": "การแก้ไขจะสร้างเวอร์ชันใหม่ ระบบใช้แผนที่บันทึกไว้ โดย Agno ประสานงานสมาชิก",
++  "taskInputHint": "เริ่มทำทันที หรือวางแผนก่อนเพื่อตรวจสอบและแก้ไขขั้นตอน",
++  "planTask": "วางแผนก่อน",
++  "taskStatusAwaitingApproval": "พร้อมเริ่มทำ",
++  "planReady": "แผนการทำงาน",
++  "approveAndRunDemo": "ดำเนินการตามแผนนี้",
 +  "navWork": "งาน",
 +  "navOperations": "การรันและผลลัพธ์",
 +  "navResources": "ทรัพยากร",
@@ -13163,11 +14340,22 @@ index 0000000000000000000000000000000000000000..d8b61fa674a6a160dcff17c7afd24666
 +}
 diff --git a/web/i18n/tr-TR/uloo.json b/web/i18n/tr-TR/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..cb32da8997b2c7c579f67b03fe4b0e7723867e13
+index 0000000000000000000000000000000000000000..03d8a60c1161f960fe973561cc06a1b0c005372f
 --- /dev/null
 +++ b/web/i18n/tr-TR/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "Planı düzenle",
++  "savePlan": "Yeni sürümü kaydet",
++  "planSummary": "Plan özeti",
++  "planStep": "Adım",
++  "planDependencies": "Ön koşullar",
++  "planEditHint": "Değişiklikler yeni sürüm oluşturur. Kaydedilen plan çalıştırılır; Agno üyeleri koordine eder.",
++  "taskInputHint": "Hemen çalıştırın veya adımları inceleyip düzenlemek için önce planlayın.",
++  "planTask": "Önce planla",
++  "taskStatusAwaitingApproval": "Çalıştırılmaya hazır",
++  "planReady": "Yürütme planı",
++  "approveAndRunDemo": "Bu planı çalıştır",
 +  "navWork": "Çalışma",
 +  "navOperations": "Çalıştırmalar ve çıktılar",
 +  "navResources": "Kaynaklar",
@@ -13238,11 +14426,22 @@ index 0000000000000000000000000000000000000000..cb32da8997b2c7c579f67b03fe4b0e77
 +}
 diff --git a/web/i18n/uk-UA/uloo.json b/web/i18n/uk-UA/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..832e01389551a5226e144697d70c5d6ff597658c
+index 0000000000000000000000000000000000000000..90195ac5dd318fa1321225d7f885e28a4b58a4ef
 --- /dev/null
 +++ b/web/i18n/uk-UA/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "Змінити план",
++  "savePlan": "Зберегти нову версію",
++  "planSummary": "Опис плану",
++  "planStep": "Крок",
++  "planDependencies": "Попередні кроки",
++  "planEditHint": "Зміни створюють нову версію. Виконується збережений план; Agno координує учасників.",
++  "taskInputHint": "Запустіть одразу або спочатку сплануйте, щоб перевірити та змінити кроки.",
++  "planTask": "Спочатку план",
++  "taskStatusAwaitingApproval": "Готово до запуску",
++  "planReady": "План виконання",
++  "approveAndRunDemo": "Виконати цей план",
 +  "navWork": "Робота",
 +  "navOperations": "Запуски та результати",
 +  "navResources": "Ресурси",
@@ -13313,11 +14512,22 @@ index 0000000000000000000000000000000000000000..832e01389551a5226e144697d70c5d6f
 +}
 diff --git a/web/i18n/vi-VN/uloo.json b/web/i18n/vi-VN/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..ac9600694057629dff1e694a45fb31f2799669eb
+index 0000000000000000000000000000000000000000..a7e3a1b8a7ca590b2d8959209a9fbddef4e43d14
 --- /dev/null
 +++ b/web/i18n/vi-VN/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "Sửa kế hoạch",
++  "savePlan": "Lưu phiên bản mới",
++  "planSummary": "Tóm tắt kế hoạch",
++  "planStep": "Bước",
++  "planDependencies": "Bước tiên quyết",
++  "planEditHint": "Thay đổi tạo phiên bản mới. Kế hoạch đã lưu được thực thi; Agno điều phối thành viên.",
++  "taskInputHint": "Chạy ngay hoặc lập kế hoạch trước để xem và sửa các bước.",
++  "planTask": "Lập kế hoạch trước",
++  "taskStatusAwaitingApproval": "Sẵn sàng chạy",
++  "planReady": "Kế hoạch thực thi",
++  "approveAndRunDemo": "Chạy kế hoạch này",
 +  "navWork": "Công việc",
 +  "navOperations": "Lần chạy và tài sản",
 +  "navResources": "Tài nguyên",
@@ -13388,11 +14598,17 @@ index 0000000000000000000000000000000000000000..ac9600694057629dff1e694a45fb31f2
 +}
 diff --git a/web/i18n/zh-Hans/uloo.json b/web/i18n/zh-Hans/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..b8f42c79b7d08d08260a65b015ea872ed7dd7751
+index 0000000000000000000000000000000000000000..196e9843c8c762a43e1f326874334b8ccf43dc9e
 --- /dev/null
 +++ b/web/i18n/zh-Hans/uloo.json
-@@ -0,0 +1,304 @@
+@@ -0,0 +1,310 @@
 +{
++  "editPlan": "调整计划",
++  "savePlan": "保存新版本",
++  "planSummary": "计划概述",
++  "planStep": "步骤",
++  "planDependencies": "前置步骤",
++  "planEditHint": "修改会保存为新版本。执行使用已保存的计划，由 Agno 协调成员。",
 +  "createTeam": "创建团队",
 +  "editTeam": "编辑团队",
 +  "teamLeader": "协调负责人",
@@ -13543,14 +14759,14 @@ index 0000000000000000000000000000000000000000..b8f42c79b7d08d08260a65b015ea872e
 +  "taskHeroTitle": "今天需要智能体团队完成什么？",
 +  "taskHeroHint": "输入一个业务任务，系统会规划团队、安排成员并实时执行，最后汇总交付。",
 +  "taskInputPlaceholder": "例如：调研竞品 A/B/C 的核心能力、价格和定位，输出对比报告……",
-+  "taskInputHint": "支持多行文本。规划开始前不会调用模型。",
++  "taskInputHint": "可直接执行；需要检查和调整执行步骤时，选择先规划。",
 +  "exampleTasks": "试试这些示例",
 +  "autoSelectTeam": "自动选择团队",
 +  "autoSelectTeamHint": "由规划器根据任务内容推荐团队",
 +  "advancedOptions": "高级选项",
 +  "sessionLabel": "项目 / 会话",
 +  "sessionHint": "用于后续记忆检索和追溯",
-+  "planTask": "规划任务",
++  "planTask": "先规划",
 +  "planningTask": "正在生成真实计划……",
 +  "taskRequired": "请输入任务内容",
 +  "taskCreateFailed": "任务创建失败",
@@ -13560,7 +14776,7 @@ index 0000000000000000000000000000000000000000..b8f42c79b7d08d08260a65b015ea872e
 +  "noRecentTasksHint": "从上方输入框开始你的第一个任务。",
 +  "taskStatusDraft": "草稿",
 +  "taskStatusPlanning": "规划中",
-+  "taskStatusAwaitingApproval": "等待确认",
++  "taskStatusAwaitingApproval": "待执行",
 +  "taskStatusRunning": "运行中",
 +  "taskStatusSucceeded": "已完成",
 +  "taskStatusFailed": "失败",
@@ -13611,9 +14827,9 @@ index 0000000000000000000000000000000000000000..b8f42c79b7d08d08260a65b015ea872e
 +  "flowDelivery": "汇总交付",
 +  "recommendedTeam": "Planner 推荐团队",
 +  "previewPlanHint": "以下计划用于体验产品流程，不会写入正式数据库。",
-+  "planReady": "等待确认",
++  "planReady": "执行安排",
 +  "expectedOutput": "预期产物",
-+  "approveAndRunDemo": "确认计划并开始执行",
++  "approveAndRunDemo": "按此计划执行",
 +  "agentExecution": "多 Agent 实时执行",
 +  "previewEventsHint": "演示事件流，用于展示正式 Run/Event/SSE 的交互形态。",
 +  "finishRunDemo": "完成演示执行",
@@ -13698,11 +14914,22 @@ index 0000000000000000000000000000000000000000..b8f42c79b7d08d08260a65b015ea872e
 +}
 diff --git a/web/i18n/zh-Hant/uloo.json b/web/i18n/zh-Hant/uloo.json
 new file mode 100644
-index 0000000000000000000000000000000000000000..039af81609e1a36afbb6fa1836a9c267dc6ccbd7
+index 0000000000000000000000000000000000000000..0b3131111641cc8f82b6eef3613d7fbdcc6db4ec
 --- /dev/null
 +++ b/web/i18n/zh-Hant/uloo.json
-@@ -0,0 +1,69 @@
+@@ -0,0 +1,80 @@
 +{
++  "editPlan": "調整計畫",
++  "savePlan": "儲存新版本",
++  "planSummary": "計畫概述",
++  "planStep": "步驟",
++  "planDependencies": "前置步驟",
++  "planEditHint": "修改會儲存為新版本。執行使用已儲存的計畫，由 Agno 協調成員。",
++  "taskInputHint": "可直接執行；需要檢查和調整步驟時，選擇先規劃。",
++  "planTask": "先規劃",
++  "taskStatusAwaitingApproval": "待執行",
++  "planReady": "執行安排",
++  "approveAndRunDemo": "依此計畫執行",
 +  "navWork": "工作",
 +  "navOperations": "執行與資產",
 +  "navResources": "資源設定",

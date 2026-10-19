@@ -76,6 +76,14 @@ class TaskPlanRequest(BaseModel):
     feedback: str | None = Field(default=None, max_length=4000)
 
 
+class TaskPlanUpdate(TaskPlanDraft):
+    expected_version: int = Field(ge=1)
+
+
+class TaskPlanApprovalRequest(BaseModel):
+    expected_version: int | None = Field(default=None, ge=1)
+
+
 class TaskPlanResponse(BaseModel):
     id: str
     task_id: str
@@ -134,9 +142,10 @@ class TaskSupplementRequest(BaseModel):
 
 
 class TaskDirectExecuteRequest(BaseModel):
-    """Direct execution request for simple tasks that skip planning."""
+    """Prepare an execution plan without a manual review stop."""
 
     team_id: str | None = Field(None, description="Optional explicit team selection")
+    expected_plan_version: int | None = Field(default=None, ge=1)
 
 
 class TaskExportResponse(BaseModel):

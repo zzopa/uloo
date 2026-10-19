@@ -10,8 +10,9 @@
         Dify API    http://localhost:5001   vendor/dify/api      (python app.py)
         Dify Web    http://localhost:3000   vendor/dify/web      (next dev)
 
-    PostgreSQL, Redis and the Dify plugin daemon are infrastructure and are NOT
-    started here; see deploy/compose.dev.yaml.
+    PostgreSQL, Redis and the Dify plugin daemon are Docker infrastructure.
+    This script starts the known local containers when necessary and waits for
+    them before launching the application processes.
 
     Services already listening on their port are left alone, so this script is
     safe to re-run.
@@ -144,6 +145,91 @@ function Test-DockerDaemon {
     return ($LASTEXITCODE -eq 0)
 }
 
+# P0-1: PG/Redis use their published TCP ports. The plugin daemon exposes a
+# dedicated health endpoint, so require a successful response from that route.
+function Test-TcpReachable {
+    param(
+        [string]$HostName = '127.0.0.1',
+        [int]$Port,
+        [int]$TimeoutMs = 800
+    )
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        $async = $client.BeginConnect($HostName, $Port, $null, $null)
+        if (-not $async.AsyncWaitHandle.WaitOne($TimeoutMs)) { return $false }
+        try { $client.EndConnect($async); return $true } catch { return $false }
+    }
+    finally { $client.Close() }
+}
+
+function Test-HttpReachable {
+    param(
+        [string]$Url,
+        [int]$TimeoutSec = 3
+    )
+    try {
+        $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec $TimeoutSec
+        return $response.StatusCode -ge 200 -and $response.StatusCode -lt 300
+    }
+    catch {
+        return $false
+    }
+}
+
+function Wait-InfraService {
+    param(
+        [int]$Port,
+        [string]$Kind,
+        [string]$HealthUrl = '',
+        [int]$TimeoutSeconds = 45
+    )
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    do {
+        if ($Kind -eq 'tcp' -and (Test-TcpReachable -Port $Port)) { return $true }
+        if ($Kind -eq 'http' -and (Test-HttpReachable -Url $HealthUrl)) { return $true }
+        Start-Sleep -Seconds 2
+    } while ((Get-Date) -lt $deadline)
+    return $false
+}
+
+function Start-NamedContainer {
+    param([string]$Name)
+    & docker container inspect $Name *> $null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    $running = (& docker container inspect --format '{{.State.Running}}' $Name 2>$null).Trim()
+    if ($running -eq 'true') { return $true }
+    & docker start $Name *> $null
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Start-PluginDaemon {
+    $composeFile = Join-Path $RepoRoot 'deploy\compose.dev.yaml'
+    & docker compose -f $composeFile up -d plugin_daemon
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Test-InfraService {
+    <#
+        Returns @{Ok=$true} or @{Ok=$false; Fix=$fixHint} for one infrastructure
+        dependency. Used so dev-up can fail fast with a concrete remediation
+        instead of starting two services that would only answer 500s.
+    #>
+    param(
+        [string]$Name,
+        [int]$Port,
+        [string]$Kind,           # 'tcp' or 'http'
+        [string]$HealthUrl = '',
+        [string]$FixHint
+    )
+    if ($Kind -eq 'tcp') {
+        if (Test-TcpReachable -Port $Port) { return @{ Ok = $true } }
+    }
+    elseif ($Kind -eq 'http') {
+        if (Test-HttpReachable -Url $HealthUrl) { return @{ Ok = $true } }
+    }
+    return @{ Ok = $false; Fix = $FixHint }
+}
+
 function Wait-Health {
     param(
         [string]$Url,
@@ -235,9 +321,7 @@ $reused = @()
 # both of those are Docker containers here. Failing fast beats starting two
 # services that will only answer 500s.
 $needsDocker = @($services | Where-Object {
-        $_.Enabled -and
-        $_.Name -in @('ULOO Core', 'Dify API') -and
-        -not (Test-PortOpen -Port $_.Port)
+        $_.Enabled -and $_.Name -in @('ULOO Core', 'Dify API')
     }).Count -gt 0
 
 # A missing Next CLI means the web dependencies were never installed; say that
@@ -266,6 +350,65 @@ if ($needsDocker) {
         exit 1
     }
     Write-Host '[ready]  Docker daemon'
+
+    # P0-1: Start the known local infrastructure when it is stopped, then wait
+    # for each dependency. This keeps the advertised one-command startup true.
+    $infra = @(
+        [pscustomobject]@{
+            Name = 'PostgreSQL'
+            Kind = 'tcp'
+            Port = 5432
+            Url  = ''
+            Container = 'lightrag-pgvector'
+            Fix  = 'docker start lightrag-pgvector'
+        },
+        [pscustomobject]@{
+            Name = 'Redis'
+            Kind = 'tcp'
+            Port = 6379
+            Url  = ''
+            Container = 'my-redis'
+            Fix  = 'docker start my-redis'
+        },
+        [pscustomobject]@{
+            Name = 'Plugin daemon'
+            Kind = 'http'
+            Port = 5002
+            Url  = 'http://127.0.0.1:5002/health/check'
+            Container = ''
+            Fix  = 'docker compose -f deploy/compose.dev.yaml up -d plugin_daemon'
+        }
+    )
+    $infraFailures = @()
+    foreach ($dep in $infra) {
+        $probe = Test-InfraService -Name $dep.Name -Port $dep.Port -Kind $dep.Kind -HealthUrl $dep.Url -FixHint $dep.Fix
+        if (-not $probe.Ok) {
+            Write-Host ("[start]  {0,-15}" -f $dep.Name)
+            if ($dep.Name -eq 'Plugin daemon') {
+                $startedDependency = Start-PluginDaemon
+            }
+            else {
+                $startedDependency = Start-NamedContainer -Name $dep.Container
+            }
+            if ($startedDependency -and (Wait-InfraService -Port $dep.Port -Kind $dep.Kind -HealthUrl $dep.Url)) {
+                $probe = @{ Ok = $true }
+            }
+        }
+        if ($probe.Ok) {
+            Write-Host ("[ready]  {0,-15} port {1}" -f $dep.Name, $dep.Port)
+        }
+        else {
+            Write-Host ("[FAIL]   {0,-15} port {1} not reachable" -f $dep.Name, $dep.Port)
+            Write-Host ("         fix: {0}" -f $probe.Fix)
+            $infraFailures += $dep.Name
+        }
+    }
+    if ($infraFailures.Count -gt 0) {
+        Write-Host ''
+        Write-Host ("Not ready: infrastructure missing: {0}" -f ($infraFailures -join ', '))
+        Write-Host 'Run the listed command after fixing Docker/container configuration, then re-run this script.'
+        exit 1
+    }
 }
 
 foreach ($service in $services) {

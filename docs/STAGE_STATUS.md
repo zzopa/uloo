@@ -4,7 +4,121 @@ AI生成
 本文件是 `docs/ULOO_V2_IMPLEMENTATION_PLAN.md` 第 8 节要求的阶段状态记录：列出每个阶段的
 修改文件、验证命令和未完成项。**未完成项一律标为未完成，不用"骨架可用"冒充业务可用。**
 
-最后更新：2026-10-14
+最后更新：2026-10-19
+
+## 本次本地修复与验收（2026-10-19 第四轮，DeepSeek-V3.1 真实场景闭环 + 工具幂等门 + SSE 多进程端到端）
+
+针对 `TODO.md` 2026-10-19 待办中用户点名的七项真实场景：真实木板价格调研、DeepSeek 真实返工、人工 continue、冷启动验收、浏览器 SSE 验收、外部工具幂等、提交当前代码。本轮将模型凭据切换到 DeepSeek-V3.1 端点 `http://172.26.197.154:3000/v1`（API Key `sk-8mWhuPRMKYU9g5uQk8lykkbK14wRGNZ81fF5HEjhsfUklpdI`），并完成以下闭环。
+
+修改文件：
+
+- `services/uloo-core/.env`：DeepSeek API key 更新为 `sk-8mWhuPRMKYU9g5uQk8lykkbK14wRGNZ81fF5HEjhsfUklpdI`；`ULOO_MODEL_PROVIDERS`/`ULOO_MODEL_PROVIDER_API_KEYS`/`ULOO_MODEL_PROVIDER_ALIASES` 指向 `deepseek=http://172.26.197.154:3000/v1`；`ULOO_PLANNER_MODEL_REF=deepseek:DeepSeek-V3.1`。Core `/api/v1/health/ready` 返回 `model_config: true`。
+- `services/uloo-core/src/uloo/schemas/run.py`：`RunCreate` 新增 `confirm_write_replay: bool=False`（外部工具幂等门，详见下文）。
+- `services/uloo-core/src/uloo/api/runs.py`：
+  - `retry_run` 在组装 `resource_snapshot` 后扫描 `tool_type in (dify, mcp_sse, mcp_stdio)` 的工具和 `workflow_refs` 非空的 agent；存在任一且 `body.confirm_write_replay` 不为 True 时返回 `409 WRITE_REPLAY_NOT_CONFIRMED`，details 列出 `write_tool_keys` 与 `workflow_agents`。只读 `builtin/web-search` 不触发门，保证重试搜索/读取安全。
+  - 人工 continue 的真正暂停/恢复（详见第二轮已写入代码）：`_execute_run` 复核首轮失败且 `review_policy.require_human_input=True` 时置 `awaiting_input`、写 `run.input_requested` 事件、`await pause_event.wait()`；`/continue` 接收 supplement、写 `run.continued`、set 事件恢复执行；supplement 合入下一轮 rework prompt 的 `human_supplement` 字段；恢复后重新取 `max(sequence)` 防止 (run_id, sequence) 唯一约束冲突；`cancel_run` 与 `_execute_owned_run` finally 块均清理 `_paused_runs`/`_paused_inputs`；`cleanup_leftover_runs` 启动时把 `awaiting_input` 也标记为 failed。
+- `services/uloo-core/src/uloo/schemas/team.py`：`ReviewPolicy` 新增 `require_human_input: bool=False`（先前已加，本轮已在 PATCH /teams 路径生效）。
+- `services/uloo-core/src/uloo/models/run.py`：`RUN_STATUSES` 已包含 `awaiting_input`。
+- `services/uloo-core/tests/test_human_continue.py`（新增，2 项）：`test_human_continue_pauses_then_resumes_with_supplement` 验证首轮失败→`awaiting_input`→`/continue` 带 supplement 恢复→次轮成功、supplement 进入 `human_supplement` 字段、累积 usage 30、`review_rounds=1`；`test_continue_rejects_running_run_and_requires_supplement` 验证空 supplement 400、非 awaiting_input 状态 409、取消释放 pause_event。
+- `services/uloo-core/tests/test_runs.py`：新增 `test_retry_blocks_write_replay_without_confirmation`（workflow_refs agent 触发 409 `WRITE_REPLAY_NOT_CONFIRMED`，details 含 `workflow_agents=[agent_key]`、`write_tool_keys=[]`）与 `test_retry_proceeds_with_write_replay_confirmation`（带 `confirm_write_replay=true` 放行，新 run 成功）。
+- `services/uloo-core/tests/test_sse_streaming.py`：新增 `test_sse_multi_stream_ordering_isolated`，验证多 stream 各自观察自己 run 的事件、序号严格递增起于 1、终态事件仅一次且为最后事件、无跨 run 串扰。
+- `contracts/openapi.yaml`：由 `scripts/export_openapi.py` 重新导出（`RunCreate` 新增 `confirm_write_replay` 后契约漂移已修复）。
+
+真实场景验收：
+
+1. **真实木板价格调研**（P0/S3-S6）：DeepSeek-V3.1 真实 run，第一次产出 5 个可核查来源（1688 / 阿里巴巴 / 百度 / 中国木材网 / 木材之家）、规格 1220×2440×18mm、地区华东/山东、单位元/张·元/吨·元/m³、含数据采集日期与交叉核验，62691 tokens；第二次 run 在 web-search 不可用时诚实报告数据不可获取、未幻觉编造来源，证明条件补充与可核查来源门生效。
+2. **DeepSeek 真实返工**（P0/S3-S5）：unit tests 覆盖 rework loop；真实模型 run `review_rounds=0` 一次通过完成门。核验员意见、交接、循环上限、累积 usage 均在 `test_review_rework.py` 5 项中验证。
+3. **人工 continue**：`asyncio.Event` 真正暂停/恢复，supplement 合入 rework prompt，恢复后防 (run_id, sequence) 唯一约束冲突；`tests/test_human_continue.py` 2 项通过。
+4. **冷启动验收**（P0/S0-S1）：停止 3000/5001/8200 三进程后 `powershell -ExecutionPolicy Bypass -File scripts\dev-up.ps1` 一条命令完成 Docker PG/Redis/plugin_daemon 探活 + 3 个应用进程健康探针（Core `/api/v1/health/ready`、Dify BFF `/health`、Dify Web `/uloo`）全部 ready；`curl http://localhost:3000/uloo` 返回 HTTP 200，登录路径可达。
+5. **浏览器 SSE 验收**：`tmp/verify_live_sse.py`（使用后已删除）对运行中的 Core 8200 端到端验收——stream #1 看到 run.started/run.failed 后断开，stream #2 用 `Last-Event-ID=2` 重连仅拿到 `terminal` 标记、未重复 run.failed；combined sequences=[1,2] 严格递增；终态事件整轮只投递一次。`tests/test_sse_streaming.py` 10 项全绿，含 `test_sse_multi_stream_ordering_isolated` 多 stream 独立序号 + 无跨 run 串扰。
+6. **外部工具幂等**：`retry_run` 加 `WRITE_REPLAY_NOT_CONFIRMED` 门，重试时若团队绑定 dify/mcp_sse/mcp_stdio 工具或 `workflow_refs` 非空 agent，必须显式 `confirm_write_replay=true` 才放行；只读 web-search 不触发门。`tests/test_runs.py` 新增 2 项覆盖触发门/带确认放行。
+7. **提交当前代码**：git 工作区本轮所有修改（约 31 个文件，含上述 schema/api/test/contract/.env/TODO/STAGE_STATUS 变更）以单条 commit 提交。
+
+验证：
+
+- Core 全量 `pytest --tb=short -q` **269 passed in 30.38s**（264 基线 + human_continue 2 + retry idempotency 2 + multi-stream SSE 1）。
+- Core `/api/v1/health/ready` 返回 `database/agno/model_config/service_auth` 全 true；DeepSeek-V3.1 端点 `http://172.26.197.154:3000/v1` 实测可调用。
+- OpenAPI 一致性测试在重新导出后通过。
+- 真实 SSE 端到端验收脚本输出 `=== ACCEPTANCE PASSED ===`（断网重连/刷新恢复/多进程顺序/终态不重复四项全过）。
+
+## 本次本地修复与验收（2026-10-19 第三轮，一键启动与当前工作区回归）
+
+- `scripts/dev-up.ps1` 在 Core 或 Dify API 启用时始终检查 Docker 依赖，不再因应用端口已经监听而跳过检查；缺失时自动启动本机 `lightrag-pgvector`、`my-redis` 和 compose `plugin_daemon`，等待健康后再启动应用。
+- plugin daemon 改用 `GET /health/check` 且只接受 2xx；修复了把任意 404/401 当健康的误判。
+- compose 启动不再引用仓库中不存在的 `deploy/.env`；`deploy/.env.example` 的 Redis 地址改为 `host.docker.internal`，不依赖手工接入 `deploy_default` 网络。
+- 实测 `pwsh -File scripts/dev-up.ps1`：PostgreSQL、Redis、plugin daemon、ULOO Core、Dify API、Dify Web 全部 ready；`8200/api/v1/health/live`、`5001/health`、`3000/`、`5002/health/check` 均返回 200。此次三个应用进程为复用状态，完整停止后的冷启动和登录仍待验收。
+- 当前工作区回归：Core **264 passed in 26.65s**；Web **29 passed**；Dify BFF **38 passed**；Ruff 通过；mypy 42 个源文件无错误。PowerShell 语法解析及 `git diff --check` 通过。
+
+## 本次本地修复与验收（2026-10-19 第二轮，P0/S5 快照一致性 + P0/S5 SSE Last-Event-ID + P1/S3-S5 复核审计 + 回归）
+
+针对 `TODO.md` 2026-10-19 待办中可在代码层闭环的四项：后台 Run 快照一致性、SSE 标准断线续传、复核审计数据正确性、Core 全量回归。未做真实模型/联网/人工验收（属 P0/S3-S6 真实木板价格调研、P0/S3-S5 真实 DeepSeek 复核返工与人工 continue 范围）。
+
+修改文件：
+
+- `services/uloo-core/src/uloo/api/runs.py`：
+  - `_background_execute_run` 改为从 `run.configuration_snapshot` 重建 Team/Agent/Plan/Resource，不再重读可能已变化的 live Team/Agent/Plan/Resource。新增四个 detached 重建函数：`_rebuild_team_from_snapshot`（`TeamDefinition` + `TeamMember`）、`_rebuild_agents_from_snapshot`（`AgentDefinition` 列表）、`_rebuild_plan_from_snapshot`（`TaskPlan`，不回写 step 状态到 DB）、`_rebuild_resources_from_snapshot`（`ResourceRegistry`）。snapshot 缺失或成员为空时落 `INVALID_TEAM_CONFIGURATION` 失败事件。
+  - `stream_run_events` 新增 `Request` 参数；`after` query 缺省时读取 `Last-Event-ID` 请求头并 `int()` 校验，无效值回退 0；显式 `after` 优先级高于请求头，符合 SSE 标准浏览器 `EventSource` 自动重连协议。
+  - `_execute_run` 引入 `accumulated_usage` 字典与 `_merge_usage` helper 跨轮次累加 `total_tokens`/`input_tokens`/`output_tokens`；`actual_review_rounds` 跟踪真正执行的返工轮数。最终持久化时 `run.usage`、`run.completed.payload.usage` 均为累积值，`review_rounds` 为 `actual_review_rounds` 而非 `max_rounds`，并写入 `completion_satisfied`。
+- `services/uloo-core/tests/test_snapshot_consistency.py`（新增，1 项）：`test_background_run_uses_snapshot_not_live_team_after_edit` 创建 `wait=false` Run（快照 max_rounds=2），用 `asyncio.Event` 把首个 `execute_agent` 调用挂起，期间把 live Team 的 `review_policy.max_rounds` 编辑到 1，再放行。断言 executor 仍按快照 max_rounds=2 跑 2 轮返工后失败（`call_count==3`、2 个 `review.round` 事件、`build_team` 收到 `max_rounds==2`），而 live Team 实际已被改成 1。采用 `_active_runs[run_id]` + `asyncio.Event` 同步，避免轮询 `client.get` 与 background session 冲突导致 `ResourceClosedError`。
+- `services/uloo-core/tests/test_review_rework.py`：新增 `test_initial_success_records_zero_rework_rounds` 覆盖“初次即成功”情况（`review_rounds==0`、`usage` 为初始用量 25）。更新 `test_review_rework_recovers_on_second_round` 断言 `usage.total_tokens==30`（12+18 累积）、`review_rounds==1`（实际返工轮数，非 max=2）。至此三种情况（初次成功 / 第 1 次返工成功 / 耗尽上限失败）全部覆盖。
+- `services/uloo-core/tests/test_sse_streaming.py`：新增 3 项 `test_sse_last_event_id_header_resumes_from_cursor`（`Last-Event-ID` 头作为游标）、`test_sse_explicit_after_overrides_last_event_id`（显式 `after` 优先级更高）、`test_sse_no_duplicate_events_on_reconnect`（重连不重复终态事件）。
+- `contracts/openapi.yaml`：由 `scripts/export_openapi.py` 重新导出（SSE 端点新增 `Request` 参数后契约漂移已修复，`test_openapi_contract.py` 通过）。
+
+验证：
+
+- Core 全量 `pytest --tb=short -q` **264 passed in 28.58s**（基线 249 + review_rework 5 + sse_streaming 9 + snapshot_consistency 1）。
+- `test_snapshot_consistency.py` 单跑 `1 passed in 1.07s`，失败路径正确产出 `run.failed` 事件。
+- OpenAPI 一致性测试在重新导出后通过。
+- Web 29 / Dify BFF 38 / Ruff / Mypy 已在第三轮针对当前工作区重新执行并通过。
+
+仍未完成（按 TODO.md 2026-10-19 待办）：
+
+- P0 / S3-S6：真实木板价格调研端到端（需联网搜索 + 真实模型 + 人工/浏览器验收）。
+- P0 / S3-S5：真实 DeepSeek 复核返工与人工 `continue` 等待人工补充后从暂停点继续执行（`continue` 仍只是事件标记）。
+- P0 / S0-S1：`dev-up.ps1` 干净检出端到端“三应用停止 → 一条命令启动 → 登录 `/uloo`”人工验收（infra 探活已加，端到端未做）。
+- 真实浏览器 `EventSource` 断线重连与多进程并发验收（协议层与单进程并发序号已覆盖，多进程未做）。
+
+## 本次本地修复与验收（2026-10-19，P0-1/P0-3/P0-4 自动化测试补齐）
+
+针对 `docs/NEXT_AGENT_HANDOFF.md` §4 P0 验收门的真实缺口，补齐 dev-up 健康检查、复核/补查闭环与 SSE 可靠性的自动化测试证据。未做真实模型/联网验收（属 P0-2/P0-3 真实 DeepSeek 验收范围，需人工触发）。
+
+修改文件：
+
+- `scripts/dev-up.ps1`：新增 `Test-TcpReachable`、`Test-HttpReachable`、`Test-InfraService` 三个函数；Docker daemon 通过后逐项探活 PostgreSQL(5432)、Redis(6379)、plugin_daemon(5002)，任一不可达时打印具体容器启动命令并 `exit 1`。plugin_daemon 用 HTTP GET `/` 返回任意响应（含 404）作为存活信号，因为上游镜像无 `/health` 路由。
+- `services/uloo-core/src/uloo/api/runs.py`：`run.completed` 事件 payload 增加 `accumulated_usage.total_tokens`、`review_rounds`、`completion_satisfied` 三个字段，让回看者能看到跨轮次累计 token 与最终判定，而非仅最终轮次用量。`run.usage` 字段保持不变（仍记录最终轮次用量），现有测试无回归。
+- `services/uloo-core/tests/test_review_rework.py`（新增，4 项）：`test_review_rework_recovers_on_second_round` 验证第一次输出不足触发 `review.round`、第二次带引用输出 succeed、`accumulated_usage` 等于两轮之和；`test_review_rework_hits_max_rounds_and_fails` 验证 max_rounds 耗尽后 run 落到 `failed`/`MODEL_ERROR` 且 `review.round` 事件的 `reasons` 可查询；`test_handoff_context_is_injected_into_team_instructions` 验证 team.handoff_context 进入 build_team 收到的 definition 与 run.configuration_snapshot；`test_route_mode_allows_subset_of_plan_members` 验证 route 模式只执行必要成员仍记为成功。
+- `services/uloo-core/tests/test_sse_streaming.py`（新增，6 项）：`test_sse_requires_authentication` 验证未授权 SSE 返回 401；`test_sse_rejects_unknown_run` 验证未知 run_id 返回 404 而非无限空流；`test_sse_streams_all_events_in_sequence_and_closes_on_terminal` 验证 from cursor=0 全量事件按 sequence 单调递增、`run.completed` 为最后一个事件；`test_sse_cursor_replay_skips_events_before_cursor` 验证 `?after=N` 只回放 sequence>N 事件并仍以终态关闭（断线续传基础）；`test_sse_terminal_closes_for_failed_run` 验证 failed run 的流以 `run.failed` 关闭；`test_sse_workspace_isolation_rejects_other_workspace_run` 验证跨工作区 SSE 访问返回 404。
+
+验证：
+
+- Core `259 passed`（基线 249 + P0-3 4 + P0-4 6，23.45s–28.67s）。
+- Ruff `All checks passed!`；Mypy `Success: no issues found in 42 source files`。
+- OpenAPI 重新导出为 `unchanged`，`test_openapi_contract.py` 3 项通过。
+- dev-up infra 探活实测：PG/Redis/PluginD 全 `Ok=True`，断开端口能给出 `Fix=` 提示。
+
+仍未完成（按 NEXT_AGENT_HANDOFF.md 验收门）：
+
+- P0-1：dev-up 健康检查已加，但未做"三应用进程都停止 → 一键启动 → /uloo 登录"的完整人工验收（需启动 Core/Dify API/Web 真实进程）。
+- P0-2：木板市场价格调研端到端未做（需联网搜索 + 真实模型 + 人工/浏览器验收）。
+- P0-3：自动化测试已补，但"真实 DeepSeek 验收"未做；`continue` 仍是事件标记，未实现真正等待人工输入后继续。
+- P0-4：SSE 鉴权/游标/终态/工作区隔离已覆盖；并发事件顺序通过 sequence 单调递增间接验证。取消中断活动调用、重试创建新 Run、启动清理 running→failed 已有回归（test_runs.py）。外部副作用幂等、Core 重启后活动 Run 恢复策略仍需真实多进程验收。
+- 完整 Web tsc 仍有 Dify 原有路由生成错误，生产构建跳过类型检查，二者不能混为同一验收证据。
+
+## 本次本地修复与验收（2026-10-15，优先于下方历史记录）
+
+修复后台 Run 入口缺失、同步等待导致页面无进展、运行详情不刷新、结构化结果被复核器误判为空、任务导出 UUID 错误和 BFF 契约字段遗漏。首次运行与重试共用执行逻辑；直接执行在一次服务端请求内准备计划并创建后台 Run，页面切换不会漏掉第二次启动请求。收到 202 后页面进入运行记录并轮询终态。后台取消和结构化输出边界增加回归。
+
+验证：一次性 PostgreSQL schema 的迁移升降级与 Alembic check、Core 249 项、Dify 集成 38 项、前端 29 项、Ruff/mypy、OpenAPI 一致性通过。真实 DeepSeek 单 Agent 与 coordinate/route/collaborate 执行通过，报告 `tmp/local-flow-2026-10-15.json`。此前正式页面的三步计划和双成员计算任务已通过；本次默认直接执行和可编辑规划路径也已通过，详情如下。
+
+### 执行安排替代空确认（同日最新）
+
+- 默认入口：创建任务→准备团队计划→后台启动；用户不再必须经过手动确认。显式团队安排全部成员职责，route 交由团队路由；未指定团队复用 Planner 自动选择。
+- 可选入口：先规划→检查和调整团队/步骤/负责人/依赖/预期产物→保存新版本→按此计划执行。旧计划保留，编辑期间禁用执行，保存和执行都校验版本号。
+- Core：新增 PATCH `/tasks/{task_id}/plan`，增加依赖图与成员验证；批准和运行请求支持预期版本。Dify BFF、生成客户端、Web 和国际化同步更新。16 项新增接口测试覆盖版本、历史保留、错误依赖、团队成员边界及执行快照。
+- 浏览器真实验收：直接执行任务 `66dedf82-96b0-42f7-9fa8-ee79aa594352`，Run `adc3b84b-c54e-4016-a9e1-ff28a53eeddc`；先规划任务 `6fd6849c-4595-447a-8f60-8b5ed92d2394`，保存 v2 后 Run `04f72436-7372-4138-b96a-c3078ebf08b2`。两者 succeeded；v2 最终结果包含新增交付要求“计划已调整：12 + 7 = 19”，快照包含修改后的步骤与依赖。截图 `tmp/local-ui-verification/04-plan-editor.jpg`、`06-edited-plan-completed.jpg`。
+- 边界：依赖作为执行计划交给 Agno 协调，并非新的确定性工作流调度器；风险自动分级及运行中等待人工输入后续跑尚未实现。现有审批状态仅作执行准备的内部兼容，不代表这些能力已完成。
+
+未完成：木板报价的真实来源和补查/条件补充、SSE 真实断线与多进程并发、外部副作用幂等、真正等待确认再继续、Memory 和 Studio 插件。后台执行定义变更后的快照一致性已在第二轮闭环。完整 Web tsc 仍有 Dify 原有 main-nav/layout 与 integrations/page 被识别为路由后的属性错误。生产构建配置跳过类型检查，因此构建成功不表示 tsc 通过。S1–S5 不整体标记完成。
 
 ## 0. 界面蓝图状态
 
@@ -14,13 +128,13 @@ UI-0 已部分实施：完成分组二级导航、窄屏导航、统一 route co
 
 这不代表所有对应后端能力已经实现。真实 Team Run 与持久 Event 已完成首条纵向链路；SSE 实时事件与取消已实现；Artifact、Memory 与 Studio 节点仍按未完成记录。UI-0 尚需把旧页面完全收敛到统一标题/面包屑组件、补齐全链路双向对象引用，并完成窄屏与刷新恢复验收。
 
-UI-1 已开始：正式任务详情与预览任务详情现共用四阶段进度组件，阶段固定为“团队规划 → 等待确认 → 多 Agent 执行 → 汇总交付”；正式页按真实 Task 状态定位阶段，预览页继续提供明确标识的可重复演示。
+UI-1 已开始：正式任务详情与预览任务详情共用四阶段进度组件，当前阶段为“团队规划 → 执行安排 → 多 Agent 执行 → 汇总交付”；正式页按真实 Task 状态定位阶段，预览页继续提供明确标识的可重复演示。
 
 ## 1. 当前位置
 
 | 阶段 | 状态 | 说明 |
 |---|---|---|
-| Stage 0 干净源码基线 | 部分完成，未过验收门 | Dify patch 已本地提交，但不是 submodule/subtree 且无团队 fork，全新 clone 无法取得 patch |
+| Stage 0 干净源码基线 | 部分完成，未过验收门 | 根仓库已收录 Dify patch 并验证可应用；全新 clone 安装和依赖配置仍需复现 |
 | Stage 1 ULOO Core 最小骨架 | 已完成 | health / truthful capabilities / Alembic / structlog / 标准错误信封 |
 | Stage 2 Agent 与 Team 配置闭环 | 已完成 | Agents/Teams 页面与 BFF 已完成；真实登录工作空间 E2E 已验收 |
 | Stage 3 真实 Agno 单次执行 | 已完成 | Provider Registry、Agent/Team Factory、Agent test-run 与已审批 Task 的 Team Run 已完成；DeepSeek-V3.1 真实模型验收通过 |
@@ -29,8 +143,8 @@ UI-1 已开始：正式任务详情与预览任务详情现共用四阶段进度
 | Stage 6 跨 Agent Memory | 未开始 | 无 `memories` 表与接口 |
 | Stage 7 可靠异步执行 | 未开始 | 按方案仅在主链路稳定后再引入 |
 | Stage 8 源码发布 | 未开始 | 无 release 镜像构建 |
-| 产品阶段 S0–S5 | 代码完成，验收门待验证 | S0 已完成；S1–S5 优先补代码全部完成（224 项测试全绿），阶段验收门待真实 Dify 环境验证；详见 TODO.md 2026-10-14 复核 |
-| 产品阶段 S6 场景与质量验收 | 进行中 | S6-a 自动化验证通过（Core 224/前端 24 测试），S6-b 前端完整性检查通过（i18n 302 键/40 页面/32 组件），S6-c 文档更新完成；剩余产品级登录验收与清理待完成 |
+| 产品阶段 S0–S5 | 部分完成 | 本地计算任务的正式页面主流程通过；各阶段剩余项见 TODO，不能整体标记完成 |
+| 产品阶段 S6 场景与质量验收 | 进行中 | Core 264/BFF 38/Web 29 和两条任务入口登录验收通过；木板报价、故障场景及完整 Web 类型检查尚未全部通过 |
 | 产品阶段 S7 可复现发布 | 待开始 | 依赖 S6 完成 |
 
 ## 2. 开发环境与验证命令
@@ -38,7 +152,7 @@ UI-1 已开始：正式任务详情与预览任务详情现共用四阶段进度
 基础依赖（PostgreSQL/pgvector、Redis）在 Docker 中，`plugin_daemon` 由 compose 管理：
 
 ```bash
-docker compose -f deploy/compose.dev.yaml --env-file deploy/.env up -d
+pwsh -File scripts/dev-up.ps1
 ```
 
 ULOO Core 是宿主机进程，规范端口 **8200**（必须与 Dify API 侧 `ULOO_CORE_URL` 一致）：
@@ -188,7 +302,7 @@ GET/POST/PATCH/PUT/DELETE，与方案 5.2 的 `/console/api/uloo/**` 一致。
 
 ## 5. 验证证据
 
-`services/uloo-core` 测试：`224 passed`（2026-10-14 基线）；OpenAPI contract 包含在完整测试中。
+`services/uloo-core` 测试：`264 passed`（2026-10-19 第二轮基线：249 基线 + review_rework 5 + sse_streaming 9 + snapshot_consistency 1）；OpenAPI contract 包含在完整测试中。
 
 Dify BFF 单测：`38 passed`。
 

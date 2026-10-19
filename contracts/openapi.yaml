@@ -825,6 +825,11 @@ components:
           minimum: 1.0
           title: Max Rounds
           type: integer
+        require_human_input:
+          default: false
+          description: If true, pause for human supplement after the first failed review round
+          title: Require Human Input
+          type: boolean
         require_unanimous:
           default: false
           description: If true, all reviewers must approve
@@ -832,8 +837,44 @@ components:
           type: boolean
       title: ReviewPolicy
       type: object
+    RunContinueRequest:
+      description: 'P0/S3-5: User supplement submitted to resume a paused run.
+
+
+        When a run is in ``awaiting_input`` status (the first review round
+
+        failed and the team''s review_policy has ``require_human_input=True``),
+
+        the caller must provide a ``supplement`` clarifying the ambiguous
+
+        conditions.  The background executor incorporates this supplement into
+
+        the next rework round''s prompt and continues from the pause point.'
+      properties:
+        supplement:
+          maxLength: 100000
+          minLength: 1
+          title: Supplement
+          type: string
+      required:
+      - supplement
+      title: RunContinueRequest
+      type: object
     RunCreate:
       properties:
+        confirm_write_replay:
+          default: false
+          description: 'Idempotency gate for retry: must be true when the retried run''s team binds any write-effect tool
+            (dify, mcp_sse, mcp_stdio) or any agent with non-empty workflow_refs. Prevents accidental replay of write/submit
+            side effects on a fresh run.'
+          title: Confirm Write Replay
+          type: boolean
+        expected_plan_version:
+          anyOf:
+          - minimum: 1.0
+            type: integer
+          - type: 'null'
+          title: Expected Plan Version
         input:
           anyOf:
           - maxLength: 100000
@@ -1213,8 +1254,14 @@ components:
       title: TaskDetailResponse
       type: object
     TaskDirectExecuteRequest:
-      description: Direct execution request for simple tasks that skip planning.
+      description: Prepare an execution plan without a manual review stop.
       properties:
+        expected_plan_version:
+          anyOf:
+          - minimum: 1.0
+            type: integer
+          - type: 'null'
+          title: Expected Plan Version
         team_id:
           anyOf:
           - type: string
@@ -1267,6 +1314,16 @@ components:
       - offset
       - limit
       title: TaskListResponse
+      type: object
+    TaskPlanApprovalRequest:
+      properties:
+        expected_version:
+          anyOf:
+          - minimum: 1.0
+            type: integer
+          - type: 'null'
+          title: Expected Version
+      title: TaskPlanApprovalRequest
       type: object
     TaskPlanRequest:
       properties:
@@ -1409,6 +1466,46 @@ components:
       - id
       - title
       title: TaskPlanStep
+      type: object
+    TaskPlanUpdate:
+      properties:
+        assumptions:
+          items:
+            type: string
+          maxItems: 20
+          title: Assumptions
+          type: array
+        expected_version:
+          minimum: 1.0
+          title: Expected Version
+          type: integer
+        questions:
+          items:
+            type: string
+          maxItems: 20
+          title: Questions
+          type: array
+        recommended_team_id:
+          title: Recommended Team Id
+          type: string
+        steps:
+          items:
+            $ref: '#/components/schemas/TaskPlanStep'
+          maxItems: 30
+          minItems: 1
+          title: Steps
+          type: array
+        summary:
+          maxLength: 4000
+          minLength: 1
+          title: Summary
+          type: string
+      required:
+      - summary
+      - recommended_team_id
+      - steps
+      - expected_version
+      title: TaskPlanUpdate
       type: object
     TaskPreCheckResponse:
       description: Result of checking task dependencies before planning.
@@ -3537,16 +3634,35 @@ paths:
       - runs
   /api/v1/runs/{run_id}/continue:
     post:
-      description: 'Confirm continuation of a run that was paused for user input.
+      description: 'Resume a run that was paused awaiting user input.
 
 
-        S5-补2: For interactive runs that reach a confirmation gate, this
+        P0/S3-5: Real human-continue.  When a run''s first review round fails
 
-        endpoint records the user''s decision and allows the run to proceed.
+        and the team''s review_policy has ``require_human_input=True``, the
 
-        Currently a no-op marker that records a run.continued event; future
+        background executor sets the run status to ``awaiting_input`` and
 
-        interactive execution loops will use this to resume paused tasks.'
+        blocks on an asyncio.Event in ``_paused_runs``.  This endpoint stores
+
+        the user''s ``supplement`` (clarifying conditions, additional context)
+
+        in ``_paused_inputs``, records a ``run.continued`` event carrying the
+
+        supplement, and sets the event so the executor resumes from the exact
+
+        pause point.  The supplement is incorporated into the next rework
+
+        round''s review_prompt so the team actually uses the human input
+
+        instead of just recording an event marker.
+
+
+        A run must be in ``awaiting_input`` status to be continued.  Runs in
+
+        ``running`` status are not pause-gated and calling this endpoint on
+
+        them returns 409.  The supplement is mandatory (min_length=1).'
       operationId: continue_run_api_v1_runs__run_id__continue_post
       parameters:
       - in: path
@@ -3588,6 +3704,14 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-App-Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/RunContinueRequest'
+              - type: 'null'
+              title: Body
       responses:
         '200':
           content:
@@ -3955,9 +4079,22 @@ paths:
 
         observation of execution progress.  Supports cursor replay via the ``after``
 
-        query parameter for reconnection recovery.  The stream closes automatically
+        query parameter for explicit reconnection, and the standard ``Last-Event-ID``
 
-        when a terminal event is observed.'
+        request header for browser-native EventSource reconnection.  The stream
+
+        closes automatically when a terminal event is observed.
+
+
+        P0/S5: When ``after`` is omitted, the ``Last-Event-ID`` header (sent
+
+        automatically by ``EventSource`` on reconnect) is parsed as the cursor.
+
+        A reconnecting client therefore only receives events whose sequence is
+
+        strictly greater than the last one it acknowledged — no duplicate
+
+        delivery, no skipped events.'
       operationId: stream_run_events_api_v1_runs__run_id__stream_get
       parameters:
       - in: path
@@ -3967,16 +4104,21 @@ paths:
           format: uuid
           title: Run Id
           type: string
-      - description: Start streaming after this sequence cursor
+      - description: Start streaming after this sequence cursor. If omitted, the `Last-Event-ID` request header is used so
+          that browsers' native EventSource automatically resumes on reconnect without replaying events the client already
+          observed.
         in: query
         name: after
         required: false
         schema:
-          default: 0
-          description: Start streaming after this sequence cursor
-          minimum: 0
+          anyOf:
+          - minimum: 0
+            type: integer
+          - type: 'null'
+          description: Start streaming after this sequence cursor. If omitted, the `Last-Event-ID` request header is used
+            so that browsers' native EventSource automatically resumes on reconnect without replaying events the client already
+            observed.
           title: After
-          type: integer
       - in: header
         name: authorization
         required: false
@@ -4985,6 +5127,14 @@ paths:
           - type: string
           - type: 'null'
           title: X-Uloo-App-Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - $ref: '#/components/schemas/TaskPlanApprovalRequest'
+              - type: 'null'
+              title: Body
       responses:
         '200':
           content:
@@ -5068,12 +5218,7 @@ paths:
       - runs
   /api/v1/tasks/{task_id}/execute:
     post:
-      description: 'Create a minimal plan, auto-approve it, and mark the task ready for direct execution.
-
-
-        This bypasses the full Planner run for simple tasks. The frontend can then
-
-        call POST /tasks/{task_id}/runs to start execution.'
+      description: Prepare and start a background run in the same server request.
       operationId: direct_execute_task_api_v1_tasks__task_id__execute_post
       parameters:
       - in: path
@@ -5124,11 +5269,11 @@ paths:
               - type: 'null'
               title: Body
       responses:
-        '200':
+        '202':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskDetailResponse'
+                $ref: '#/components/schemas/RunDetailResponse'
           description: Successful Response
         '400':
           content:
@@ -5320,6 +5465,131 @@ paths:
       tags:
       - tasks
   /api/v1/tasks/{task_id}/plan:
+    patch:
+      description: Save reviewed steps as a new immutable plan version.
+      operationId: update_task_plan_api_v1_tasks__task_id__plan_patch
+      parameters:
+      - in: path
+        name: task_id
+        required: true
+        schema:
+          format: uuid
+          title: Task Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskPlanUpdate'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPlanResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Update Task Plan
+      tags:
+      - tasks
     post:
       description: Use a real structured Agno Planner run to create the next plan version.
       operationId: plan_task_api_v1_tasks__task_id__plan_post

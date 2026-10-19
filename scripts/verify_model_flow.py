@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 import uuid
 from pathlib import Path
 
@@ -139,7 +140,14 @@ def main() -> int:
             assert plan["is_mock"] is False and plan["planner_run_id"]
             assert all(step["assigned_agent_id"] in agent_ids for step in plan["steps"])
             request("POST", f"tasks/{task['id']}/approve")
-            run = request("POST", f"tasks/{task['id']}/runs", json={})
+            start_time = time.monotonic()
+            run = request("POST", f"tasks/{task['id']}/runs", json={}, params={"wait": "false"})
+            assert run["status"] == "running", "Background start must return before model execution completes"
+            assert time.monotonic() - start_time < 15, "Background start blocked on model execution"
+            deadline = time.monotonic() + 600
+            while run["status"] == "running" and time.monotonic() < deadline:
+                time.sleep(1)
+                run = request("GET", f"runs/{run['id']}")
             assert run["status"] == "succeeded" and run["is_mock"] is False and run["agno_run_id"]
             assert "19" in json.dumps(run["output"])
             members = [event for event in run["events"] if event["event_type"] == "agent.completed"]

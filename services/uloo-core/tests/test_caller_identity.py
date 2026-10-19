@@ -1,12 +1,8 @@
 # AI生成
 """Tests for S1-6: Dify caller identity propagation."""
 
-import pytest
-from pydantic import SecretStr
 
-from uloo.config import Settings
-from uloo.runtime.dify_tools import set_runtime_caller, clear_runtime_caller, _runtime_caller
-from uloo.runtime.models import ModelRegistry, RuntimeConfigurationError
+from uloo.runtime.dify_tools import _runtime_caller, clear_runtime_caller, set_runtime_caller
 from uloo.security import RequestContext
 
 

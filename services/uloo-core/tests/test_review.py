@@ -1,6 +1,7 @@
 # AI生成
 """Tests for S3-补1 and S3-补3: post-execution review and completion-condition evaluation."""
 
+
 import pytest
 
 from uloo.runtime.execution import AgentExecutionResult
@@ -25,6 +26,23 @@ def _result(
 
 class TestEvaluateCompletion:
     """Completion condition evaluation against execution results."""
+
+    @pytest.mark.parametrize('output,valid', [
+        ({'answer': 19, 'check': '12 + 7 = 19'}, True),
+        ({'answer': 0}, True),
+        ({'answer': False}, True),
+        ({}, False),
+        ({'items': []}, False),
+        ({'answer': None}, False),
+        ({'error': True, 'answer': 19}, False),
+    ])
+    def test_structured_results_are_not_mistaken_for_empty_text(self, output, valid):
+        result = _result(output=output, member_results=[{'agent_id': 'analyst', 'output': output}])
+        evaluation = evaluate_completion(
+            result, assigned_agent_ids={'analyst'}, completion_config={'no_unresolved_errors': True},
+            review_policy={'max_rounds': 3, 'criteria': ['Return a verified result']},
+        )
+        assert evaluation.satisfied is valid
 
     def test_all_conditions_met(self):
         """All members executed, no errors, non-empty output → satisfied."""

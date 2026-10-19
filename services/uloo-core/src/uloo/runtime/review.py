@@ -56,6 +56,18 @@ _EVIDENCE_PATTERNS = [
 ]
 
 
+def _has_output(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, dict):
+        return any(_has_output(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_has_output(item) for item in value)
+    return True
+
+
 def _detect_member_error(output: Any) -> bool:
     """Heuristic check for error indicators in a member's output.
 
@@ -68,11 +80,13 @@ def _detect_member_error(output: Any) -> bool:
         # Check for explicit error fields
         for key in ("error", "failed", "status"):
             val = output.get(key)
-            if isinstance(val, str) and val.lower() in ("error", "failed", "failed_error"):
+            if (key in {"error", "failed"} and val is True) or (
+                isinstance(val, str) and val.lower() in ("error", "failed", "failed_error")
+            ):
                 return True
         # Empty content
-        content = output.get("content", output.get("items"))
-        if content is None or (isinstance(content, str) and not content.strip()):
+        content = output.get("content", output.get("items", output))
+        if not _has_output(content):
             return True
         # Check failure markers in content string
         if isinstance(content, str):
@@ -101,13 +115,11 @@ def _detect_insufficient_evidence(output: Any) -> bool:
 
     # Extract text content for analysis
     if isinstance(output, dict):
-        content = output.get("content", output.get("items"))
+        content = output.get("content", output.get("items", output))
         if isinstance(content, str):
             text = content
-        elif isinstance(content, list) and content:
-            return False  # Non-empty list items count as evidence
         else:
-            return True
+            return not _has_output(content)
     elif isinstance(output, str):
         text = output
     else:
@@ -201,11 +213,7 @@ def evaluate_completion(
     # the coordinator produced a non-empty synthesis.
     if review_policy.get("max_rounds", 0) > 0:
         output = result.output
-        if isinstance(output, dict):
-            content = output.get("content", output.get("items"))
-            if content is None or (isinstance(content, str) and not content.strip()):
-                reasons.append("Team output is empty despite active review policy")
-        elif isinstance(output, str) and not output.strip():
+        if not _has_output(output.get("content", output.get("items", output)) if isinstance(output, dict) else output):
             reasons.append("Team output is empty despite active review policy")
 
     satisfied = len(reasons) == 0

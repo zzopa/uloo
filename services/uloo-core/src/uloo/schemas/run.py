@@ -8,6 +8,29 @@ from pydantic import BaseModel, Field
 
 class RunCreate(BaseModel):
     input: str | None = Field(default=None, min_length=1, max_length=100_000)
+    expected_plan_version: int | None = Field(default=None, ge=1)
+    confirm_write_replay: bool = Field(
+        default=False,
+        description=(
+            "Idempotency gate for retry: must be true when the retried run's team "
+            "binds any write-effect tool (dify, mcp_sse, mcp_stdio) or any agent "
+            "with non-empty workflow_refs. Prevents accidental replay of write/submit "
+            "side effects on a fresh run."
+        ),
+    )
+
+
+class RunContinueRequest(BaseModel):
+    """P0/S3-5: User supplement submitted to resume a paused run.
+
+    When a run is in ``awaiting_input`` status (the first review round
+    failed and the team's review_policy has ``require_human_input=True``),
+    the caller must provide a ``supplement`` clarifying the ambiguous
+    conditions.  The background executor incorporates this supplement into
+    the next rework round's prompt and continues from the pause point.
+    """
+
+    supplement: str = Field(min_length=1, max_length=100_000)
 
 
 class RunEventResponse(BaseModel):

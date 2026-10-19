@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..config import settings
 from ..constants import TEAM_MODES
 from ..db import transaction_session
-from ..runtime.models import ModelRegistry
+from ..runtime.models import ModelRegistry, RuntimeConfigurationError
 from ..runtime.resources import load_resources
 from ..schemas.common import CapabilitiesResponse, FeatureCapabilities, ModelProviderInfo
 from ..security import RequestContext, require_service_context
@@ -37,8 +37,8 @@ def _selectable_models(provider: str, workspace_id: str | None = None) -> list[s
             parsed = ModelRegistry(workspace_id=workspace_id).parse(settings.planner_model_ref)
             if parsed.provider == provider:
                 return [parsed.model_id]
-        except Exception:
-            pass
+        except RuntimeConfigurationError:
+            return []
     return []
 
 
