@@ -22,3 +22,4 @@ vendor/dify/
 # Local agent session state and memory notes, not part of the product source.
 .workbuddy/
 
+.idea
