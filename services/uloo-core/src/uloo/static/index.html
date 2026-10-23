@@ -318,6 +318,7 @@
     }
     body.theme-apple #canvas-live-events-list > div span.text-slate-300 { color: #1D1D1F !important; }
     body.theme-apple #canvas-live-events-list > div span.text-slate-500 { color: #86868B !important; }
+      body.theme-apple #canvas-live-events-list > div div.text-slate-200 { color: #1D1D1F !important; }
 
     body.theme-apple #mode-switcher-container {
       background: rgba(0, 0, 0, 0.05) !important;
@@ -417,7 +418,7 @@
       <div class="flex items-baseline gap-2">
         <span class="font-extrabold text-sm tracking-wider text-white">ULOO</span>
         <span class="text-[10px] font-mono tracking-widest text-slate-400 uppercase">Synergy Studio</span>
-        <span class="font-mono text-[9px] bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-2 py-0.5 rounded-full ml-1 font-bold">v0.2.2 · 实时流强化版</span>
+        <span class="font-mono text-[9px] bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-2 py-0.5 rounded-full ml-1 font-bold">v0.2.3 · 逐行推演流增强版</span>
       </div>
     </div>
 
@@ -647,9 +648,35 @@
             </div>
           </div>
 
-          <!-- 实时事件流日志卡片群 -->
-          <div class="space-y-2.5" id="canvas-live-events-list">
-            <!-- 动态实时流渲染 -->
+          <!-- 交付完成状态提示条 (Completion Banner) -->
+          <div id="delivery-completion-bar" class="hidden flex items-center justify-between p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs shadow-[0_0_20px_rgba(16,185,129,0.15)] mb-3">
+            <div class="flex items-center gap-2.5">
+              <div class="size-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <i class="fa-solid fa-check"></i>
+              </div>
+              <div>
+                <div class="font-bold">多智能体协同已圆满交付</div>
+                <div class="text-[10px] text-emerald-400/70 font-mono">所有规划步骤、检索信源与事实核验已就绪</div>
+              </div>
+            </div>
+            <button onclick="switchCanvasTab('deliverable')" class="studio-pill-btn px-3 py-1.5 rounded-xl text-emerald-200 hover:text-white text-xs flex items-center gap-1.5 font-bold transition">
+              <span>查阅成果报告</span>
+              <i class="fa-solid fa-arrow-right text-[10px]"></i>
+            </button>
+          </div>
+
+          <!-- 实时推演动态雷达条 (LIVE Activity Bar，置顶常驻) -->
+          <div id="live-activity-bar" class="hidden flex items-center justify-between p-3.5 rounded-xl bg-indigo-950/70 border border-indigo-500/40 text-indigo-200 text-xs shadow-[0_0_20px_rgba(99,102,241,0.2)] mb-3">
+            <div class="flex items-center gap-2.5">
+              <i class="fa-solid fa-spinner animate-spin text-indigo-400 text-sm"></i>
+              <span id="live-activity-text" class="font-medium">已建立实时通信通道，等待智能体执行步骤...</span>
+            </div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 animate-pulse">LIVE 实时动态</span>
+          </div>
+
+          <!-- 实时事件流日志卡片群 (按行打印积累，绝不覆盖) -->
+          <div class="space-y-2 font-mono" id="canvas-live-events-list">
+            <div id="canvas-events-empty" class="text-slate-500 text-xs py-10 text-center font-sans">当前任务暂无执行事件轨迹</div>
           </div>
 
         </div>
@@ -1338,58 +1365,42 @@
       }
     }
 
-    // 渲染历史推演事件
+    // 渲染历史推演事件 (按行清晰呈现，按序号严格排序)
     function renderCanvasEvents() {
       const container = document.getElementById('canvas-live-events-list');
+      const completionBar = document.getElementById('delivery-completion-bar');
+      const activityBar = document.getElementById('live-activity-bar');
       const latestRun = currentRuns[0];
+
+      if (completionBar) completionBar.classList.add('hidden');
+      if (activityBar) activityBar.classList.add('hidden');
+
       if (latestRun && latestRun.events && latestRun.events.length) {
-        const sorted = [...latestRun.events].reverse();
-        let eventsHtml = sorted.map(ev => formatEventToHtml(ev, ev.event_type)).join('');
+        // 按时间/序号顺序从前往后按行排列 (Line-by-line)
+        const sorted = [...latestRun.events].sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
+        container.innerHTML = sorted.map((ev, idx) => formatEventToHtml(ev, ev.event_type, ev.sequence || (idx + 1))).join('');
+
         if (latestRun.status === 'succeeded' || currentTask?.status === 'succeeded') {
-          eventsHtml = `
-            <div class="flex items-center justify-between p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs shadow-[0_0_20px_rgba(16,185,129,0.15)] mb-3">
-              <div class="flex items-center gap-2.5">
-                <div class="size-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                  <i class="fa-solid fa-check"></i>
-                </div>
-                <div>
-                  <div class="font-bold">多智能体协同已圆满交付</div>
-                  <div class="text-[10px] text-emerald-400/70 font-mono">所有规划步骤、检索信源与事实核验已就绪</div>
-                </div>
-              </div>
-              <button onclick="switchCanvasTab('deliverable')" class="studio-pill-btn px-3 py-1.5 rounded-xl text-emerald-200 hover:text-white text-xs flex items-center gap-1.5 font-bold transition">
-                <span>查阅成果报告</span>
-                <i class="fa-solid fa-arrow-right text-[10px]"></i>
-              </button>
-            </div>
-          ` + eventsHtml;
+          if (completionBar) completionBar.classList.remove('hidden');
         } else if (latestRun.status === 'running' || currentTask?.status === 'running') {
-          eventsHtml = `
-            <div id="live-activity-bar" class="flex items-center justify-between p-3.5 rounded-xl bg-indigo-950/70 border border-indigo-500/40 text-indigo-200 text-xs shadow-[0_0_20px_rgba(99,102,241,0.2)] mb-3">
-              <div class="flex items-center gap-2.5">
-                <i class="fa-solid fa-spinner animate-spin text-indigo-400 text-sm"></i>
-                <span id="live-activity-text" class="font-medium">多智能体协同推演中：正在动态分工、采集一手信源与交叉核验...</span>
-              </div>
-              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 animate-pulse">LIVE 实时动态</span>
-            </div>
-          ` + eventsHtml;
+          if (activityBar) activityBar.classList.remove('hidden');
         }
-        container.innerHTML = eventsHtml;
       } else if (latestRun && (latestRun.status === 'running' || currentTask?.status === 'running')) {
+        if (activityBar) activityBar.classList.remove('hidden');
         container.innerHTML = `
-          <div id="live-activity-bar" class="flex items-center justify-between p-3.5 rounded-xl bg-indigo-950/70 border border-indigo-500/40 text-indigo-200 text-xs shadow-[0_0_20px_rgba(99,102,241,0.2)] mb-3">
-            <div class="flex items-center gap-2.5">
-              <i class="fa-solid fa-spinner animate-spin text-indigo-400 text-sm"></i>
-              <span id="live-activity-text" class="font-medium">已建立 SSE 实时通道，等待智能体执行步骤并回传操作信息...</span>
-            </div>
-            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 animate-pulse">LIVE 实时动态</span>
-          </div>`;
+          <div id="canvas-events-empty" class="text-slate-500 text-xs py-10 text-center flex items-center justify-center gap-2">
+            <i class="fa-solid fa-spinner animate-spin text-indigo-400"></i>
+            <span>正在建立实时推演通道，即将按行输出每一步操作...</span>
+          </div>
+        `;
       } else {
-        container.innerHTML = `<div class="text-slate-500 text-xs py-10 text-center">当前任务暂无执行事件轨迹</div>`;
+        container.innerHTML = `<div id="canvas-events-empty" class="text-slate-500 text-xs py-10 text-center">当前任务暂无执行事件轨迹</div>`;
       }
     }
 
-    function formatEventToHtml(ev, type) {
+    function formatEventToHtml(ev, type, seqNum = null) {
+      const seq = seqNum || ev.sequence || '';
+      const seqBadge = seq ? `<span class="font-mono text-[10px] text-indigo-400/80 font-bold shrink-0 mt-0.5 w-7 text-right">#${seq}</span>` : '';
       const time = new Date(ev.created_at || Date.now()).toLocaleTimeString();
       let badgeClass = 'bg-slate-500/10 text-slate-400 border border-slate-500/20';
       let icon = 'fa-solid fa-circle-dot';
@@ -1400,7 +1411,7 @@
         badgeClass = 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-semibold';
         icon = 'fa-solid fa-rocket';
         title = '启动协同';
-        desc = `协调员启动团队『${ev.payload?.team_name || 'ULOO Team'}』`;
+        desc = `协调员启动智能体团队『${ev.payload?.team_name || 'ULOO Squad'}』并载入推演方案`;
       } else if (type === 'agent.started') {
         badgeClass = 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-bold';
         icon = 'fa-solid fa-user-astronaut';
@@ -1410,39 +1421,41 @@
         badgeClass = 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 animate-pulse font-semibold';
         icon = 'fa-solid fa-satellite-dish';
         title = '联网检索';
-        desc = ev.payload?.message || `正在联网检索: ${ev.payload?.query || ''}`;
+        desc = ev.payload?.message || `正在联网检索关键词: ${ev.payload?.query || ''}`;
       } else if (type === 'tool.summary') {
         badgeClass = 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold';
         icon = 'fa-solid fa-square-check';
         title = '信源获取';
         const q = ev.payload?.query ? `【${ev.payload.query}】` : '';
-        const dur = ev.payload?.elapsed ? ` (耗时 ${ev.payload.elapsed}s)` : '';
-        desc = ev.payload?.result_preview ? `${q} ${ev.payload.result_preview}${dur}` : `工具调用完成${dur}`;
+        const count = ev.payload?.count !== undefined ? `检索到 ${ev.payload.count} 条真实信源` : '检索完成';
+        const dur = ev.payload?.elapsed ? ` · 耗时 ${ev.payload.elapsed}s` : '';
+        const statusText = ev.payload?.status && ev.payload.status !== 'ok' ? ` (${ev.payload.status})` : '';
+        desc = `${q} ${count}${dur}${statusText}`;
       } else if (type === 'agent.completed') {
         badgeClass = 'bg-teal-500/20 text-teal-300 border border-teal-500/30 font-bold';
         icon = 'fa-solid fa-circle-check';
-        title = '推演就绪';
-        desc = ev.payload?.message || `智能体『${ev.payload?.name || '成员'}』完成分配子项`;
+        title = '阶段推演就绪';
+        desc = ev.payload?.message || `成员『${ev.payload?.name || '专家'}』完成阶段推演，成果交还协调员`;
       } else if (type === 'run.step_started') {
         badgeClass = 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30';
         icon = 'fa-solid fa-forward-step';
-        title = '规划步骤';
-        desc = ev.payload?.title || `步骤 ${ev.payload?.step_id || ''}`;
+        title = '执行步骤';
+        desc = ev.payload?.title || `推进规划步骤: ${ev.payload?.step_id || ''}`;
       } else if (type === 'run.review_started') {
         badgeClass = 'bg-purple-500/15 text-purple-300 border-purple-500/30';
         icon = 'fa-solid fa-clipboard-check';
         title = '质量复核';
-        desc = '核验员正在核对信源真实性与输出完整性';
+        desc = '审核员进入交叉复核阶段，重点检验数字、标准及信息来源';
       } else if (type === 'run.input_requested') {
         badgeClass = 'bg-amber-400/20 text-amber-300 border-amber-400/40 animate-pulse';
         icon = 'fa-solid fa-headset';
         title = '待人工输入';
-        desc = ev.payload?.question || '等待用户补充参数...';
+        desc = ev.payload?.question || '等待用户补充参数与明确指示...';
       } else if (type === 'run.continued') {
         badgeClass = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
         icon = 'fa-solid fa-play';
         title = '补充已注入';
-        desc = `已注入输入: ${ev.payload?.supplement || ''}`;
+        desc = `已注入输入参数: ${ev.payload?.supplement || ''}`;
       } else if (type === 'run.completed') {
         badgeClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-bold';
         icon = 'fa-solid fa-check-double';
@@ -1451,28 +1464,30 @@
         if (typeof outputContent === 'object' && outputContent !== null) {
           outputContent = outputContent.content || JSON.stringify(outputContent);
         }
-        desc = outputContent ? (outputContent.length > 80 ? outputContent.substring(0, 80) + '...' : outputContent) : '团队协同执行已交付成果';
+        desc = outputContent ? (outputContent.length > 120 ? outputContent.substring(0, 120) + '...' : outputContent) : '多智能体团队协同执行完毕，已生成成果报告';
       } else if (type === 'run.cancelled') {
         badgeClass = 'bg-slate-500/20 text-slate-300 border-slate-500/30 font-bold';
         icon = 'fa-solid fa-ban';
         title = '已中止';
-        desc = '执行已安全中止';
+        desc = '协同推演任务已被操作中止';
       } else if (type === 'run.failed') {
         badgeClass = 'bg-rose-500/20 text-rose-300 border-rose-500/40 font-bold';
         icon = 'fa-solid fa-xmark';
         title = '异常中断';
-        desc = ev.payload?.reason || ev.payload?.error || '执行失败';
+        desc = ev.payload?.reason || ev.payload?.error || '推演执行失败';
       } else {
         desc = JSON.stringify(ev.payload || {});
       }
 
+      const cardId = `live-evt-${ev.id || ev.sequence || Math.random().toString(36).substring(2)}`;
       return `
-        <div class="flex items-start gap-3 text-xs p-3.5 rounded-xl bg-[#090D18]/90 border border-white/[0.06] transition hover:border-indigo-500/30">
-          <span class="font-mono text-[10px] text-slate-500 shrink-0 mt-0.5">${time}</span>
-          <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1.5 shrink-0 ${badgeClass}">
+        <div id="${cardId}" class="flex items-start gap-3 text-xs p-3 rounded-xl bg-[#090D18]/90 border border-white/[0.06] transition hover:border-indigo-500/30 font-sans">
+          ${seqBadge}
+          <span class="font-mono text-[10px] text-slate-400 shrink-0 mt-0.5">${time}</span>
+          <span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1.5 shrink-0 ${badgeClass}">
             <i class="${icon} text-[9px]"></i> ${title}
           </span>
-          <span class="text-slate-300 flex-1 truncate text-[11px]">${desc}</span>
+          <div class="text-slate-200 flex-1 text-[11px] leading-relaxed break-words">${desc}</div>
         </div>
       `;
     }
@@ -1486,19 +1501,13 @@
       const indicator = document.getElementById('canvas-streaming-pill');
       if (indicator) indicator.classList.remove('hidden');
 
-      // 确保在连接 SSE 时，推演流顶部立刻拥有动态雷达条
-      const container = document.getElementById('canvas-live-events-list');
-      if (container && !container.querySelector('#live-activity-bar')) {
-        const barHtml = `
-          <div id="live-activity-bar" class="flex items-center justify-between p-3.5 rounded-xl bg-indigo-950/70 border border-indigo-500/40 text-indigo-200 text-xs shadow-[0_0_20px_rgba(99,102,241,0.2)] mb-3">
-            <div class="flex items-center gap-2.5">
-              <i class="fa-solid fa-spinner animate-spin text-indigo-400 text-sm"></i>
-              <span id="live-activity-text" class="font-medium">已建立 SSE 实时通道，等待智能体执行步骤并回传操作信息...</span>
-            </div>
-            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 animate-pulse">LIVE 实时动态</span>
-          </div>
-        `;
-        container.insertAdjacentHTML('afterbegin', barHtml);
+      const activityBar = document.getElementById('live-activity-bar');
+      if (activityBar) {
+        activityBar.classList.remove('hidden');
+        const activityText = document.getElementById('live-activity-text');
+        if (activityText) {
+          activityText.innerHTML = '已建立实时通信通道，等待智能体执行步骤...';
+        }
       }
 
       const sseUrl = `${API_BASE}/runs/${runId}/stream?token=${encodeURIComponent(TOKEN)}&workspace=${encodeURIComponent(WORKSPACE)}`;
@@ -1538,30 +1547,45 @@
     function handleLiveSSEEvent(ev, taskId, explicitType = null) {
       const type = explicitType || ev.event_type || 'unknown';
       const container = document.getElementById('canvas-live-events-list');
-      if (container) {
-        if (container.querySelector('.text-slate-500') || container.querySelector('.text-center')) {
-          container.innerHTML = '';
-        }
-        const activityBar = container.querySelector('#live-activity-bar');
-        const eventCard = formatEventToHtml(ev, type);
-        if (activityBar) {
-          activityBar.insertAdjacentHTML('afterend', eventCard);
-        } else {
-          container.insertAdjacentHTML('afterbegin', eventCard);
-        }
+      const activityBar = document.getElementById('live-activity-bar');
+
+      // 1. 移除空提示元素（若存在）
+      const emptyEl = document.getElementById('canvas-events-empty');
+      if (emptyEl) emptyEl.remove();
+
+      // 2. 确保执行中顶部雷达条展示
+      if (activityBar && !['run.completed', 'terminal', 'run.failed', 'run.cancelled'].includes(type)) {
+        activityBar.classList.remove('hidden');
       }
 
-      // 实时更新顶部推演雷达状态条文本
+      // 3. 实时更新顶部推演雷达状态条文本
       const activityText = document.getElementById('live-activity-text');
       if (activityText) {
         if (type === 'tool.calling') {
           activityText.innerHTML = `正在联网检索: <span class="text-cyan-300 font-mono">${ev.payload?.query || ''}</span>`;
         } else if (type === 'tool.summary') {
-          activityText.innerHTML = `信源采集就绪: <span class="text-emerald-300 font-mono">${ev.payload?.query || ''}</span> (${ev.payload?.count || 0}条信源)`;
+          activityText.innerHTML = `信源采集就绪: <span class="text-emerald-300 font-mono">${ev.payload?.query || ''}</span> (${ev.payload?.count || 0}条信源，耗时 ${ev.payload?.elapsed || 0}s)`;
         } else if (type === 'agent.started') {
           activityText.innerHTML = `协调员已派发任务给: <span class="text-indigo-300 font-bold">${ev.payload?.name || '专家成员'}</span>`;
         } else if (type === 'agent.completed') {
           activityText.innerHTML = `<span class="text-teal-300 font-bold">${ev.payload?.name || '专家成员'}</span> 阶段推演完成，交还主控...`;
+        }
+      }
+
+      // 4. 按行打印并追加到事件流中，累积展示所有历史步骤，绝不覆盖
+      if (container) {
+        const cardId = `live-evt-${ev.id || ev.sequence || ''}`;
+        if (!cardId || !document.getElementById(cardId)) {
+          const currentCount = container.children.length;
+          const seq = ev.sequence || (currentCount + 1);
+          const eventCard = formatEventToHtml(ev, type, seq);
+          container.insertAdjacentHTML('beforeend', eventCard);
+
+          // 自动平滑滚动到底部，确保最新打印的行实时可见
+          const pane = document.getElementById('canvas-pane-trace');
+          if (pane) {
+            pane.scrollTop = pane.scrollHeight;
+          }
         }
       }
 
