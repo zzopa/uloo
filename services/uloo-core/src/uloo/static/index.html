@@ -816,8 +816,25 @@
       try {
         const task = await apiRequest(`/tasks/${taskId}`);
         currentTask = task;
+
+        // 同步更新 allTasks 数组中对应的任务状态，确保左侧列表与右侧画布绝对一致
+        const existingIdx = allTasks.findIndex(t => t.id === taskId);
+        if (existingIdx !== -1) {
+          allTasks[existingIdx] = task;
+          renderMissionList();
+        }
+
         const runsData = await apiRequest(`/runs?task_id=${taskId}&limit=10`);
         currentRuns = runsData.items || [];
+        if (currentRuns.length > 0) {
+          try {
+            // 获取最新 Run 的完整详情（包含 events 轨迹列表）
+            const detailRun = await apiRequest(`/runs/${currentRuns[0].id}`);
+            currentRuns[0] = detailRun;
+          } catch (e) {
+            console.warn('获取 Run 完整详情失败:', e);
+          }
+        }
 
         renderCanvasHeader();
         renderCanvasDAG();
@@ -985,9 +1002,42 @@
       const latestRun = currentRuns[0];
       if (latestRun && latestRun.events && latestRun.events.length) {
         const sorted = [...latestRun.events].reverse();
-        container.innerHTML = sorted.map(ev => formatEventToHtml(ev, ev.event_type)).join('');
+        let eventsHtml = sorted.map(ev => formatEventToHtml(ev, ev.event_type)).join('');
+        if (latestRun.status === 'succeeded' || currentTask?.status === 'succeeded') {
+          eventsHtml = `
+            <div class="flex items-center justify-between p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs shadow-[0_0_20px_rgba(16,185,129,0.15)] mb-3">
+              <div class="flex items-center gap-2.5">
+                <div class="size-6 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <i class="fa-solid fa-check"></i>
+                </div>
+                <div>
+                  <div class="font-bold">多智能体协同已圆满交付</div>
+                  <div class="text-[10px] text-emerald-400/70 font-mono">所有规划步骤与事实核验已就绪</div>
+                </div>
+              </div>
+              <button onclick="switchCanvasTab('deliverable')" class="studio-pill-btn px-3 py-1.5 rounded-xl text-emerald-200 hover:text-white text-xs flex items-center gap-1.5 font-bold transition">
+                <span>查阅成果报告</span>
+                <i class="fa-solid fa-arrow-right text-[10px]"></i>
+              </button>
+            </div>
+          ` + eventsHtml;
+        } else if (latestRun.status === 'running' || currentTask?.status === 'running') {
+          eventsHtml = `
+            <div class="flex items-center gap-2.5 p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs animate-pulse mb-3">
+              <i class="fa-solid fa-circle-notch animate-spin"></i>
+              <span>多智能体正在深度检索与协同推理中，下方为实时推送的推演流...</span>
+            </div>
+          ` + eventsHtml;
+        }
+        container.innerHTML = eventsHtml;
+      } else if (latestRun && (latestRun.status === 'running' || currentTask?.status === 'running')) {
+        container.innerHTML = `
+          <div class="flex items-center justify-center gap-2.5 p-8 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs">
+            <i class="fa-solid fa-spinner animate-spin text-base"></i>
+            <span>已建立 SSE 实时通道，等待智能体执行步骤并回传事件...</span>
+          </div>`;
       } else {
-        container.innerHTML = `<div class="text-slate-500 text-xs py-10 text-center">正在接入实时推演流...</div>`;
+        container.innerHTML = `<div class="text-slate-500 text-xs py-10 text-center">当前任务暂无执行事件轨迹</div>`;
       }
     }
 
@@ -999,7 +1049,7 @@
       let desc = '';
 
       if (type === 'run.started') {
-        badgeClass = 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30';
+        badgeClass = 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30';
         icon = 'fa-solid fa-rocket';
         title = '启动协同';
         desc = `协调员启动团队『${ev.payload?.team_name || 'ULOO Team'}』`;
@@ -1037,7 +1087,11 @@
         badgeClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 font-bold';
         icon = 'fa-solid fa-check-double';
         title = '交付完成';
-        desc = '最终调研成果已生成';
+        let outputContent = ev.payload?.output;
+        if (typeof outputContent === 'object' && outputContent !== null) {
+          outputContent = outputContent.content || JSON.stringify(outputContent);
+        }
+        desc = outputContent ? (outputContent.length > 80 ? outputContent.substring(0, 80) + '...' : outputContent) : '团队协同执行已交付成果';
       } else if (type === 'run.cancelled') {
         badgeClass = 'bg-slate-500/20 text-slate-300 border-slate-500/30 font-bold';
         icon = 'fa-solid fa-ban';
@@ -1110,6 +1164,9 @@
       const type = explicitType || ev.event_type || 'unknown';
       const container = document.getElementById('canvas-live-events-list');
       if (container) {
+        if (container.querySelector('.text-slate-500') || container.querySelector('.text-center')) {
+          container.innerHTML = '';
+        }
         container.insertAdjacentHTML('afterbegin', formatEventToHtml(ev, type));
       }
 
@@ -1117,16 +1174,39 @@
         showHitlCockpit(ev.payload?.question || ev.payload?.reason || '智能体在当前执行中缺少关键信息，请补充：');
       }
 
-      if (['run.completed', 'run.failed', 'run.cancelled', 'terminal'].includes(type)) {
+      if (['run.completed', 'terminal'].includes(type)) {
+        if (currentTask) currentTask.status = 'succeeded';
+        const taskInList = allTasks.find(t => t.id === taskId);
+        if (taskInList) taskInList.status = 'succeeded';
+        renderMissionList();
+        renderCanvasHeader();
+        handleTerminalEvent(taskId);
+      } else if (['run.failed', 'run.cancelled'].includes(type)) {
+        if (currentTask) currentTask.status = (type === 'run.failed' ? 'failed' : 'cancelled');
+        const taskInList = allTasks.find(t => t.id === taskId);
+        if (taskInList) taskInList.status = currentTask.status;
+        renderMissionList();
+        renderCanvasHeader();
         handleTerminalEvent(taskId);
       }
     }
 
-    function handleTerminalEvent(taskId) {
+    async function handleTerminalEvent(taskId) {
       closeLiveStream();
-      setTimeout(() => {
-        loadCanvasMission(taskId);
-      }, 500);
+      setTimeout(async () => {
+        try {
+          const data = await apiRequest('/tasks?limit=50');
+          allTasks = data.items || [];
+          document.getElementById('task-count-indicator').innerText = allTasks.length;
+          renderMissionList();
+
+          if (selectedTaskId === taskId) {
+            await loadCanvasMission(taskId);
+          }
+        } catch (e) {
+          console.warn('终态刷新异常:', e);
+        }
+      }, 400);
     }
 
     function showHitlCockpit(msg) {
