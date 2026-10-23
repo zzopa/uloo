@@ -1225,8 +1225,10 @@ async def _execute_run(
         await _fail_run(db, run, task, context.workspace_id, exc.code, exc.message)
         raise ApiError(503, exc.code, exc.message, details={"run_id": str(run.id)}) from exc
     except TimeoutError as exc:
-        await _fail_run(db, run, task, context.workspace_id, "TIMEOUT", "Team run timed out")
-        raise ApiError(504, "TIMEOUT", "Team run timed out", details={"run_id": str(run.id)}) from exc
+        timeout_msg = str(exc).strip() or "Team run timed out"
+        logger.warning("team_run_timed_out", run_id=str(run.id), task_id=str(task.id), error=timeout_msg)
+        await _fail_run(db, run, task, context.workspace_id, "TIMEOUT", timeout_msg)
+        raise ApiError(504, "TIMEOUT", timeout_msg, details={"run_id": str(run.id)}) from exc
     except Exception as exc:
         logger.exception("team_run_failed", run_id=str(run.id), task_id=str(task.id))
         error_msg = str(exc).strip() or "Agno Team execution failed"
