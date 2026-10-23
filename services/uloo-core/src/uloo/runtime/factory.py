@@ -162,7 +162,9 @@ def _wrap_team_transfer_function(team: Team) -> None:
         orig_entrypoint = func.entrypoint
 
         if inspect.iscoroutinefunction(orig_entrypoint):
-            async def wrapped_entrypoint(member_id: str, task_description: str, **inner_kwargs):
+            async def wrapped_entrypoint(
+                member_id: str, task_description: str, expected_output: str | None = None
+            ):
                 member_name = member_id
                 for m in getattr(team, "members", []):
                     if getattr(m, "agent_id", None) == member_id:
@@ -180,7 +182,7 @@ def _wrap_team_transfer_function(team: Team) -> None:
                     },
                 )
                 try:
-                    res = await orig_entrypoint(member_id, task_description, **inner_kwargs)
+                    res = await orig_entrypoint(member_id, task_description, expected_output=expected_output)
                     emit_live_event(
                         event_type="agent.completed",
                         source_type="agent",
@@ -203,8 +205,12 @@ def _wrap_team_transfer_function(team: Team) -> None:
                     raise
 
             func.entrypoint = wrapped_entrypoint
+            if hasattr(func, "process_entrypoint"):
+                func.process_entrypoint()
         else:
-            def wrapped_entrypoint(member_id: str, task_description: str, **inner_kwargs):
+            def wrapped_entrypoint(
+                member_id: str, task_description: str, expected_output: str | None = None
+            ):
                 member_name = member_id
                 for m in getattr(team, "members", []):
                     if getattr(m, "agent_id", None) == member_id:
@@ -222,7 +228,7 @@ def _wrap_team_transfer_function(team: Team) -> None:
                     },
                 )
                 try:
-                    res = orig_entrypoint(member_id, task_description, **inner_kwargs)
+                    res = orig_entrypoint(member_id, task_description, expected_output=expected_output)
                     emit_live_event(
                         event_type="agent.completed",
                         source_type="agent",
@@ -245,6 +251,8 @@ def _wrap_team_transfer_function(team: Team) -> None:
                     raise
 
             func.entrypoint = wrapped_entrypoint
+            if hasattr(func, "process_entrypoint"):
+                func.process_entrypoint()
         return func
 
     team.get_transfer_task_function = wrapped_get_transfer_func

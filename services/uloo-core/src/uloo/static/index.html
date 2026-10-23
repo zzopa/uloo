@@ -417,7 +417,7 @@
       <div class="flex items-baseline gap-2">
         <span class="font-extrabold text-sm tracking-wider text-white">ULOO</span>
         <span class="text-[10px] font-mono tracking-widest text-slate-400 uppercase">Synergy Studio</span>
-        <span class="font-mono text-[9px] bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 px-1.5 py-0.2 rounded-full ml-1">v0.2</span>
+        <span class="font-mono text-[9px] bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-2 py-0.5 rounded-full ml-1 font-bold">v0.2.2 · 实时流强化版</span>
       </div>
     </div>
 
@@ -1485,6 +1485,21 @@
       currentStreamingRunId = runId;
       const indicator = document.getElementById('canvas-streaming-pill');
       if (indicator) indicator.classList.remove('hidden');
+
+      // 确保在连接 SSE 时，推演流顶部立刻拥有动态雷达条
+      const container = document.getElementById('canvas-live-events-list');
+      if (container && !container.querySelector('#live-activity-bar')) {
+        const barHtml = `
+          <div id="live-activity-bar" class="flex items-center justify-between p-3.5 rounded-xl bg-indigo-950/70 border border-indigo-500/40 text-indigo-200 text-xs shadow-[0_0_20px_rgba(99,102,241,0.2)] mb-3">
+            <div class="flex items-center gap-2.5">
+              <i class="fa-solid fa-spinner animate-spin text-indigo-400 text-sm"></i>
+              <span id="live-activity-text" class="font-medium">已建立 SSE 实时通道，等待智能体执行步骤并回传操作信息...</span>
+            </div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 animate-pulse">LIVE 实时动态</span>
+          </div>
+        `;
+        container.insertAdjacentHTML('afterbegin', barHtml);
+      }
 
       const sseUrl = `${API_BASE}/runs/${runId}/stream?token=${encodeURIComponent(TOKEN)}&workspace=${encodeURIComponent(WORKSPACE)}`;
       const sse = new EventSource(sseUrl);

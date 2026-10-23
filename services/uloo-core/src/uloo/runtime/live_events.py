@@ -20,9 +20,19 @@ _active_run_context: ContextVar[dict[str, Any] | None] = ContextVar("uloo_active
 # In-memory per-run lock to guarantee strictly sequential sequence numbers without DB collisions
 _run_sequence_locks: dict[str, asyncio.Lock] = {}
 
+# Reference to the main asyncio event loop to allow worker threads (e.g. sync tools in threadpool)
+# to safely schedule event persistence coroutines
+_main_event_loop: asyncio.AbstractEventLoop | None = None
+
 
 def set_active_run(run_id: str | uuid.UUID, workspace_id: str | uuid.UUID) -> None:
     """Set the active run context for real-time live event streaming."""
+    global _main_event_loop
+    try:
+        _main_event_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        pass
+
     _active_run_context.set(
         {
             "run_id": uuid.UUID(str(run_id)),
@@ -73,6 +83,13 @@ async def _persist_live_event_async(
                 )
                 session.add(event)
                 await session.commit()
+                logger.info(
+                    "live_event_committed",
+                    seq=seq,
+                    run_id=str(run_id),
+                    event_type=event_type,
+                    source_id=source_id,
+                )
         except Exception as exc:
             logger.warning("persist_live_event_failed", error=str(exc), event_type=event_type)
 
@@ -88,6 +105,7 @@ def emit_live_event(
 
     Events are committed asynchronously and picked up by active SSE streams
     within milliseconds, allowing the UI to reflect live agent actions.
+    Supports being called from both main asyncio coroutines and worker threads.
     """
     ctx = _active_run_context.get()
     if not ctx:
@@ -96,18 +114,22 @@ def emit_live_event(
     workspace_id = ctx["workspace_id"]
     run_id = ctx["run_id"]
 
+    coro = _persist_live_event_async(
+        workspace_id=workspace_id,
+        run_id=run_id,
+        event_type=event_type,
+        payload=payload,
+        source_type=source_type,
+        source_id=source_id,
+        status=status,
+    )
+
     try:
         loop = asyncio.get_running_loop()
-        loop.create_task(
-            _persist_live_event_async(
-                workspace_id=workspace_id,
-                run_id=run_id,
-                event_type=event_type,
-                payload=payload,
-                source_type=source_type,
-                source_id=source_id,
-                status=status,
-            )
-        )
+        loop.create_task(coro)
     except RuntimeError:
-        pass
+        # Worker thread (e.g. synchronous tool execution via asyncio.to_thread)
+        if _main_event_loop and _main_event_loop.is_running():
+            asyncio.run_coroutine_threadsafe(coro, _main_event_loop)
+        else:
+            logger.warning("no_event_loop_for_live_event", event_type=event_type)
