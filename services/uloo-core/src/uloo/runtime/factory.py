@@ -72,11 +72,6 @@ def build_agent(
         workspace_id=workspace_id,
     )
     instructions = list(definition.instructions or [])
-    if getattr(definition, "mode", None) == "coordinate":
-        instructions.append(
-            "In coordinate mode, you MUST execute the plan by invoking the assigned member agents for their tasks. "
-            "Never answer on behalf of members without delegating to them."
-        )
     instructions.append(
         "CITATION AND SOURCE MANDATE: Every factual assertion, data point, and quote in the final report MUST cite its real source with a clickable Markdown hyperlink [Source Title](URL). Provide a dedicated '### 🔗 数据出处与核验信源' section listing all real source URLs at the end."
     )
@@ -300,8 +295,15 @@ def build_team(
         instructions.insert(0, recalled_memories_context.strip())
     if getattr(definition, "mode", None) == "coordinate":
         instructions.append(
-            "In coordinate mode, you MUST execute the plan by invoking the assigned member agents for their tasks. "
-            "Never answer on behalf of members without delegating to them."
+            "【协同调度规范 (Coordinated Multi-Agent Execution Protocol)】:\n"
+            "1. 严禁一次性盲目并发派发所有任务。你必须按严密的流水线分工调度各成员智能体：\n"
+            "   - 第一步（事实与民意调研）：首先向负责检索/调研的成员派发任务，收集互联网上公众/网民的真实讨论焦点、民间顾虑与一手信源；\n"
+            "   - 第二步（移交与独立核验）：等待调研员完成返回后，提取调研员收集到的具体观点、网传争议与链接，作为任务输入明确移交给核验员，要求核验员对这些具体言论逐条进行真实性核验与科学标准比对；\n"
+            "   - 第三步（综合研判与成果输出）：在各成员均完成实质性工作后，由你整合两方成果输出最终报告。\n"
+            "2. 针对网络讨论类任务的交付标准：\n"
+            "   - 必须设立专门章节【👥 网络舆情与公众讨论焦点】，真实反映民间关切（如辅食/糙米担忧、网传致癌流言、民间淘米降砷法）；\n"
+            "   - 必须设立【⚖️ 核心争议深度对撞（民间网传关切 vs 权威科学事实）】；\n"
+            "   - 必须设立【🔗 数据与信息来源清单】，罗列包含真实链接的 Markdown 引用 [来源标题](URL)。"
         )
     if definition.leader_agent_id:
         instructions.insert(
