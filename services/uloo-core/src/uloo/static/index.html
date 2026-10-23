@@ -680,10 +680,10 @@
           </div>
         </div>
 
-        <!-- Tab 0 内容: 实时车轨协同沙盘 (Panoramic Multi-Agent Railway Schematic) -->
+        <!-- Tab 0 内容: 实时车轨协同沙盘 (Dynamic Multi-Agent Railway Dispatch Track) -->
         <div id="canvas-pane-rail" class="flex-1 overflow-y-auto min-h-0 max-h-[calc(100vh-13.5rem)] p-6 pb-20 space-y-5">
           
-          <!-- 动车遥测驾驶舱 HUD (4 组高集成遥测指标) -->
+          <!-- 动车遥测驾驶舱 HUD (4 组动态遥测指标) -->
           <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <div class="rail-telemetry-card studio-panel p-3.5 rounded-2xl border border-white/[0.08] bg-[#0A0F1D]/80 flex items-center gap-3">
               <div class="size-9 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center shrink-0 text-sm">
@@ -700,18 +700,18 @@
                 <i class="fa-solid fa-location-crosshairs"></i>
               </div>
               <div class="min-w-0">
-                <div class="text-[10px] text-slate-400 uppercase tracking-wider font-mono">当前停靠区间</div>
-                <div id="rail-hud-station" class="text-xs font-bold text-indigo-300 truncate font-mono mt-0.5">S1 需求始发站</div>
+                <div class="text-[10px] text-slate-400 uppercase tracking-wider font-mono">当前停靠站台</div>
+                <div id="rail-hud-station" class="text-xs font-bold text-indigo-300 truncate font-mono mt-0.5">需求始发站</div>
               </div>
             </div>
 
             <div class="rail-telemetry-card studio-panel p-3.5 rounded-2xl border border-white/[0.08] bg-[#0A0F1D]/80 flex items-center gap-3">
               <div class="size-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0 text-sm">
-                <i class="fa-solid fa-shield-halved"></i>
+                <i class="fa-solid fa-bolt-lightning"></i>
               </div>
               <div class="min-w-0">
-                <div class="text-[10px] text-slate-400 uppercase tracking-wider font-mono">官方信源穿透</div>
-                <div id="rail-hud-sources" class="text-xs font-bold text-emerald-300 truncate font-mono mt-0.5">0 处官方信源</div>
+                <div class="text-[10px] text-slate-400 uppercase tracking-wider font-mono">工具调用与信源</div>
+                <div id="rail-hud-sources" class="text-xs font-bold text-emerald-300 truncate font-mono mt-0.5">0 次调用</div>
               </div>
             </div>
 
@@ -720,154 +720,48 @@
                 <i class="fa-solid fa-route"></i>
               </div>
               <div class="min-w-0">
-                <div class="text-[10px] text-slate-400 uppercase tracking-wider font-mono">协同换乘道岔</div>
+                <div class="text-[10px] text-slate-400 uppercase tracking-wider font-mono">进路信号与道岔</div>
                 <div id="rail-hud-handoff" class="text-xs font-bold text-amber-300 truncate font-mono mt-0.5">等待发车</div>
               </div>
             </div>
           </div>
 
-          <!-- 全景多轨车轨线路图画布 (Interactive Multi-Line Rail Map) -->
-          <div class="rail-sandbox-board p-6 rounded-2xl border border-white/[0.08] bg-[#070B16]/90 relative overflow-hidden shadow-2xl">
-            <!-- 线路图顶部图例 (Legend) -->
-            <div class="flex flex-wrap items-center justify-between gap-3 pb-4 mb-2 border-b border-white/[0.06] text-xs">
-              <div class="flex items-center gap-4">
+          <!-- 全景车轨运行线路图看板 (Dynamic Railway Route Canvas) -->
+          <div class="rail-sandbox-board p-6 rounded-2xl border border-white/[0.08] bg-[#070B16]/90 relative overflow-hidden shadow-2xl space-y-4">
+            <!-- 线路看板顶栏 -->
+            <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-white/[0.06] text-xs">
+              <div class="flex items-center gap-3">
+                <div class="size-2 rounded-full bg-cyan-400 animate-ping"></div>
                 <span class="text-xs font-bold text-slate-200 flex items-center gap-2">
-                  <i class="fa-solid fa-network-wired text-cyan-400"></i>
-                  <span>ULOO 多智能体协同铁路网 (Multi-Track Schematic)</span>
+                  <i class="fa-solid fa-train-subway text-cyan-400"></i>
+                  <span>ULOO 多智能体行车调度轨图 (Dynamic Agent Dispatch Track)</span>
                 </span>
+                <span id="rail-task-title-badge" class="px-2.5 py-0.5 rounded-full bg-white/[0.06] text-slate-300 text-[11px] truncate max-w-[280px] font-mono border border-white/[0.08]">当前任务</span>
               </div>
-              <div class="flex items-center gap-4 text-[11px] font-mono">
-                <span class="flex items-center gap-1.5 text-indigo-300"><span class="size-2 rounded-full bg-[#6366F1]"></span>1号线: 协调主线</span>
-                <span class="flex items-center gap-1.5 text-cyan-300"><span class="size-2 rounded-full bg-[#06B6D4]"></span>2号线: 舆情采风支线</span>
-                <span class="flex items-center gap-1.5 text-amber-300"><span class="size-2 rounded-full bg-[#F59E0B]"></span>3号线: 权威审验支线</span>
-                <span class="flex items-center gap-1.5 text-emerald-300"><span class="size-2 rounded-full bg-[#10B981]"></span>终点汇流: 研报交付</span>
+              <div class="flex items-center gap-4 text-[11px] font-mono text-slate-400">
+                <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]"></span>🟢 进路开放/已通车</span>
+                <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-amber-400 shadow-[0_0_6px_#fbbf24] animate-pulse"></span>🟡 本站停靠作业中</span>
+                <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-slate-600"></span>⚪ 进路预告/待到站</span>
               </div>
             </div>
 
-            <!-- SVG 铁轨拓扑图 -->
-            <div class="relative w-full overflow-x-auto py-2">
-              <svg id="rail-svg-canvas" viewBox="0 0 920 220" class="w-full min-w-[760px] h-auto select-none">
-                <defs>
-                  <filter id="rail-glow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="3.5" result="blur" />
-                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                  </filter>
-                  <linearGradient id="grad-mainline" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stop-color="#6366F1" />
-                    <stop offset="50%" stop-color="#06B6D4" />
-                    <stop offset="80%" stop-color="#F59E0B" />
-                    <stop offset="100%" stop-color="#10B981" />
-                  </linearGradient>
-                </defs>
-
-                <!-- 铁轨底枕 (Ties Background) -->
-                <path d="M 60 65 L 500 65 L 860 65" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="8" stroke-linecap="round" />
-                <path d="M 60 65 L 500 65 L 860 65" fill="none" stroke="#6366F1" stroke-width="2.5" stroke-dasharray="6 4" opacity="0.4" />
-
-                <!-- 2号线: 舆情采风支线 (青线) -->
-                <path id="rail-track-branch-1" d="M 120 65 C 160 65, 180 145, 230 145 L 360 145 C 440 145, 460 65, 500 65" fill="none" stroke="#06B6D4" stroke-width="3.5" stroke-linecap="round" opacity="0.85" filter="url(#rail-glow)" />
-
-                <!-- 3号线: 权威审验支线 (金线) -->
-                <path id="rail-track-branch-2" d="M 500 65 C 540 65, 560 145, 620 145 L 730 145 C 800 145, 820 65, 860 65" fill="none" stroke="#F59E0B" stroke-width="3.5" stroke-linecap="round" opacity="0.85" filter="url(#rail-glow)" />
-
-                <!-- 终点汇流段 (绿线) -->
-                <path id="rail-track-terminus" d="M 760 65 L 860 65" fill="none" stroke="#10B981" stroke-width="4.5" stroke-linecap="round" opacity="0.9" />
-
-                <!-- 6 组站台节点群 -->
-                <!-- S1: 始发 -->
-                <g id="station-node-1" transform="translate(60, 65)" class="cursor-pointer">
-                  <circle r="14" fill="#070B16" stroke="#6366F1" stroke-width="4" id="st-ring-1" />
-                  <circle r="5" fill="#6366F1" id="st-dot-1" />
-                  <text y="-22" text-anchor="middle" fill="#CBD5E1" font-size="11" font-weight="bold">S1 需求始发段</text>
-                  <text y="28" text-anchor="middle" fill="#64748B" font-size="9" font-family="monospace">主控分工规划</text>
-                </g>
-
-                <!-- S2: 舆论采风 -->
-                <g id="station-node-2" transform="translate(230, 145)" class="cursor-pointer">
-                  <circle r="13" fill="#070B16" stroke="#06B6D4" stroke-width="3.5" id="st-ring-2" />
-                  <circle r="5" fill="#06B6D4" id="st-dot-2" />
-                  <text y="28" text-anchor="middle" fill="#CBD5E1" font-size="11" font-weight="bold">S2 舆论采风站</text>
-                  <text y="42" text-anchor="middle" fill="#06B6D4" font-size="9" font-family="monospace">民间关切采集</text>
-                </g>
-
-                <!-- S3: 穿透检索 -->
-                <g id="station-node-3" transform="translate(360, 145)" class="cursor-pointer">
-                  <circle r="13" fill="#070B16" stroke="#06B6D4" stroke-width="3.5" id="st-ring-3" />
-                  <circle r="5" fill="#06B6D4" id="st-dot-3" />
-                  <text y="28" text-anchor="middle" fill="#CBD5E1" font-size="11" font-weight="bold">S3 联网穿透站</text>
-                  <text y="42" text-anchor="middle" fill="#06B6D4" font-size="9" font-family="monospace">官方信源反解</text>
-                </g>
-
-                <!-- S4: 换乘枢纽 (双环换乘图标) -->
-                <g id="station-node-4" transform="translate(500, 65)" class="cursor-pointer">
-                  <circle r="17" fill="#070B16" stroke="#EC4899" stroke-width="4" id="st-ring-4" class="station-pulse-ring" />
-                  <circle r="9" fill="#070B16" stroke="#6366F1" stroke-width="2.5" />
-                  <circle r="4" fill="#FFFFFF" id="st-dot-4" />
-                  <text y="-25" text-anchor="middle" fill="#F472B6" font-size="12" font-weight="bold">S4 协同换乘枢纽</text>
-                  <text y="-10" text-anchor="middle" fill="#94A3B8" font-size="9" font-family="monospace">移交与道岔变轨</text>
-                </g>
-
-                <!-- S5: 科学审验 -->
-                <g id="station-node-5" transform="translate(680, 145)" class="cursor-pointer">
-                  <circle r="13" fill="#070B16" stroke="#F59E0B" stroke-width="3.5" id="st-ring-5" />
-                  <circle r="5" fill="#F59E0B" id="st-dot-5" />
-                  <text y="28" text-anchor="middle" fill="#CBD5E1" font-size="11" font-weight="bold">S5 官方审验站</text>
-                  <text y="42" text-anchor="middle" fill="#F59E0B" font-size="9" font-family="monospace">GB 2762对齐</text>
-                </g>
-
-                <!-- S6: 研报终点站 -->
-                <g id="station-node-6" transform="translate(860, 65)" class="cursor-pointer">
-                  <circle r="16" fill="#070B16" stroke="#10B981" stroke-width="4" id="st-ring-6" />
-                  <circle r="6" fill="#10B981" id="st-dot-6" />
-                  <text y="-24" text-anchor="middle" fill="#34D399" font-size="12" font-weight="bold">S6 终审研报站</text>
-                  <text y="28" text-anchor="middle" fill="#10B981" font-size="9" font-family="monospace">成果交付终点</text>
-                </g>
-
-                <!-- 🚄 动态协作胶囊列车 (Live Moving Train Capsule) -->
-                <g id="rail-train-pod" transform="translate(60, 65)" class="train-pod">
-                  <rect id="rail-train-rect" x="-32" y="-14" width="64" height="28" rx="14" fill="#06B6D4" filter="url(#rail-glow)" />
-                  <text id="rail-train-text" x="0" y="4" text-anchor="middle" fill="#030712" font-size="10" font-weight="900" font-family="monospace">🚄 ULOO</text>
-                </g>
-              </svg>
+            <!-- SVG 动态铁轨容器 (根据任务参与智能体与执行阶段动态生成，水平贯通直观清晰) -->
+            <div id="rail-svg-container" class="relative w-full overflow-x-auto py-2">
+              <!-- JS 动态注入高质感横向双轨调度图 -->
             </div>
           </div>
 
-          <!-- 3 个站台现场作业卡片群 (Station Detailed Operations) -->
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs">
-            <div class="rail-station-card studio-panel p-4 rounded-2xl border border-white/[0.08] bg-[#0A0F1D]/80 space-y-2.5">
-              <div class="flex items-center justify-between">
-                <span class="font-bold text-cyan-300 flex items-center gap-1.5">
-                  <i class="fa-solid fa-bullhorn text-xs"></i> 舆情采风台 (Discourse)
-                </span>
-                <span id="card-status-researcher" class="px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 font-mono text-[10px]">待命中</span>
+          <!-- 动态智能体现地作业卡片群 (100% 动态数据，零硬编码) -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="text-xs font-bold text-slate-300 flex items-center gap-2">
+                <i class="fa-solid fa-list-check text-indigo-400"></i>
+                <span>各站台作业现场遥测实况 (Station Ground Operations)</span>
               </div>
-              <p id="card-desc-researcher" class="text-slate-400 text-[11px] leading-relaxed">
-                收集网民关注的辅食安全、糙米砷富集担忧、民间淘米去砷等公众讨论焦点。
-              </p>
+              <span id="rail-cards-count-badge" class="text-[10px] font-mono text-slate-500">动态加载中</span>
             </div>
-
-            <div class="rail-station-card studio-panel p-4 rounded-2xl border border-white/[0.08] bg-[#0A0F1D]/80 space-y-2.5">
-              <div class="flex items-center justify-between">
-                <span class="font-bold text-pink-300 flex items-center gap-1.5">
-                  <i class="fa-solid fa-arrows-split-up-and-left text-xs"></i> 换乘移交道岔 (Handoff)
-                </span>
-                <span id="card-status-handoff" class="px-2 py-0.5 rounded-full bg-pink-500/10 text-pink-400 font-mono text-[10px]">路签待签</span>
-              </div>
-              <p id="card-desc-handoff" class="text-slate-400 text-[11px] leading-relaxed">
-                协调员提取调研发现的争议观点与真实网页链接，结构化移交至核验员进行逐条严审。
-              </p>
-            </div>
-
-            <div class="rail-station-card studio-panel p-4 rounded-2xl border border-white/[0.08] bg-[#0A0F1D]/80 space-y-2.5">
-              <div class="flex items-center justify-between">
-                <span class="font-bold text-amber-300 flex items-center gap-1.5">
-                  <i class="fa-solid fa-stamp text-xs"></i> 官方审验台 (Compliance)
-                </span>
-                <span id="card-status-reviewer" class="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-mono text-[10px]">待命中</span>
-              </div>
-              <p id="card-desc-reviewer" class="text-slate-400 text-[11px] leading-relaxed">
-                对齐 GB 2762-2022、Codex 标准与专家访谈，过滤虚假营销号，出具辟谣与官方结论。
-              </p>
+            <div id="rail-dynamic-station-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+              <!-- JS 动态渲染现场作业卡片 -->
             </div>
           </div>
         </div>
@@ -1609,265 +1503,509 @@
       }
     }
 
-    // 车轨站点地理坐标与线路元数据映射
-    const RAIL_STATIONS = {
-      1: { x: 60,  y: 65,  name: 'S1 需求始发段', color: '#6366F1', label: '1号线 · 主控分工' },
-      2: { x: 230, y: 145, name: 'S2 舆论采风站', color: '#06B6D4', label: '2号线 · 采风支线' },
-      3: { x: 360, y: 145, name: 'S3 联网穿透站', color: '#06B6D4', label: '2号线 · 信源反解' },
-      4: { x: 500, y: 65,  name: 'S4 协同换乘枢纽', color: '#EC4899', label: '道岔枢纽 · 移交路签' },
-      5: { x: 680, y: 145, name: 'S5 官方审验站', color: '#F59E0B', label: '3号线 · 国标对齐' },
-      6: { x: 860, y: 65,  name: 'S6 终审研报站', color: '#10B981', label: '终点站 · 成果交付' },
-    };
-
-    // 智能体推演事件阶段自动推导判定算法 (Stage Detector)
-    function determineRailStage(run) {
-      if (!run) return 1;
-      if (run.status === 'succeeded' || currentTask?.status === 'succeeded') {
-        return 6;
+    // 格式化智能体显示名称 (友好中文与角色说明)
+    function formatAgentDisplayName(rawName) {
+      if (!rawName) return '协同专家';
+      const lower = rawName.toLowerCase();
+      if (lower.includes('internet') && lower.includes('researcher')) return '信息调研员 (Researcher)';
+      if (lower.includes('reviewer') || lower.includes('quote') || lower.includes('source')) return '信源审验员 (Reviewer)';
+      if (lower.includes('coordinator')) return '总控协调员 (Coordinator)';
+      if (lower.includes('developer') || lower.includes('code')) return '技术开发员 (Developer)';
+      if (lower.includes('tester') || lower.includes('qa')) return '质检验收员 (QA)';
+      if (rawName.includes(':')) {
+        const parts = rawName.split(':');
+        return parts[1].trim() || parts[0].trim();
       }
-
-      const events = run.events || [];
-      if (!events.length) {
-        return 1;
-      }
-
-      let hasReviewerStarted = false;
-      let hasResearcherCompleted = false;
-      let hasToolsCalled = false;
-      let hasResearcherStarted = false;
-      let hasReviewerCompleted = false;
-
-      for (const ev of events) {
-        const et = ev.event_type || '';
-        const name = ((ev.payload?.name || ev.payload?.agent || '') + '').toLowerCase();
-
-        if (et === 'agent.started') {
-          if (name.includes('review') || name.includes('核验') || name.includes('审验') || name.includes('quote')) {
-            hasReviewerStarted = true;
-          } else {
-            hasResearcherStarted = true;
-          }
-        } else if (et === 'agent.completed') {
-          if (name.includes('review') || name.includes('核验') || name.includes('审验') || name.includes('quote')) {
-            hasReviewerCompleted = true;
-          } else {
-            hasResearcherCompleted = true;
-          }
-        } else if (et === 'tool.calling' || et === 'tool.summary') {
-          hasToolsCalled = true;
-        } else if (et === 'run.review_started') {
-          hasReviewerStarted = true;
-        }
-      }
-
-      if (hasReviewerCompleted) return 6;
-      if (hasReviewerStarted) return 5;
-      if (hasResearcherCompleted) return 4;
-      if (hasToolsCalled) return 3;
-      if (hasResearcherStarted) return 2;
-      return 1;
+      return rawName;
     }
 
-    // 渲染车轨协同沙盘 (Railway Multi-Track Schematic)
-    function renderCanvasRailTrack(run) {
-      const trainPod = document.getElementById('rail-train-pod');
-      const trainRect = document.getElementById('rail-train-rect');
-      const trainText = document.getElementById('rail-train-text');
-      if (!trainPod) return;
+    // 动态提取当前任务与推演运行的真实行车数据 (100% 数据驱动，绝无任何特定领域硬编码)
+    function extractRailMetadata(task, run) {
+      const events = run?.events || [];
+      const plan = task?.plans?.[0];
+      const planSteps = plan?.steps || [];
+      const isSucceeded = run?.status === 'succeeded' || task?.status === 'succeeded';
+      const isRunning = run?.status === 'running' || task?.status === 'running';
+      const isFailed = run?.status === 'failed' || task?.status === 'failed';
+      const isAwaiting = run?.status === 'awaiting_input' || task?.status === 'awaiting_input';
 
-      const stage = determineRailStage(run);
-      const st = RAIL_STATIONS[stage] || RAIL_STATIONS[1];
-      const isFailed = run?.status === 'failed' || currentTask?.status === 'failed';
-      const isAwaiting = run?.status === 'awaiting_input' || currentTask?.status === 'awaiting_input';
-      const isRunning = run?.status === 'running' || currentTask?.status === 'running';
+      // 提取参与的智能体与步骤，按真实执行流组织
+      const distinctAgents = [];
+      const agentDetails = {};
 
-      // 1. 平滑移动胶囊动车位置 (SVG translate)
-      trainPod.setAttribute('transform', `translate(${st.x}, ${st.y})`);
+      // 1. 从事件流中获取智能体
+      events.forEach(e => {
+        if (e.event_type === 'agent.started' || e.event_type === 'agent.completed') {
+          const rawName = e.payload?.name || e.payload?.agent;
+          if (rawName && !distinctAgents.includes(rawName)) {
+            distinctAgents.push(rawName);
+            agentDetails[rawName] = {
+              rawName: rawName,
+              displayName: formatAgentDisplayName(rawName),
+              status: 'pending',
+              queries: [],
+              toolCount: 0
+            };
+          }
+        }
+      });
 
-      // 2. 动车皮肤与车标
-      let trainColor = st.color;
-      let trainTitle = '🚄 ULOO';
-      if (isFailed) {
-        trainColor = '#EF4444';
-        trainTitle = '⚠️ 熔断';
-      } else if (isAwaiting) {
-        trainColor = '#F59E0B';
-        trainTitle = '⏸️ 挂起';
-      } else if (stage === 1) {
-        trainTitle = '🚄 始发号';
-      } else if (stage === 2) {
-        trainTitle = '🚄 采风号';
-      } else if (stage === 3) {
-        trainTitle = '🚄 穿透号';
-      } else if (stage === 4) {
-        trainTitle = '🚄 换乘号';
-      } else if (stage === 5) {
-        trainTitle = '🚄 审验号';
-      } else if (stage === 6) {
-        trainTitle = '🚄 终审号';
+      // 2. 若事件流中尚无智能体（刚启动），从计划 steps 中抽取
+      if (distinctAgents.length === 0 && planSteps.length > 0) {
+        planSteps.forEach(s => {
+          const rawName = s.title || s.id;
+          distinctAgents.push(rawName);
+          agentDetails[rawName] = {
+            rawName: rawName,
+            displayName: formatAgentDisplayName(rawName),
+            status: s.status || 'pending',
+            queries: [],
+            toolCount: 0
+          };
+        });
       }
 
-      if (trainRect) trainRect.setAttribute('fill', trainColor);
-      if (trainText) trainText.textContent = trainTitle;
+      // 3. 兜底保障（若为单智能体或极简任务）
+      if (distinctAgents.length === 0) {
+        const fallbackName = '执行专家';
+        distinctAgents.push(fallbackName);
+        agentDetails[fallbackName] = {
+          rawName: fallbackName,
+          displayName: fallbackName,
+          status: isRunning ? 'running' : (isSucceeded ? 'completed' : 'pending'),
+          queries: [],
+          toolCount: 0
+        };
+      }
 
-      // 3. 站台光环与圆点状态激发
-      for (let i = 1; i <= 6; i++) {
-        const ring = document.getElementById(`st-ring-${i}`);
-        const dot = document.getElementById(`st-dot-${i}`);
-        if (!ring || !dot) continue;
-
-        if (i < stage) {
-          // 已通车通过站台
-          ring.setAttribute('stroke', '#10B981');
-          ring.setAttribute('stroke-width', '3');
-          ring.setAttribute('opacity', '0.9');
-          ring.classList.remove('station-pulse-ring');
-          dot.setAttribute('fill', '#10B981');
-        } else if (i === stage) {
-          // 当前驻停/作业站台
-          ring.setAttribute('stroke', trainColor);
-          ring.setAttribute('stroke-width', '4.5');
-          ring.setAttribute('opacity', '1');
-          if (isRunning) {
-            ring.classList.add('station-pulse-ring');
-          } else {
-            ring.classList.remove('station-pulse-ring');
+      // 4. 统计每个智能体发生的真实工具调用 (Queries)
+      let activeAgentName = distinctAgents[0];
+      events.forEach(e => {
+        if (e.event_type === 'agent.started') {
+          activeAgentName = e.payload?.name || e.payload?.agent || activeAgentName;
+          if (agentDetails[activeAgentName]) agentDetails[activeAgentName].status = 'running';
+        } else if (e.event_type === 'agent.completed') {
+          const compName = e.payload?.name || e.payload?.agent || activeAgentName;
+          if (agentDetails[compName]) agentDetails[compName].status = 'completed';
+        } else if (e.event_type === 'tool.calling') {
+          const q = e.payload?.query || e.payload?.tool;
+          if (q && agentDetails[activeAgentName]) {
+            agentDetails[activeAgentName].queries.push(q);
+            agentDetails[activeAgentName].toolCount++;
           }
-          dot.setAttribute('fill', '#FFFFFF');
+        }
+      });
+
+      // 5. 如果整体成功，所有涉及的智能体均标为已完成
+      if (isSucceeded) {
+        distinctAgents.forEach(a => {
+          if (agentDetails[a]) agentDetails[a].status = 'completed';
+        });
+      }
+
+      // 6. 构建动态站点队列 (始发站 ➔ 智能体01 ➔ [道岔] ➔ 智能体02 ➔ 终点站)
+      const stations = [];
+
+      // S0: 需求始发站
+      stations.push({
+        id: 'st-origin',
+        type: 'origin',
+        code: 'S1',
+        name: '始发·任务规划',
+        sub: '主控拆解派发',
+        status: (isRunning || isSucceeded || events.length > 0) ? 'completed' : 'running',
+        detail: `收到指令：“${task?.title || '任务目标'}”，已激活协同编组。`
+      });
+
+      // 智能体站台与道岔交替加入
+      distinctAgents.forEach((agentKey, idx) => {
+        const ad = agentDetails[agentKey];
+        const stCode = `S${idx + 2}`;
+        stations.push({
+          id: `st-agent-${idx}`,
+          type: 'agent',
+          code: stCode,
+          name: ad.displayName,
+          sub: ad.toolCount > 0 ? `${ad.toolCount}次工具调用` : '阶段推演',
+          status: ad.status,
+          queries: ad.queries,
+          toolCount: ad.toolCount,
+          rawName: agentKey,
+          detail: ad.queries.length > 0
+            ? `本站已发生 ${ad.queries.length} 次真实工具调用，最近：“${ad.queries[ad.queries.length - 1].substring(0, 36)}...”`
+            : `智能体正在根据协同上下文与提示词推进推演...`
+        });
+
+        // 如果不是最后一个智能体，插入一个道岔换乘点
+        if (idx < distinctAgents.length - 1) {
+          const nextAgent = agentDetails[distinctAgents[idx + 1]];
+          const handoffCompleted = (ad.status === 'completed' || isSucceeded);
+          const handoffRunning = (ad.status === 'completed' && nextAgent?.status === 'running');
+          stations.push({
+            id: `st-handoff-${idx}`,
+            type: 'handoff',
+            code: '⑂',
+            name: '道岔·协同移交',
+            sub: '路签交接 (Handoff)',
+            status: handoffCompleted ? 'completed' : (handoffRunning ? 'running' : 'pending'),
+            detail: `从【${ad.displayName}】向【${nextAgent?.displayName || '下一节点'}】结构化移交执行结果与上下文。`
+          });
+        }
+      });
+
+      // S_End: 终点研报站
+      const terminusStatus = isSucceeded ? 'completed' : (isRunning ? 'pending' : 'pending');
+      stations.push({
+        id: 'st-terminus',
+        type: 'terminus',
+        code: `S${stations.length + 1}`,
+        name: '终点·成果交付',
+        sub: isSucceeded ? '研报闭环交付' : '终到站整备',
+        status: terminusStatus,
+        detail: isSucceeded
+          ? `协同推演成功达成，生成完整结构化成果物，已通过全链路复核。`
+          : `等待各站台协同作业闭环后汇流交付。`
+      });
+
+      // 7. 计算当前动车停靠站台索引 (Active Station Index)
+      let activeIndex = 0;
+      if (isSucceeded) {
+        activeIndex = stations.length - 1;
+      } else if (isFailed) {
+        const lastActive = stations.findLastIndex(s => s.status === 'running' || s.status === 'completed');
+        activeIndex = Math.max(0, lastActive);
+      } else {
+        const runningIdx = stations.findIndex(s => s.status === 'running');
+        if (runningIdx !== -1) {
+          activeIndex = runningIdx;
         } else {
-          // 未到达站台
-          ring.setAttribute('stroke', RAIL_STATIONS[i].color);
-          ring.setAttribute('stroke-width', '2.5');
-          ring.setAttribute('opacity', '0.35');
-          ring.classList.remove('station-pulse-ring');
-          dot.setAttribute('fill', RAIL_STATIONS[i].color);
+          const lastComp = stations.findLastIndex(s => s.status === 'completed');
+          activeIndex = Math.min(stations.length - 1, Math.max(0, lastComp));
         }
       }
 
-      // 4. 铁轨道床光流激活 (Line Flow Animation)
-      const trackBranch1 = document.getElementById('rail-track-branch-1');
-      const trackBranch2 = document.getElementById('rail-track-branch-2');
-      const trackTerminus = document.getElementById('rail-track-terminus');
+      // 8. 统计总工具调用与信源数
+      const allQueries = [];
+      distinctAgents.forEach(a => {
+        allQueries.push(...agentDetails[a].queries);
+      });
+      const sourcesCount = events.filter(e => e.event_type === 'tool.summary').length;
 
-      if (trackBranch1) {
-        if (isRunning && (stage === 2 || stage === 3)) trackBranch1.classList.add('track-flowing-line');
-        else trackBranch1.classList.remove('track-flowing-line');
+      return {
+        taskTitle: task?.title || 'ULOO 协同任务',
+        runId: run?.id ? run.id.substring(0, 8).toUpperCase() : '8200',
+        stations: stations,
+        activeIndex: activeIndex,
+        isSucceeded: isSucceeded,
+        isRunning: isRunning,
+        isFailed: isFailed,
+        isAwaiting: isAwaiting,
+        totalToolCalls: allQueries.length,
+        sourcesCount: sourcesCount,
+        distinctAgents: distinctAgents,
+        agentDetails: agentDetails
+      };
+    }
+
+    // 动态渲染车轨协同调度沙盘 (100% 数据驱动，清晰水平铁路，零硬编码)
+    function renderCanvasRailTrack(run) {
+      if (!currentTask) return;
+      const meta = extractRailMetadata(currentTask, run);
+
+      // 1. 更新顶部任务标签与区间计数
+      const taskBadge = document.getElementById('rail-task-title-badge');
+      if (taskBadge) {
+        taskBadge.innerText = meta.taskTitle;
+        taskBadge.title = meta.taskTitle;
       }
-      if (trackBranch2) {
-        if (isRunning && stage === 5) trackBranch2.classList.add('track-flowing-line');
-        else trackBranch2.classList.remove('track-flowing-line');
-      }
-      if (trackTerminus) {
-        if (stage === 6) trackTerminus.classList.add('track-flowing-line');
-        else trackTerminus.classList.remove('track-flowing-line');
+      const cardsCountBadge = document.getElementById('rail-cards-count-badge');
+      if (cardsCountBadge) {
+        cardsCountBadge.innerText = `共 ${meta.stations.length} 个调度节点 · ${meta.distinctAgents.length} 位协同专家`;
       }
 
-      // 5. 更新 HUD 遥测仪表盘
+      // 2. 更新 4 组 HUD 动车遥测指标
       const hudTrainId = document.getElementById('rail-hud-train-id');
       const hudStation = document.getElementById('rail-hud-station');
       const hudSources = document.getElementById('rail-hud-sources');
       const hudHandoff = document.getElementById('rail-hud-handoff');
 
       if (hudTrainId) {
-        const idStr = run?.id ? run.id.substring(0, 8).toUpperCase() : '8200';
-        hudTrainId.innerText = `ULOO-G${idStr}`;
+        hudTrainId.innerText = `ULOO-G${meta.runId}`;
       }
 
+      const activeSt = meta.stations[meta.activeIndex] || meta.stations[0];
       if (hudStation) {
-        const statusSuffix = isFailed ? '异常中断' : (isAwaiting ? '挂起求援' : (isRunning ? '巡航作业中' : (stage === 6 ? '已达终交付' : '整备中')));
-        hudStation.innerText = `${st.name} (${statusSuffix})`;
+        const stateText = meta.isFailed ? '⚠️ 异常中断' : (meta.isAwaiting ? '⏸️ 挂起中' : (meta.isRunning ? '巡航作业中' : (meta.isSucceeded ? '已到终点' : '待发车')));
+        hudStation.innerText = `${activeSt.name} (${stateText})`;
       }
 
-      const events = run?.events || [];
-      const sourcesCount = events.filter(e => e.event_type === 'tool.summary').length;
       if (hudSources) {
-        if (sourcesCount > 0) {
-          hudSources.innerText = `${sourcesCount} 处官方信源穿透`;
+        if (meta.totalToolCalls > 0) {
+          hudSources.innerText = `${meta.totalToolCalls} 次调用 (${meta.sourcesCount} 处权威信源)`;
         } else {
-          hudSources.innerText = stage >= 3 ? '正在联网穿透信源...' : '0 处官方信源';
+          hudSources.innerText = meta.isSucceeded ? '交付物已闭环' : (meta.isRunning ? '正在调用工具...' : '0 次工具调用');
         }
       }
 
       if (hudHandoff) {
-        if (stage < 4) {
-          hudHandoff.innerText = '采风编组中 (待移交)';
-          hudHandoff.className = "text-xs font-bold text-cyan-300 truncate font-mono mt-0.5";
-        } else if (stage === 4) {
-          hudHandoff.innerText = 'S4 道岔交汇 · 变轨移交';
-          hudHandoff.className = "text-xs font-bold text-pink-300 truncate font-mono mt-0.5 animate-pulse";
-        } else if (stage === 5) {
-          hudHandoff.innerText = '移交已核发 · Reviewer 严审';
-          hudHandoff.className = "text-xs font-bold text-amber-300 truncate font-mono mt-0.5";
-        } else {
-          hudHandoff.innerText = '全线绿灯通车 · 交付完成';
+        if (meta.isSucceeded) {
+          hudHandoff.innerText = '全线绿灯通车 · 交付完毕';
           hudHandoff.className = "text-xs font-bold text-emerald-300 truncate font-mono mt-0.5";
-        }
-      }
-
-      // 6. 更新站台现场作业卡片
-      const stResearcher = document.getElementById('card-status-researcher');
-      const descResearcher = document.getElementById('card-desc-researcher');
-      const stHandoff = document.getElementById('card-status-handoff');
-      const descHandoff = document.getElementById('card-desc-handoff');
-      const stReviewer = document.getElementById('card-status-reviewer');
-      const descReviewer = document.getElementById('card-desc-reviewer');
-
-      if (stResearcher) {
-        if (stage < 2) {
-          stResearcher.className = "px-2 py-0.5 rounded-full bg-slate-500/10 text-slate-400 font-mono text-[10px]";
-          stResearcher.innerText = "待发车";
-        } else if (stage === 2 || stage === 3) {
-          stResearcher.className = "px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-mono text-[10px] animate-pulse";
-          stResearcher.innerText = "采风作业中";
+        } else if (meta.isFailed) {
+          hudHandoff.innerText = '道岔信号闭塞 · 任务中断';
+          hudHandoff.className = "text-xs font-bold text-rose-300 truncate font-mono mt-0.5";
+        } else if (activeSt.type === 'handoff') {
+          hudHandoff.innerText = '⑂ 换乘道岔 · 路签核发中';
+          hudHandoff.className = "text-xs font-bold text-pink-300 truncate font-mono mt-0.5 animate-pulse";
+        } else if (meta.isRunning) {
+          hudHandoff.innerText = '正线区间作业中 · 进路通畅';
+          hudHandoff.className = "text-xs font-bold text-cyan-300 truncate font-mono mt-0.5";
         } else {
-          stResearcher.className = "px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-mono text-[10px]";
-          stResearcher.innerHTML = `<i class="fa-solid fa-check"></i> 采风已闭环`;
+          hudHandoff.innerText = '进路预告 · 等待发车';
+          hudHandoff.className = "text-xs font-bold text-slate-400 truncate font-mono mt-0.5";
         }
       }
 
-      const lastSearch = events.slice().reverse().find(e => e.event_type === 'tool.calling')?.payload?.query;
-      if (descResearcher && lastSearch) {
-        descResearcher.innerText = `已完成网络采风，最近穿透聚焦：“${lastSearch.substring(0, 32)}...”`;
-      }
+      // 3. 动态渲染 SVG 水平双轨电子运行图
+      renderDynamicRailSvg(meta);
 
-      if (stHandoff) {
-        if (stage < 4) {
-          stHandoff.className = "px-2 py-0.5 rounded-full bg-slate-500/10 text-slate-400 font-mono text-[10px]";
-          stHandoff.innerText = "路签待签";
-        } else if (stage === 4) {
-          stHandoff.className = "px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 font-mono text-[10px] animate-pulse";
-          stHandoff.innerText = "变轨换乘中";
-        } else {
-          stHandoff.className = "px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-mono text-[10px]";
-          stHandoff.innerHTML = `<i class="fa-solid fa-check"></i> 路签已移交`;
-        }
-      }
-
-      if (stReviewer) {
-        if (stage < 5) {
-          stReviewer.className = "px-2 py-0.5 rounded-full bg-slate-500/10 text-slate-400 font-mono text-[10px]";
-          stReviewer.innerText = "待命中";
-        } else if (stage === 5) {
-          stReviewer.className = "px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono text-[10px] animate-pulse";
-          stReviewer.innerText = "国标严审中";
-        } else {
-          stReviewer.className = "px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-mono text-[10px]";
-          stReviewer.innerHTML = `<i class="fa-solid fa-check"></i> 审验已合格`;
-        }
-      }
+      // 4. 动态渲染现场站台卡片群 (按当前任务实际智能体与步骤生成)
+      renderDynamicStationCards(meta);
     }
 
-    // 站台交互：点击站台高亮或查验
-    function inspectRailStation(stationId) {
-      const st = RAIL_STATIONS[stationId];
-      if (!st) return;
-      const ring = document.getElementById(`st-ring-${stationId}`);
-      if (ring) {
-        ring.classList.add('station-pulse-ring');
-        setTimeout(() => ring.classList.remove('station-pulse-ring'), 2000);
+    // 渲染 SVG 水平贯通直观双轨图
+    function renderDynamicRailSvg(meta) {
+      const container = document.getElementById('rail-svg-container');
+      if (!container) return;
+
+      const stations = meta.stations;
+      const count = stations.length;
+      const totalWidth = 920;
+      const totalHeight = 165;
+      const railY = 70;
+      const leftPad = 75;
+      const rightPad = 845;
+      const usableWidth = rightPad - leftPad;
+      const stepX = count > 1 ? (usableWidth / (count - 1)) : usableWidth;
+
+      // 计算每个站点的 X 坐标
+      stations.forEach((st, idx) => {
+        st.x = Math.round(leftPad + idx * stepX);
+        st.y = railY;
+      });
+
+      const activeSt = stations[meta.activeIndex] || stations[0];
+      const trainX = activeSt.x;
+
+      // 枕木生成
+      let tiesHtml = '';
+      for (let tx = 40; tx <= 880; tx += 18) {
+        tiesHtml += `<line x1="${tx}" y1="59" x2="${tx}" y2="81" stroke="rgba(255,255,255,0.06)" stroke-width="2.5" />`;
       }
+
+      // 动车状态色彩与文案
+      let trainColor = '#06B6D4';
+      let trainTitle = '🚄 ULOO';
+      if (meta.isFailed) {
+        trainColor = '#EF4444';
+        trainTitle = '⚠️ 熔断';
+      } else if (meta.isAwaiting) {
+        trainColor = '#F59E0B';
+        trainTitle = '⏸️ 挂起';
+      } else if (meta.isSucceeded) {
+        trainColor = '#10B981';
+        trainTitle = '🚄 终审号';
+      } else if (activeSt.type === 'handoff') {
+        trainColor = '#EC4899';
+        trainTitle = '🚄 换乘号';
+      } else {
+        trainColor = '#06B6D4';
+        trainTitle = '🚄 巡航号';
+      }
+
+      // 站台与信号灯渲染
+      const stationsSvgHtml = stations.map((st, idx) => {
+        const isPast = idx < meta.activeIndex;
+        const isCurrent = idx === meta.activeIndex;
+        const isFuture = idx > meta.activeIndex;
+
+        // 信号灯 (绿灯/黄灯/红灯/灰灯)
+        let signalColor = '#475569';
+        let signalPulse = '';
+        if (meta.isFailed && isCurrent) {
+          signalColor = '#EF4444';
+        } else if (meta.isSucceeded || isPast) {
+          signalColor = '#10B981';
+        } else if (isCurrent && meta.isRunning) {
+          signalColor = '#F59E0B';
+          signalPulse = 'class="station-pulse-ring"';
+        }
+
+        // 站台环与中心圆点
+        let ringStroke = '#334155';
+        let ringWidth = 2.5;
+        let ringPulseClass = '';
+        let innerHtml = '';
+
+        if (meta.isSucceeded || isPast) {
+          ringStroke = '#10B981';
+          ringWidth = 3.5;
+          innerHtml = `<text x="${st.x}" y="${st.y + 4}" text-anchor="middle" fill="#34D399" font-size="11" font-weight="900">✓</text>`;
+        } else if (isCurrent) {
+          ringStroke = trainColor;
+          ringWidth = 4;
+          if (meta.isRunning) ringPulseClass = 'class="station-pulse-ring"';
+          innerHtml = `<circle cx="${st.x}" cy="${st.y}" r="5" fill="#FFFFFF" />`;
+        } else {
+          ringStroke = '#334155';
+          ringWidth = 2;
+          innerHtml = `<circle cx="${st.x}" cy="${st.y}" r="3.5" fill="#475569" />`;
+        }
+
+        // 文本颜色
+        const titleColor = isCurrent ? '#FFFFFF' : (isPast ? '#E2E8F0' : '#64748B');
+        const subColor = isCurrent ? '#38BDF8' : (isPast ? '#10B981' : '#475569');
+        const statusText = isCurrent ? (meta.isRunning ? '● 作业中' : '● 本站停靠') : (isPast ? '✓ 已通车' : '○ 进路待到');
+        const statusColor = isCurrent ? '#F59E0B' : (isPast ? '#10B981' : '#64748B');
+
+        return `
+          <!-- 站点 ${idx + 1}: ${st.name} -->
+          <g id="station-group-${idx}" class="cursor-pointer" onclick="inspectRailStation(${idx})">
+            <!-- 信号机支柱与灯头 -->
+            <line x1="${st.x}" y1="28" x2="${st.x}" y2="58" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" />
+            <rect x="${st.x - 7}" y="12" width="14" height="18" rx="4" fill="#0A0F1D" stroke="rgba(255,255,255,0.2)" stroke-width="1" />
+            <circle cx="${st.x}" cy="21" r="4.5" fill="${signalColor}" filter="url(#rail-glow)" ${signalPulse} />
+
+            <!-- 站台枢纽环 -->
+            <circle cx="${st.x}" cy="${st.y}" r="14" fill="#070B16" stroke="${ringStroke}" stroke-width="${ringWidth}" ${ringPulseClass} />
+            ${innerHtml}
+
+            <!-- 站名牌与作业指标 (清晰横向展示) -->
+            <text x="${st.x}" y="100" text-anchor="middle" fill="${titleColor}" font-size="11" font-weight="bold">${st.name}</text>
+            <text x="${st.x}" y="116" text-anchor="middle" fill="${subColor}" font-size="9" font-family="monospace">${st.sub}</text>
+            <text x="${st.x}" y="130" text-anchor="middle" fill="${statusColor}" font-size="8.5">${statusText}</text>
+          </g>
+        `;
+      }).join('');
+
+      container.innerHTML = `
+        <svg id="rail-svg-canvas" viewBox="0 0 ${totalWidth} ${totalHeight}" class="w-full min-w-[760px] h-auto select-none">
+          <defs>
+            <filter id="rail-glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+          </defs>
+
+          <!-- 铁轨底枕碎石道床 -->
+          <rect x="35" y="58" width="850" height="24" rx="12" fill="rgba(255,255,255,0.03)" />
+          
+          <!-- 枕木群 (Ties) -->
+          ${tiesHtml}
+
+          <!-- 双轨钢轨 (上下两根平行主钢轨，金属质感) -->
+          <line x1="40" y1="65" x2="880" y2="65" stroke="rgba(255,255,255,0.2)" stroke-width="2.5" />
+          <line x1="40" y1="75" x2="880" y2="75" stroke="rgba(255,255,255,0.2)" stroke-width="2.5" />
+
+          <!-- 进路开启动态光流 (从起点直通当前动车位置) -->
+          <line x1="75" y1="70" x2="${trainX}" y2="70" stroke="${trainColor}" stroke-width="3.5" stroke-linecap="round" class="track-flowing-line" filter="url(#rail-glow)" />
+
+          <!-- 各站台与信号机节点 -->
+          ${stationsSvgHtml}
+
+          <!-- 🚄 动车组巡航车头 (跟随当前活跃站台平滑滑行) -->
+          <g id="rail-train-pod" transform="translate(${trainX}, ${railY})" class="train-pod">
+            <!-- 车头前照灯光锥 -->
+            <polygon points="34,-6 62,-12 62,12 34,6" fill="rgba(255,255,255,0.14)" />
+            <!-- 高铁流线型动车胶囊 -->
+            <rect x="-35" y="-13" width="70" height="26" rx="13" fill="${trainColor}" filter="url(#rail-glow)" />
+            <path d="M 16 -7 L 27 -7 C 30 -7, 32 -4, 32 0 C 32 4, 30 7, 27 7 L 16 7 Z" fill="#0A0F1D" opacity="0.65" />
+            <text x="-5" y="4" text-anchor="middle" fill="#0A0F1D" font-size="9.5" font-weight="900" font-family="monospace">${trainTitle}</text>
+          </g>
+        </svg>
+      `;
     }
 
+    // 动态渲染站台现场作业卡片列表 (100% 数据驱动，反映真实执行流)
+    function renderDynamicStationCards(meta) {
+      const container = document.getElementById('rail-dynamic-station-cards');
+      if (!container) return;
+
+      const stations = meta.stations;
+
+      container.innerHTML = stations.map((st, idx) => {
+        const isCurrent = idx === meta.activeIndex;
+        const isPast = idx < meta.activeIndex;
+
+        let borderClass = 'border-white/[0.08] bg-[#0A0F1D]/80';
+        let badgeHtml = '<span class="px-2 py-0.5 rounded-full bg-slate-500/10 text-slate-400 font-mono text-[10px]">待到站</span>';
+        let iconHtml = '<i class="fa-solid fa-circle-dot text-slate-500"></i>';
+
+        if (st.type === 'origin') {
+          iconHtml = '<i class="fa-solid fa-flag-checkered text-indigo-400"></i>';
+          badgeHtml = '<span class="px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 font-mono text-[10px]">始发就绪</span>';
+        } else if (st.type === 'handoff') {
+          iconHtml = '<i class="fa-solid fa-arrows-split-up-and-left text-pink-400"></i>';
+          badgeHtml = isPast || meta.isSucceeded
+            ? '<span class="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-mono text-[10px]"><i class="fa-solid fa-check"></i> 路签已移交</span>'
+            : (isCurrent ? '<span class="px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300 font-mono text-[10px] animate-pulse">变轨换乘中</span>' : badgeHtml);
+        } else if (st.type === 'terminus') {
+          iconHtml = '<i class="fa-solid fa-file-circle-check text-emerald-400"></i>';
+          badgeHtml = meta.isSucceeded
+            ? '<span class="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-mono text-[10px]"><i class="fa-solid fa-check"></i> 全线交付</span>'
+            : (isCurrent ? '<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-mono text-[10px] animate-pulse">正在汇流</span>' : badgeHtml);
+        } else {
+          iconHtml = '<i class="fa-solid fa-user-astronaut text-cyan-400"></i>';
+          badgeHtml = isPast || meta.isSucceeded
+            ? '<span class="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-mono text-[10px]"><i class="fa-solid fa-check"></i> 阶段闭环</span>'
+            : (isCurrent ? '<span class="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-mono text-[10px] animate-pulse">现场作业中</span>' : badgeHtml);
+        }
+
+        if (isCurrent) {
+          borderClass = 'border-cyan-500/40 bg-[#0C1527]/90 shadow-[0_0_15px_rgba(6,182,212,0.15)] ring-1 ring-cyan-500/30';
+        }
+
+        // 真实工具调用展示
+        let liveQueriesHtml = '';
+        if (st.queries && st.queries.length > 0) {
+          const recentQueries = st.queries.slice(-2);
+          liveQueriesHtml = `
+            <div class="mt-2 space-y-1 bg-black/40 p-2 rounded-xl border border-white/[0.05] font-mono text-[10.5px]">
+              <div class="text-[9.5px] text-slate-500 uppercase flex items-center justify-between">
+                <span>真实检索与穿透动作</span>
+                <span class="text-cyan-400">${st.queries.length} 次</span>
+              </div>
+              ${recentQueries.map(q => `<div class="text-slate-300 truncate flex items-center gap-1.5"><i class="fa-solid fa-magnifying-glass text-[9px] text-cyan-400 shrink-0"></i><span class="truncate">${q}</span></div>`).join('')}
+            </div>
+          `;
+        }
+
+        return `
+          <div class="rail-station-card studio-panel p-4 rounded-2xl border ${borderClass} space-y-2.5 transition-all">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-slate-200 flex items-center gap-2 text-xs">
+                ${iconHtml}
+                <span>${st.name}</span>
+              </span>
+              ${badgeHtml}
+            </div>
+            <p class="text-slate-400 text-[11px] leading-relaxed">
+              ${st.detail}
+            </p>
+            ${liveQueriesHtml}
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 站台交互：点击站台高亮与查看
+    function inspectRailStation(stationIdx) {
+      const card = document.getElementById(`station-group-${stationIdx}`);
+      if (card) {
+        card.classList.add('animate-pulse');
+        setTimeout(() => card.classList.remove('animate-pulse'), 1500);
+      }
+    }
     // 渲染协同管线 DAG 节点 (Horizontal Visual Pipeline)
     function renderCanvasDAG() {
       const container = document.getElementById('canvas-dag-nodes');
