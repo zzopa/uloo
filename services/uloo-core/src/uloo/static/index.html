@@ -665,8 +665,16 @@
           const data = await apiRequest('/teams?limit=50');
           cachedTeams = data.items || [];
         }
+        // 优先将具备搜索与核验的互联网调研团队置顶并设为默认
+        cachedTeams.sort((a, b) => {
+          const aMarket = (a.key || '').includes('market') || (a.name || '').includes('调研');
+          const bMarket = (b.key || '').includes('market') || (b.name || '').includes('调研');
+          if (aMarket && !bMarket) return -1;
+          if (!aMarket && bMarket) return 1;
+          return 0;
+        });
         const select = document.getElementById('prompt-team-select');
-        select.innerHTML = cachedTeams.map(t => `<option value="${t.id}" class="bg-slate-900 text-slate-200">${t.name} (${t.mode})</option>`).join('');
+        select.innerHTML = cachedTeams.map((t, idx) => `<option value="${t.id}" ${idx === 0 ? 'selected' : ''} class="bg-slate-900 text-slate-200">${t.name} (${t.mode === 'coordinate' ? '分工协同' : t.mode})</option>`).join('');
       } catch (err) {
         console.warn('加载团队失败:', err);
       }

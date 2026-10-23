@@ -1055,8 +1055,14 @@ async def _execute_run(
         result = await execute_agent(runtime_team, execution_prompt, timeout_seconds=timeout)
         executed_ids = {member["agent_id"] for member in result.member_results}
         assigned_ids = {step["assigned_agent_id"] for step in plan.steps if step.get("assigned_agent_id")}
-        if not executed_ids or (team_definition.mode != "route" and not assigned_ids <= executed_ids):
-            raise ValueError("Team did not execute the approved member assignments")
+        if team_definition.mode != "route":
+            if assigned_ids and not (assigned_ids <= executed_ids):
+                raise ValueError("Team did not execute the approved member assignments")
+            elif not assigned_ids and not executed_ids and not result.output:
+                raise ValueError("Team did not execute the approved member assignments")
+        else:
+            if not executed_ids and not result.output:
+                raise ValueError("Team did not produce any execution output")
 
         # S5-补3: Persist tool summaries and agent events immediately so that
         # clients polling /runs/{id}/events can observe progress in real time.
