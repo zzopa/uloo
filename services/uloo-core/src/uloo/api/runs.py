@@ -34,6 +34,7 @@ from ..models.task import Task, TaskPlan
 from ..models.team import TeamDefinition, TeamMember
 from ..runtime import build_team, execute_agent
 from ..runtime.dify_tools import clear_runtime_caller, set_runtime_caller
+from ..runtime.memory import format_memories_for_prompt, recall_memories
 from ..runtime.models import RuntimeConfigurationError
 from ..runtime.resources import ResourceRegistry, load_resources
 from ..runtime.review import build_review_feedback, evaluate_completion
@@ -970,8 +971,15 @@ async def _execute_run(
         # S1-6: Set the Dify caller identity for this run so that Dify tool
         # invocations use the same user/app context as the console session.
         set_runtime_caller(context.user_id, context.app_id, str(context.workspace_id))
+        query_text = input_text or task.query or ""
+        recalled_memories = await recall_memories(db, context.workspace_id, query=query_text)
+        recalled_context = format_memories_for_prompt(recalled_memories)
         runtime_team = build_team(
-            team_definition, member_definitions, tools=resources, workspace_id=str(context.workspace_id)
+            team_definition,
+            member_definitions,
+            tools=resources,
+            workspace_id=str(context.workspace_id),
+            recalled_memories_context=recalled_context,
         )
         timeout = min(
             settings.model_timeout_seconds,
@@ -981,7 +989,15 @@ async def _execute_run(
             {
                 "request": input_text,
                 "approved_plan": plan.to_dict(),
-                "instructions": "Execute the approved steps in dependency order. Delegate assigned work to the named Agents and synthesize their actual results.",
+                "long_term_memory": recalled_context if recalled_context else None,
+                "instructions": (
+                    "CRITICAL: Execute the approved steps in dependency order. "
+                    "You are the coordination lead: you MUST delegate each assigned task to the named member Agent. "
+                    "Do NOT answer on their behalf or skip member tool calls. "
+                    "All assigned members must be invoked, and you must synthesize their actual findings into the final response. "
+                    "SOURCE CITATION REQUIREMENT: Every fact, data point, quote, and finding MUST cite its real source using clickable Markdown links [Source Title](URL). "
+                    "The URLs must come directly from search tool results. At the end of the report, you MUST provide a dedicated '### 🔗 数据出处与核验信源' section with clickable Markdown links."
+                ),
             },
             ensure_ascii=False,
             default=str,
@@ -1179,8 +1195,9 @@ async def _execute_run(
         raise ApiError(504, "TIMEOUT", "Team run timed out", details={"run_id": str(run.id)}) from exc
     except Exception as exc:
         logger.exception("team_run_failed", run_id=str(run.id), task_id=str(task.id))
-        await _fail_run(db, run, task, context.workspace_id, "MODEL_ERROR", "Agno Team execution failed")
-        raise ApiError(502, "MODEL_ERROR", "Agno Team execution failed", details={"run_id": str(run.id)}) from exc
+        error_msg = str(exc).strip() or "Agno Team execution failed"
+        await _fail_run(db, run, task, context.workspace_id, "MODEL_ERROR", error_msg)
+        raise ApiError(502, "MODEL_ERROR", error_msg, details={"run_id": str(run.id)}) from exc
     finally:
         clear_runtime_caller()
 

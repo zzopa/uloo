@@ -1,7 +1,7 @@
 [project]
 name = "uloo-core"
-version = "0.1.0"
-description = "ULOO Core API - Agent, Team, Run, Event, Memory"
+version = "0.2.0"
+description = "ULOO Core Standalone - Multi-Agent Orchestration & Operations"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi>=0.121.0,<1.0.0",

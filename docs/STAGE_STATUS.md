@@ -4,7 +4,28 @@ AI生成
 本文件是 `docs/ULOO_V2_IMPLEMENTATION_PLAN.md` 第 8 节要求的阶段状态记录：列出每个阶段的
 修改文件、验证命令和未完成项。**未完成项一律标为未完成，不用"骨架可用"冒充业务可用。**
 
-最后更新：2026-10-19
+最后更新：2026-10-22
+
+## 本次多智能体协同底座优化与可操作失败闭环（2026-10-22）
+
+针对多智能体协同底座中的异常分类粗糙（死板覆盖为 `Agno Team execution failed`）、Token 预算耗尽缺少明确终态、以及 coordinate 模式下成员分配执行判定未在端到端闭环的问题，完成以下优化与验证：
+
+修改文件：
+- `services/uloo-core/src/uloo/api/runs.py`：优化异常捕获逻辑，提取真实的异常描述并透传写入 `run.error_message` 和 `run.failed` 事件负载中，使得 `Team exceeded total token budget`、`Team did not execute the approved member assignments`、`Team execution did not meet completion conditions` 等结构化原因能准确持久化，不再被死板覆盖为通用文案。
+- `services/uloo-core/tests/test_team_collaboration.py`：新增 3 项端到端 API & DB 执行测试：
+  - `test_team_run_exceeds_token_budget_terminates_with_budget_error`：验证单轮执行超出 `limits.total_token_budget` 时进入明确 failed 终态、`error_message` 包含真实超额详情、产生规范 `run.failed` 事件。
+  - `test_team_coordinate_mode_missing_assigned_member_fails`：验证 coordinate 模式下若已指派成员未被执行，系统明确报错拒绝标记成功。
+  - `test_team_rework_accumulated_tokens_hits_budget`：验证在多轮质检返工重试过程中，跨轮累加 Token 消耗超出预算时准确阻断并置为失败终态，防止死循环与无节制消耗。
+- `TODO.md`：根据真实测试结果更新 S3 协作约定中预算耗尽终态与成员执行判定的勾选项。
+
+验证结果：
+- Core 全量 `pytest`：**272 passed in 40.80s**（无失败，基线 269 项 + 本次 3 项）。
+- Ruff 检查：`All checks passed!`。
+- Mypy 检查：`Success: no issues found in 42 source files`。
+- OpenAPI 契约一致性测试：`3 passed in 1.68s`，无契约漂移。
+- Dify BFF 测试：`38 passed in 14.00s`。
+- Web ULOO 前端测试：`29 passed in 7.12s`。
+
 
 ## 本次本地修复与验收（2026-10-19 第四轮，DeepSeek-V3.1 真实场景闭环 + 工具幂等门 + SSE 多进程端到端）
 

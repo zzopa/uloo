@@ -5,7 +5,7 @@ import secrets
 import uuid
 from dataclasses import dataclass
 
-from fastapi import Header, status
+from fastapi import Header, Query, status
 
 from .config import settings
 from .errors import ApiError
@@ -27,8 +27,14 @@ async def require_service_context(
     x_uloo_workspace: str | None = Header(None),
     x_uloo_user_id: str | None = Header(None, alias="X-ULOO-User-Id"),
     x_uloo_app_id: str | None = Header(None, alias="X-ULOO-App-Id"),
+    token_param: str | None = Query(None, alias="token"),
+    workspace_param: str | None = Query(None, alias="workspace"),
 ) -> RequestContext:
-    """Authenticate the caller and parse its immutable workspace scope."""
+    """Authenticate the caller and parse its immutable workspace scope.
+
+    Supports Authorization header / X-ULOO-Workspace, with fallback to query
+    parameters token / workspace for browser-native EventSource / streaming.
+    """
     if not settings.api_token:
         raise ApiError(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -36,8 +42,15 @@ async def require_service_context(
             message="ULOO Core service authentication is not configured",
         )
 
-    scheme, _, credential = (authorization or "").partition(" ")
-    if scheme.lower() != "bearer" or not credential or not secrets.compare_digest(credential, settings.api_token):
+    credential: str | None = None
+    if authorization:
+        scheme, _, cred = authorization.partition(" ")
+        if scheme.lower() == "bearer" and cred:
+            credential = cred
+    elif token_param:
+        credential = token_param
+
+    if not credential or not secrets.compare_digest(credential, settings.api_token):
         raise ApiError(
             status_code=status.HTTP_401_UNAUTHORIZED,
             code="UNAUTHORIZED",
@@ -45,14 +58,15 @@ async def require_service_context(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if not x_uloo_workspace:
+    effective_workspace = x_uloo_workspace or workspace_param
+    if not effective_workspace:
         raise ApiError(
             status_code=status.HTTP_400_BAD_REQUEST,
             code="WORKSPACE_REQUIRED",
             message="X-ULOO-Workspace is required",
         )
     try:
-        workspace_id = uuid.UUID(x_uloo_workspace)
+        workspace_id = uuid.UUID(effective_workspace)
     except ValueError as exc:
         raise ApiError(
             status_code=status.HTTP_400_BAD_REQUEST,

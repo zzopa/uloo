@@ -70,8 +70,20 @@ def build_agent(
         workspace_id=workspace_id,
     )
     instructions = list(definition.instructions or [])
+    if getattr(definition, "mode", None) == "coordinate":
+        instructions.append(
+            "In coordinate mode, you MUST execute the plan by invoking the assigned member agents for their tasks. "
+            "Never answer on behalf of members without delegating to them."
+        )
+    instructions.append(
+        "CITATION AND SOURCE MANDATE: Every factual assertion, data point, and quote in the final report MUST cite its real source with a clickable Markdown hyperlink [Source Title](URL). Provide a dedicated '### 🔗 数据出处与核验信源' section listing all real source URLs at the end."
+    )
     skill_instructions, _ = tool_registry.skill_config(definition.skill_refs or [])
     instructions.extend(skill_instructions)
+    if "web-search" in (definition.tool_refs or []):
+        instructions.append(
+            "CITATION MANDATE: When providing findings from web search, ALWAYS cite the real source with a Markdown hyperlink [Source Title](URL) using the actual URL from search results."
+        )
     if definition.output_schema is not None:
         model.request_params = {"response_format": {"type": "json_object"}}
         instructions.append("Return only JSON matching this schema: " + json.dumps(definition.output_schema))
@@ -144,6 +156,7 @@ def build_team(
     models: ModelRegistry | None = None,
     tools: ToolRegistry | None = None,
     workspace_id: str | None = None,
+    recalled_memories_context: str | None = None,
 ) -> Team:
     """Build a real Agno Team using the declared leader as coordinator model."""
     if not definition.enabled:
@@ -174,6 +187,13 @@ def build_team(
         raise RuntimeConfigurationError("AGENT_NOT_FOUND", "Team leader is not a member")
 
     instructions = list(definition.instructions or [])
+    if recalled_memories_context and recalled_memories_context.strip():
+        instructions.insert(0, recalled_memories_context.strip())
+    if getattr(definition, "mode", None) == "coordinate":
+        instructions.append(
+            "In coordinate mode, you MUST execute the plan by invoking the assigned member agents for their tasks. "
+            "Never answer on behalf of members without delegating to them."
+        )
     if definition.leader_agent_id:
         instructions.insert(
             0,

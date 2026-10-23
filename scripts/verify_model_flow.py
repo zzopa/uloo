@@ -52,13 +52,13 @@ def main() -> int:
         for key, name, role, instructions in (
             (
                 "analyst",
-                "DeepSeek 分析智能体",
+                "业务分析智能体",
                 "Calculate and explain arithmetic accurately",
                 ["Calculate the requested result. Show a short independent check. Do not invent facts."],
             ),
             (
                 "reviewer",
-                "DeepSeek 审核智能体",
+                "事实审核智能体",
                 "Independently verify the analyst and produce a final answer",
                 [
                     "Verify arithmetic independently. Review the analyst's actual findings when supplied. Report discrepancies."
@@ -112,8 +112,8 @@ def main() -> int:
                 "POST",
                 "teams",
                 json={
-                    "key": f"deepseek-{mode}-{suffix}",
-                    "name": f"DeepSeek {mode} 验收团队",
+                    "key": f"team-{mode}-{suffix}",
+                    "name": f"{mode.capitalize()} 协同团队",
                     "mode": mode,
                     "leader_agent_id": agent_ids[0],
                     "member_agent_ids": agent_ids,
@@ -130,7 +130,7 @@ def main() -> int:
                 "POST",
                 "tasks",
                 json={
-                    "title": f"DeepSeek {mode} 完整链路验收",
+                    "title": f"{mode.capitalize()} 模式全链路验收",
                     "team_id": team["id"],
                     "query": "Compute 12 + 7, have the reviewer independently verify it, and give a concise final result.",
                 },

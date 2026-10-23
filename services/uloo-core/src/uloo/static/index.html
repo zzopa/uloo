@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ULOO 智能体协同工作台 (独立版)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Linear / Vercel 极简暗黑科技质感全局规范 */
+    :root {
+      color-scheme: dark;
+    }
+    body {
+      background-color: #080B11;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(6, 182, 212, 0.10) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(139, 92, 246, 0.08) 0px, transparent 50%);
+    }
+
+    /* 32px 科技网格点阵底纹 */
+    .uloo-grid-pattern {
+      background-size: 32px 32px;
+      background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+    }
+
+    /* 磨砂玻璃卡片 */
+    .uloo-card {
+      background: rgba(15, 20, 32, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+    }
+
+    /* 交互悬浮卡片 */
+    .uloo-card-interactive {
+      background: rgba(15, 20, 32, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .uloo-card-interactive:hover {
+      background: rgba(22, 30, 48, 0.85);
+      border-color: rgba(99, 102, 241, 0.4);
+      box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.6), 0 0 20px rgba(99, 102, 241, 0.2), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+    }
+
+    /* Linear 流光主操作按钮 */
+    .uloo-glow-button {
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #06b6d4 100%);
+      box-shadow: 0 0 16px rgba(99, 102, 241, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+      transition: all 0.2s ease;
+    }
+    .uloo-glow-button:hover {
+      filter: brightness(1.12);
+      box-shadow: 0 0 24px rgba(99, 102, 241, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    }
+
+    /* 悬浮芯片胶囊 */
+    .uloo-glass-pill {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition: all 0.2s ease;
+    }
+    .uloo-glass-pill:hover {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: rgba(99, 102, 241, 0.4);
+      color: #c7d2fe;
+    }
+
+    /* 成果 Markdown 渲染深色极客排版 */
+    .markdown-body {
+      color: #e2e8f0;
+    }
+    .markdown-body h1 { font-size: 1.5rem; font-weight: 700; margin-top: 1.25rem; margin-bottom: 0.6rem; color: #ffffff; letter-spacing: -0.02em; }
+    .markdown-body h2 { font-size: 1.25rem; font-weight: 600; margin-top: 1rem; margin-bottom: 0.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 0.35rem; color: #f1f5f9; }
+    .markdown-body h3 { font-size: 1.1rem; font-weight: 600; margin-top: 0.8rem; margin-bottom: 0.4rem; color: #cbd5e1; }
+    .markdown-body p { margin-bottom: 0.85rem; line-height: 1.7; color: #94a3b8; }
+    .markdown-body ul, .markdown-body ol { margin-left: 1.25rem; margin-bottom: 0.85rem; list-style-type: disc; color: #94a3b8; }
+    .markdown-body blockquote { border-left: 3px solid #6366f1; padding-left: 0.85rem; color: #cbd5e1; margin-bottom: 0.85rem; background: rgba(99, 102, 241, 0.06); padding-top: 0.35rem; padding-bottom: 0.35rem; border-radius: 0 0.5rem 0.5rem 0; }
+    .markdown-body pre { background: #030712; color: #e2e8f0; padding: 1rem; border-radius: 0.75rem; border: 1px solid rgba(255, 255, 255, 0.08); overflow-x: auto; margin-bottom: 0.85rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; }
+    .markdown-body code { font-family: 'JetBrains Mono', monospace; background: rgba(255, 255, 255, 0.06); padding: 0.15rem 0.4rem; border-radius: 0.35rem; font-size: 0.85em; color: #818cf8; border: 1px solid rgba(255, 255, 255, 0.05); }
+    .markdown-body pre code { background: transparent; padding: 0; color: inherit; border: none; }
+    .markdown-body a {
+      color: #818cf8 !important;
+      text-decoration: underline !important;
+      font-weight: 600 !important;
+      word-break: break-all;
+    }
+    .markdown-body a:hover {
+      color: #a5b4fc !important;
+      background-color: rgba(99, 102, 241, 0.15);
+      border-radius: 4px;
+    }
+    @keyframes pulse-fast {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    .animate-pulse-fast {
+      animation: pulse-fast 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    /* 滚动条美化 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+  </style>
+</head>
+<body class="text-slate-100 flex h-screen overflow-hidden font-sans antialiased selection:bg-indigo-500/30 selection:text-white">
+
+  <!-- 左侧科技感侧边栏 -->
+  <aside class="w-64 bg-[#0A0E17]/90 text-slate-300 flex flex-col justify-between shrink-0 border-r border-white/[0.08] backdrop-blur-2xl select-none z-20">
+    <div>
+      <!-- 品牌头部 -->
+      <div class="h-16 flex items-center px-6 gap-3 border-b border-white/[0.08]">
+        <div class="size-9 rounded-xl bg-gradient-to-tr from-indigo-500 via-indigo-600 to-cyan-500 flex items-center justify-center text-white font-extrabold text-base shadow-[0_0_16px_rgba(99,102,241,0.4)]">
+          U
+        </div>
+        <div>
+          <div class="font-bold text-white tracking-wide text-sm flex items-center gap-2">
+            <span>ULOO 协同底座</span>
+            <span class="font-mono text-[9px] bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 px-1.5 py-0.2 rounded">v0.1</span>
+          </div>
+          <div class="text-[10px] text-emerald-400 flex items-center gap-1.5 font-mono mt-0.5">
+            <span class="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399] animate-pulse"></span> 纯净独立架构
+          </div>
+        </div>
+      </div>
+
+      <!-- 导航菜单 -->
+      <nav class="p-3.5 space-y-1 text-sm font-medium">
+        <button onclick="switchTab('tasks')" id="tab-btn-tasks" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all bg-white/[0.08] text-white font-semibold shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)]">
+          <i class="fa-solid fa-list-check w-5 text-center text-indigo-400 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]"></i>
+          <span>任务协同中心</span>
+          <span class="ml-auto size-1.5 rounded-full bg-indigo-400 shadow-[0_0_6px_#818cf8]"></span>
+        </button>
+        <button onclick="switchTab('teams')" id="tab-btn-teams" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-slate-400 hover:text-white hover:bg-white/[0.04]">
+          <i class="fa-solid fa-people-group w-5 text-center"></i>
+          <span>多智能体团队</span>
+        </button>
+        <button onclick="switchTab('agents')" id="tab-btn-agents" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-slate-400 hover:text-white hover:bg-white/[0.04]">
+          <i class="fa-solid fa-robot w-5 text-center"></i>
+          <span>智能体岗位库</span>
+        </button>
+        <button onclick="switchTab('memories')" id="tab-btn-memories" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-slate-400 hover:text-white hover:bg-white/[0.04]">
+          <i class="fa-solid fa-brain w-5 text-center"></i>
+          <span>长期经验记忆</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- 底部状态监控中枢 -->
+    <div class="p-4 border-t border-white/[0.08] text-xs text-slate-400 space-y-2.5 bg-black/20">
+      <div class="flex items-center justify-between font-mono text-[11px]">
+        <span>核心端口</span>
+        <span class="bg-indigo-500/10 border border-indigo-500/30 px-2 py-0.5 rounded text-indigo-300 font-semibold">8200</span>
+      </div>
+      <div class="flex items-center justify-between text-[11px]">
+        <span>调度模式</span>
+        <span class="text-indigo-400 font-medium font-mono">SSE 实时流</span>
+      </div>
+      <div class="flex items-center justify-between text-[11px]">
+        <span>信源溯源</span>
+        <span class="text-emerald-400 font-medium">真实出处直达</span>
+      </div>
+      <div class="pt-2 text-[10px] font-mono text-slate-500 text-center border-t border-white/[0.05]">
+        ULOO Core · Agno Dispatcher
+      </div>
+    </div>
+  </aside>
+
+  <!-- 主内容工作区 -->
+  <main class="flex-1 flex flex-col min-w-0 overflow-hidden uloo-grid-pattern relative">
+    <!-- 顶部环境光斑 -->
+    <div class="pointer-events-none absolute -top-40 left-1/4 size-[500px] rounded-full bg-indigo-500/10 blur-3xl"></div>
+    <div class="pointer-events-none absolute -top-40 right-10 size-[400px] rounded-full bg-cyan-500/10 blur-3xl"></div>
+
+    <!-- 顶栏 -->
+    <header class="h-16 bg-[#0A0E17]/60 border-b border-white/[0.08] px-8 flex items-center justify-between shrink-0 backdrop-blur-md z-10">
+      <div class="flex items-center gap-3">
+        <h1 id="page-title" class="text-base font-bold text-white tracking-tight">任务协同中心</h1>
+        <span class="text-slate-600">/</span>
+        <span id="page-subtitle" class="text-xs text-slate-400">实时调度多智能体分工、交接与成果输出</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="fetchTasks()" class="uloo-glass-pill px-3.5 py-1.5 rounded-xl text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-rotate-right text-indigo-400"></i> 刷新
+        </button>
+        <button onclick="openNewTaskModal()" class="uloo-glow-button px-4 py-2 rounded-xl text-white text-xs font-semibold flex items-center gap-2 transition active:scale-95">
+          <i class="fa-solid fa-plus"></i> 发起新任务
+        </button>
+      </div>
+    </header>
+
+    <!-- 容器内容 (可滚动) -->
+    <div class="flex-1 overflow-y-auto p-8 relative z-10" id="content-container">
+
+      <!-- 任务列表视图 -->
+      <section id="view-tasks" class="space-y-6">
+        <!-- 状态过滤条 -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <button onclick="filterTasks('all')" class="task-filter-btn px-3.5 py-1.5 rounded-full text-xs font-medium bg-indigo-600 text-white shadow-[0_0_12px_rgba(99,102,241,0.35)]" data-filter="all">全部任务</button>
+          <button onclick="filterTasks('running')" class="task-filter-btn uloo-glass-pill px-3.5 py-1.5 rounded-full text-xs font-medium text-slate-300 hover:text-white" data-filter="running">执行中</button>
+          <button onclick="filterTasks('awaiting_input')" class="task-filter-btn uloo-glass-pill px-3.5 py-1.5 rounded-full text-xs font-medium text-slate-300 hover:text-white" data-filter="awaiting_input">待补充输入</button>
+          <button onclick="filterTasks('succeeded')" class="task-filter-btn uloo-glass-pill px-3.5 py-1.5 rounded-full text-xs font-medium text-slate-300 hover:text-white" data-filter="succeeded">已完成</button>
+          <button onclick="filterTasks('awaiting_approval')" class="task-filter-btn uloo-glass-pill px-3.5 py-1.5 rounded-full text-xs font-medium text-slate-300 hover:text-white" data-filter="awaiting_approval">待审批</button>
+          <button onclick="filterTasks('cancelled')" class="task-filter-btn uloo-glass-pill px-3.5 py-1.5 rounded-full text-xs font-medium text-slate-300 hover:text-white" data-filter="cancelled">已取消</button>
+          <button onclick="filterTasks('failed')" class="task-filter-btn uloo-glass-pill px-3.5 py-1.5 rounded-full text-xs font-medium text-slate-300 hover:text-white" data-filter="failed">失败</button>
+        </div>
+
+        <!-- 任务卡片列表 Bento 栅格 -->
+        <div id="tasks-list-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <!-- 动态渲染 -->
+          <div class="col-span-full text-center py-16 text-slate-500 text-sm">正在加载任务...</div>
+        </div>
+      </section>
+
+      <!-- 任务详情看板 (默认隐藏) -->
+      <section id="view-task-detail" class="space-y-6 hidden">
+        <!-- 详情顶部返回与控制条 -->
+        <div class="uloo-card flex flex-col sm:flex-row items-start sm:items-center justify-between p-6 rounded-2xl gap-4">
+          <div class="space-y-1.5 min-w-0">
+            <button onclick="backToTasks()" class="text-xs text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1.5 transition">
+              <i class="fa-solid fa-arrow-left"></i> 返回任务列表
+            </button>
+            <h2 id="detail-task-title" class="text-xl font-bold text-white tracking-tight truncate"></h2>
+            <div class="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
+              <span id="detail-task-status-badge" class="px-2.5 py-0.5 rounded-full font-semibold"></span>
+              <span id="detail-task-time" class="font-mono text-slate-500"></span>
+              <span id="detail-task-team" class="font-mono text-slate-400"></span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2.5 shrink-0" id="detail-task-actions">
+            <!-- 动态动作按钮 (执行、重试、中止) -->
+          </div>
+        </div>
+
+        <!-- 人机协同交互横幅 (HITL awaiting_input) -->
+        <div id="detail-input-request-banner" class="hidden rounded-2xl border border-amber-500/40 bg-amber-500/10 p-5 shadow-[0_0_24px_rgba(245,158,11,0.15)] space-y-3.5 backdrop-blur-xl">
+          <div class="flex items-start gap-3">
+            <i class="fa-solid fa-circle-question text-amber-400 text-lg mt-0.5 animate-bounce"></i>
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-bold text-amber-300 flex items-center justify-between">
+                <span>智能体请求补充关键信息 (人机协同已挂起)</span>
+                <span class="text-[10px] bg-amber-400/20 text-amber-300 border border-amber-400/30 px-2 py-0.5 rounded-full font-mono font-semibold">awaiting_input</span>
+              </div>
+              <p class="text-xs text-slate-200 mt-1.5 leading-relaxed" id="detail-input-request-text">协同团队在执行中需要进一步明确条件，请在下方补充：</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2.5 pt-2 border-t border-amber-500/20">
+            <input type="text" id="detail-human-supplement-input" placeholder="输入补充的参数、范围、规格或具体要求..." class="flex-1 text-xs px-3.5 py-2.5 rounded-xl border border-white/[0.1] bg-black/40 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-amber-400/60 focus:ring-2 focus:ring-amber-400/20" onkeydown="if(event.key==='Enter') submitHumanSupplement()" />
+            <button onclick="submitHumanSupplement()" id="detail-human-supplement-btn" class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold shadow-md transition flex items-center gap-1.5 shrink-0">
+              <i class="fa-solid fa-paper-plane"></i> 提交补充并恢复执行
+            </button>
+          </div>
+        </div>
+
+        <!-- 失败告警横幅 -->
+        <div id="detail-error-banner" class="hidden rounded-2xl border border-rose-500/40 bg-rose-500/10 p-5 flex items-start gap-3.5 shadow-[0_0_24px_rgba(244,63,94,0.15)]">
+          <i class="fa-solid fa-triangle-exclamation text-rose-400 text-base mt-0.5"></i>
+          <div>
+            <div class="text-xs font-bold text-rose-300" id="detail-error-title">执行未成功</div>
+            <div class="text-xs text-slate-300 mt-1 leading-relaxed" id="detail-error-message"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- 左侧：多步协同计划 -->
+          <div class="lg:col-span-1 space-y-4">
+            <div class="uloo-card p-6 rounded-2xl space-y-4">
+              <div class="flex items-center justify-between border-b border-white/[0.08] pb-3.5">
+                <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                  <i class="fa-solid fa-diagram-project text-indigo-400"></i> 多智能体协同计划
+                </h3>
+                <span id="detail-plan-version" class="text-[11px] bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded font-mono">v1</span>
+              </div>
+              <p id="detail-plan-summary" class="text-xs text-slate-400 leading-relaxed"></p>
+              
+              <!-- 计划步骤列表 -->
+              <div id="detail-plan-steps" class="space-y-3">
+                <!-- 动态步骤 -->
+              </div>
+            </div>
+          </div>
+
+          <!-- 右侧：执行记录与成果交付 -->
+          <div class="lg:col-span-2 space-y-6">
+            <!-- 成果交付区 -->
+            <div id="detail-deliverable-card" class="uloo-card p-6 rounded-2xl space-y-4">
+              <div class="flex items-center justify-between border-b border-white/[0.08] pb-3.5">
+                <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                  <i class="fa-solid fa-file-contract text-emerald-400"></i> 最终交付调研成果
+                </h3>
+                <div class="flex items-center gap-2">
+                  <button onclick="copyDeliverable()" class="uloo-glass-pill px-3 py-1.5 text-xs text-slate-300 hover:text-white rounded-lg flex items-center gap-1.5 transition">
+                    <i class="fa-regular fa-copy text-indigo-400"></i> 复制全文
+                  </button>
+                  <button onclick="downloadDeliverable()" class="uloo-glass-pill px-3 py-1.5 text-xs text-slate-300 hover:text-white rounded-lg flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-download text-indigo-400"></i> 导出 Markdown
+                  </button>
+                </div>
+              </div>
+
+              <!-- 成果正文渲染 (Markdown) -->
+              <div id="detail-deliverable-body" class="markdown-body text-xs leading-relaxed bg-black/40 p-5 rounded-xl border border-white/[0.06] max-h-[500px] overflow-y-auto">
+                <span class="text-slate-500 italic">任务尚未完成交付，完成后此处将直接渲染多智能体团队输出的结构化报告与结论。</span>
+              </div>
+
+              <!-- 真实信源清单区 (点击直达) -->
+              <div id="detail-sources-card" class="pt-4 border-t border-white/[0.08] space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-white flex items-center gap-2 font-mono">
+                    <i class="fa-solid fa-link text-indigo-400"></i> 数据出处与真实信源 (点击直接跳转)
+                  </span>
+                  <span id="detail-sources-count" class="text-[10px] text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-0.5 rounded-full font-mono">0 个来源</span>
+                </div>
+                <div id="detail-sources-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                  <!-- 动态抽取渲染的来源链接卡片 -->
+                </div>
+              </div>
+            </div>
+
+            <!-- 执行轨迹与成员事件日志 (SSE 实时推送) -->
+            <div class="uloo-card p-6 rounded-2xl space-y-4">
+              <div class="flex items-center justify-between border-b border-white/[0.08] pb-3.5">
+                <div class="flex items-center gap-2.5">
+                  <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                    <i class="fa-solid fa-timeline text-indigo-400"></i> 协同执行过程与事件轨迹
+                  </h3>
+                  <span id="detail-live-indicator" class="hidden px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+                    <span class="size-1.5 rounded-full bg-emerald-400 animate-pulse-fast shadow-[0_0_6px_#34d399]"></span> 实时流式中
+                  </span>
+                </div>
+                <span id="detail-run-status" class="text-xs text-slate-500 font-mono"></span>
+              </div>
+              <div id="detail-run-events" class="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+                <!-- 动态事件条目 -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 团队列表视图 -->
+      <section id="view-teams" class="space-y-6 hidden">
+        <div id="teams-list-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- 动态团队卡片 -->
+        </div>
+      </section>
+
+      <!-- 智能体岗位视图 -->
+      <section id="view-agents" class="space-y-6 hidden">
+        <div id="agents-list-grid" class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <!-- 动态智能体卡片 -->
+        </div>
+      </section>
+
+      <!-- 长期经验记忆视图 -->
+      <section id="view-memories" class="space-y-6 hidden">
+        <div class="uloo-card flex flex-col sm:flex-row items-start sm:items-center justify-between p-6 rounded-2xl gap-4">
+          <div class="flex items-center gap-3.5">
+            <div class="size-11 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-400 flex items-center justify-center font-bold text-lg shadow-[0_0_12px_rgba(168,85,247,0.3)]">
+              <i class="fa-solid fa-brain"></i>
+            </div>
+            <div>
+              <h2 class="font-bold text-white text-sm">跨任务长期事实与偏好记忆 (Long-Term Memory)</h2>
+              <p class="text-xs text-slate-400 mt-0.5">沉淀行业常识与用户约束，新任务启动时自动进行关联记忆检索与前置注入</p>
+            </div>
+          </div>
+          <button onclick="openNewMemoryModal()" class="uloo-glow-button px-4 py-2 rounded-xl text-white text-xs font-semibold flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-plus"></i> 录入记忆条目
+          </button>
+        </div>
+
+        <!-- 搜索与语义召回测试条 -->
+        <div class="uloo-card p-3 rounded-2xl flex items-center gap-3">
+          <i class="fa-solid fa-magnifying-glass text-slate-500 text-xs pl-3"></i>
+          <input type="text" id="memory-search-input" placeholder="输入任务关键词体验语义召回 (如：华东木板报价、刹车踏板)..." class="flex-1 text-xs outline-none bg-transparent text-slate-200 placeholder:text-slate-500" onkeydown="if(event.key==='Enter') searchMemories()" />
+          <button onclick="searchMemories()" class="uloo-glass-pill px-4 py-1.5 text-indigo-300 hover:text-white text-xs font-medium rounded-xl transition">语义召回</button>
+          <button onclick="fetchMemories()" class="px-2.5 py-1.5 text-xs text-slate-400 hover:text-slate-200 transition"><i class="fa-solid fa-rotate-right"></i> 重置</button>
+        </div>
+
+        <div id="memories-list-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <!-- 动态记忆卡片 -->
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- 新建记忆弹窗 -->
+  <div id="new-memory-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+    <div class="uloo-card bg-[#0F1422] rounded-2xl border border-white/[0.12] shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+      <div class="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between">
+        <h3 class="font-bold text-base text-white flex items-center gap-2">
+          <i class="fa-solid fa-brain text-purple-400"></i> 沉淀长期经验/事实/偏好
+        </h3>
+        <button onclick="closeNewMemoryModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <form onsubmit="handleCreateMemory(event)" class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">记忆分类 *</label>
+          <select id="modal-memory-category" class="w-full text-xs p-3 rounded-xl border border-white/[0.1] bg-black/40 text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <option value="fact" class="bg-slate-900 text-slate-200">行业事实 (Fact - 如行业标准规格、官方权威结论)</option>
+            <option value="preference" class="bg-slate-900 text-slate-200">用户偏好 (Preference - 如默认含税、必须附带单位)</option>
+            <option value="guideline" class="bg-slate-900 text-slate-200">执行约定 (Guideline - 如调研范围、核验门槛)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">记忆内容 *</label>
+          <textarea id="modal-memory-content" rows="3" required placeholder="如：华东地区木板标准厚度为 18mm，规格 1220x2440mm，市场通常以张计价并含税..." class="w-full text-xs p-3 rounded-xl border border-white/[0.1] bg-black/40 text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">关键词标签 (以英文或中文逗号分隔)</label>
+          <input type="text" id="modal-memory-keywords" placeholder="如：木板, 华东, 规格, 18mm, 含税" class="w-full text-xs p-3 rounded-xl border border-white/[0.1] bg-black/40 text-slate-100 placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+        </div>
+        <div class="pt-3 border-t border-white/[0.08] flex items-center justify-end gap-2.5">
+          <button type="button" onclick="closeNewMemoryModal()" class="uloo-glass-pill px-4 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white">取消</button>
+          <button type="submit" id="modal-memory-submit-btn" class="uloo-glow-button px-5 py-2 rounded-xl text-xs font-semibold text-white shadow-sm flex items-center gap-1.5">
+            <span>保存记忆</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 新建任务弹窗 (Linear 风格任务指挥中心) -->
+  <div id="new-task-modal" class="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+    <div class="uloo-card bg-[#0F1422] rounded-[24px] border border-white/[0.12] shadow-2xl w-full max-w-lg overflow-hidden transform transition-all">
+      <div class="px-6 py-5 border-b border-white/[0.08] flex items-center justify-between">
+        <h3 class="font-bold text-base text-white flex items-center gap-2.5">
+          <span class="size-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+            <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+          </span>
+          <span>发起新协同任务</span>
+        </h3>
+        <button onclick="closeNewTaskModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <form onsubmit="handleCreateTask(event)" class="p-6 space-y-4.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">任务目标与需求 (Query) *</label>
+          <textarea id="modal-query" rows="3" required placeholder="例如：调研一下华为刹车踏板断裂事件，整理官方回应与舆情结论..." class="w-full text-xs p-3.5 rounded-xl border border-white/[0.1] bg-black/50 text-slate-100 placeholder:text-slate-500 focus:border-indigo-500/60 focus:ring-4 focus:ring-indigo-500/15 focus:outline-none leading-relaxed"></textarea>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">任务标题 (可选，留空则自动提取)</label>
+          <input type="text" id="modal-title" placeholder="如：华为刹车踏板断裂事件专项调研" class="w-full text-xs p-3 rounded-xl border border-white/[0.1] bg-black/50 text-slate-100 placeholder:text-slate-500 focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">指派协同团队 *</label>
+          <select id="modal-team" required class="w-full text-xs p-3 rounded-xl border border-white/[0.1] bg-black/50 text-slate-200 focus:border-indigo-500/60 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none">
+            <!-- 动态团队选项 -->
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">启动模式</label>
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <label class="flex items-center gap-2.5 p-3.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 cursor-pointer transition">
+              <input type="radio" name="exec-mode" value="direct" checked class="text-indigo-600 focus:ring-0">
+              <div>
+                <div class="font-semibold text-white">全流程直接执行</div>
+                <div class="text-[11px] text-slate-400">自动规划并由智能体协同交付</div>
+              </div>
+            </label>
+            <label class="flex items-center gap-2.5 p-3.5 rounded-xl border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] cursor-pointer transition">
+              <input type="radio" name="exec-mode" value="plan" class="text-indigo-600 focus:ring-0">
+              <div>
+                <div class="font-semibold text-white">仅生成规划草案</div>
+                <div class="text-[11px] text-slate-400">等待人工确认步骤后再运行</div>
+              </div>
+            </label>
+          </div>
+        </div>
+        <div class="pt-4 border-t border-white/[0.08] flex items-center justify-end gap-3">
+          <button type="button" onclick="closeNewTaskModal()" class="uloo-glass-pill px-4 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white">取消</button>
+          <button type="submit" id="modal-submit-btn" class="uloo-glow-button px-5 py-2.5 rounded-xl text-xs font-semibold text-white shadow-sm flex items-center gap-1.5">
+            <span>确认发起</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '/api/v1';
+    const TOKEN = 'uloo-dev-service-token-2026-local';
+    const WORKSPACE = '39dc2f4f-2dc3-4cc5-af5f-daad8ee83b6b';
+    const HEADERS = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${TOKEN}`,
+      'X-ULOO-Workspace': WORKSPACE
+    };
+
+    let allTasks = [];
+    let currentFilter = 'all';
+    let currentTask = null;
+    let currentRuns = [];
+    let cachedTeams = [];
+    let cachedAgents = [];
+    let activeEventSource = null;
+    let currentStreamingRunId = null;
+
+    // 自定义 marked 渲染器：深色流光链接胶囊
+    const customRenderer = new marked.Renderer();
+    customRenderer.link = function(href, title, text) {
+      let linkHref = href;
+      let linkText = text;
+      let linkTitle = title;
+      if (typeof href === 'object' && href !== null) {
+        linkHref = href.href;
+        linkText = href.text;
+        linkTitle = href.title;
+      }
+      return `<a href="${linkHref}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-300 underline font-semibold transition px-1 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20" title="${linkTitle || linkHref}">${linkText} <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i></a>`;
+    };
+    marked.setOptions({ renderer: customRenderer, gfm: true, breaks: true });
+
+    const STATUS_MAP = {
+      draft: { text: '草稿', color: 'bg-slate-500/10 text-slate-400 border-slate-500/20' },
+      planning: { text: '规划中', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30' },
+      awaiting_approval: { text: '待审批', color: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/40' },
+      running: { text: '协同执行中', color: 'bg-amber-500/15 text-amber-300 border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.2)]' },
+      awaiting_input: { text: '待补充条件', color: 'bg-amber-400/20 text-amber-300 border-amber-400/50 animate-pulse' },
+      succeeded: { text: '已交付完成', color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]' },
+      failed: { text: '执行失败', color: 'bg-rose-500/15 text-rose-400 border-rose-500/30 shadow-[0_0_10px_rgba(244,63,94,0.2)]' },
+      cancelled: { text: '已取消', color: 'bg-slate-500/10 text-slate-500 border-slate-500/20' }
+    };
+
+    async function apiRequest(endpoint, options = {}) {
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        headers: { ...HEADERS, ...(options.headers || {}) }
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ message: res.statusText }));
+        throw new Error(errorData.message || `Request failed with status ${res.status}`);
+      }
+      return res.json();
+    }
+
+    // 关闭任何存活的 SSE 连接
+    function closeLiveStream() {
+      if (activeEventSource) {
+        activeEventSource.close();
+        activeEventSource = null;
+      }
+      currentStreamingRunId = null;
+      const indicator = document.getElementById('detail-live-indicator');
+      if (indicator) indicator.classList.add('hidden');
+    }
+
+    // 页面标签切换
+    function switchTab(tab) {
+      closeLiveStream();
+      ['tasks', 'teams', 'agents', 'memories'].forEach(t => {
+        const btn = document.getElementById(`tab-btn-${t}`);
+        const view = document.getElementById(`view-${t}`);
+        if (t === tab) {
+          btn.className = "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all bg-white/[0.08] text-white font-semibold shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)]";
+          btn.querySelector('i').className = `${btn.querySelector('i').className} text-indigo-400 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]`;
+          if (!btn.querySelector('.active-dot')) {
+            const dot = document.createElement('span');
+            dot.className = "active-dot ml-auto size-1.5 rounded-full bg-indigo-400 shadow-[0_0_6px_#818cf8]";
+            btn.appendChild(dot);
+          }
+          view.classList.remove('hidden');
+        } else {
+          btn.className = "w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all text-slate-400 hover:text-white hover:bg-white/[0.04]";
+          const dot = btn.querySelector('.active-dot');
+          if (dot) dot.remove();
+          view.classList.add('hidden');
+        }
+      });
+      document.getElementById('view-task-detail').classList.add('hidden');
+
+      const titles = {
+        tasks: ['任务协同中心', '实时调度多智能体分工、交接与成果输出'],
+        teams: ['多智能体团队', '协同模式、监督复核约定与职责规范'],
+        agents: ['智能体岗位库', '各岗位模型分配、工具绑定与执行专长'],
+        memories: ['跨任务长期经验记忆', '自动沉淀事实与用户偏好，新任务前置召回注入']
+      };
+      document.getElementById('page-title').innerText = titles[tab][0];
+      document.getElementById('page-subtitle').innerText = titles[tab][1];
+
+      if (tab === 'tasks') fetchTasks();
+      if (tab === 'teams') fetchTeams();
+      if (tab === 'agents') fetchAgents();
+      if (tab === 'memories') fetchMemories();
+    }
+
+    // 获取任务列表
+    async function fetchTasks() {
+      try {
+        const data = await apiRequest('/tasks?limit=50');
+        allTasks = data.items || [];
+        renderTasks();
+      } catch (err) {
+        document.getElementById('tasks-list-grid').innerHTML = `
+          <div class="col-span-full uloo-card border-rose-500/30 p-8 rounded-2xl text-center text-xs text-rose-300">
+            加载任务列表失败: ${err.message}
+          </div>`;
+      }
+    }
+
+    function filterTasks(status) {
+      currentFilter = status;
+      document.querySelectorAll('.task-filter-btn').forEach(btn => {
+        if (btn.dataset.filter === status) {
+          btn.className = "task-filter-btn px-3.5 py-1.5 rounded-full text-xs font-medium bg-indigo-600 text-white shadow-[0_0_12px_rgba(99,102,241,0.35)]";
+        } else {
+          btn.className = "task-filter-btn uloo-glass-pill px-3.5 py-1.5 rounded-full text-xs font-medium text-slate-300 hover:text-white";
+        }
+      });
+      renderTasks();
+    }
+
+    function renderTasks() {
+      const container = document.getElementById('tasks-list-grid');
+      const filtered = currentFilter === 'all' 
+        ? allTasks 
+        : allTasks.filter(t => t.status === currentFilter);
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full uloo-card rounded-2xl border-dashed border-white/[0.1] p-16 text-center text-slate-500 text-sm">
+            <i class="fa-regular fa-folder-open text-4xl mb-3 block text-slate-600"></i>
+            当前状态下暂无任务
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(task => {
+        const statusMeta = STATUS_MAP[task.status] || { text: task.status, color: 'bg-slate-500/10 text-slate-400 border-slate-500/20' };
+        const plans = task.plans || [];
+        const plan = plans.find(p => p.version === task.current_plan_version) || plans[0];
+        const stepCount = plan?.steps?.length || 0;
+        const timeStr = new Date(task.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+        return `
+          <div onclick="openTaskDetail('${task.id}')" class="uloo-card-interactive rounded-2xl p-6 flex flex-col justify-between cursor-pointer group">
+            <div class="space-y-3.5">
+              <div class="flex items-start justify-between gap-2">
+                <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${statusMeta.color}">${statusMeta.text}</span>
+                <span class="font-mono text-[11px] text-slate-500">${timeStr}</span>
+              </div>
+              <h3 class="font-bold text-sm text-white group-hover:text-indigo-300 line-clamp-2 transition-colors">${task.title}</h3>
+              <p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">${task.query}</p>
+            </div>
+            <div class="pt-4 mt-4 border-t border-white/[0.05] flex items-center justify-between text-xs text-slate-500">
+              <span class="flex items-center gap-1.5 font-mono text-[11px]"><i class="fa-solid fa-layer-group text-indigo-400"></i> ${stepCount} 步骤</span>
+              <span class="text-indigo-400 font-semibold group-hover:translate-x-1 transition-transform flex items-center gap-1">查看看板 <i class="fa-solid fa-angle-right text-[10px]"></i></span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 打开任务详情
+    async function openTaskDetail(taskId) {
+      closeLiveStream();
+      document.getElementById('view-tasks').classList.add('hidden');
+      document.getElementById('view-task-detail').classList.remove('hidden');
+      document.getElementById('page-title').innerText = '任务看板与执行流转';
+
+      await loadAndRenderTaskDetail(taskId);
+    }
+
+    async function loadAndRenderTaskDetail(taskId) {
+      try {
+        const task = await apiRequest(`/tasks/${taskId}`);
+        currentTask = task;
+        const runsData = await apiRequest(`/runs?task_id=${taskId}&limit=10`);
+        currentRuns = runsData.items || [];
+        renderTaskDetail();
+
+        const latestRun = currentRuns[0];
+        if (latestRun && (latestRun.status === 'running' || latestRun.status === 'awaiting_input' || task.status === 'running')) {
+          connectRunSSE(latestRun.id, taskId);
+        }
+      } catch (err) {
+        console.error('加载任务详情异常:', err);
+      }
+    }
+
+    // 连接 SSE 实时流式过程
+    function connectRunSSE(runId, taskId) {
+      if (activeEventSource && currentStreamingRunId === runId) return;
+      closeLiveStream();
+
+      currentStreamingRunId = runId;
+      const indicator = document.getElementById('detail-live-indicator');
+      if (indicator) indicator.classList.remove('hidden');
+
+      const sseUrl = `${API_BASE}/runs/${runId}/stream?token=${encodeURIComponent(TOKEN)}&workspace=${encodeURIComponent(WORKSPACE)}`;
+      const sse = new EventSource(sseUrl);
+      activeEventSource = sse;
+
+      sse.onmessage = function(e) {
+        try {
+          const ev = JSON.parse(e.data);
+          handleIncomingSSEEvent(ev, taskId);
+        } catch (err) {
+          console.warn('SSE 解析失败:', e.data);
+        }
+      };
+
+      const eventTypes = [
+        'run.started', 'run.step_started', 'run.member_started', 'tool.summary',
+        'agent.completed', 'run.review_started', 'run.review_completed',
+        'run.input_requested', 'run.continued', 'run.completed', 'run.failed',
+        'run.cancelled', 'terminal'
+      ];
+
+      eventTypes.forEach(evtName => {
+        sse.addEventListener(evtName, function(e) {
+          try {
+            const ev = JSON.parse(e.data);
+            handleIncomingSSEEvent(ev, taskId, evtName);
+          } catch {
+            if (evtName === 'terminal' || evtName === 'run.completed' || evtName === 'run.cancelled' || evtName === 'run.failed') {
+              handleTerminalEvent(taskId);
+            }
+          }
+        });
+      });
+
+      sse.onerror = function() {
+        console.warn('SSE 发生断开或等待中...');
+      };
+    }
+
+    function handleIncomingSSEEvent(eventData, taskId, explicitType = null) {
+      const type = explicitType || eventData.event_type || 'unknown';
+      appendLiveEventItem(eventData, type);
+
+      if (type === 'run.input_requested' || eventData.status === 'awaiting_input') {
+        showHumanInputBanner(eventData.payload?.question || eventData.payload?.reason || '智能体在当前执行中缺少关键信息，请补充：');
+      }
+
+      if (['run.completed', 'run.failed', 'run.cancelled', 'terminal'].includes(type)) {
+        handleTerminalEvent(taskId);
+      }
+    }
+
+    function handleTerminalEvent(taskId) {
+      closeLiveStream();
+      setTimeout(() => {
+        loadAndRenderTaskDetail(taskId);
+      }, 500);
+    }
+
+    function showHumanInputBanner(msg) {
+      const banner = document.getElementById('detail-input-request-banner');
+      const text = document.getElementById('detail-input-request-text');
+      if (banner && text) {
+        text.innerText = msg;
+        banner.classList.remove('hidden');
+        document.getElementById('detail-human-supplement-input').focus();
+      }
+    }
+
+    function hideHumanInputBanner() {
+      const banner = document.getElementById('detail-input-request-banner');
+      if (banner) banner.classList.add('hidden');
+    }
+
+    // 动态追加实时事件到轨迹列表
+    function appendLiveEventItem(ev, type) {
+      const container = document.getElementById('detail-run-events');
+      if (!container) return;
+
+      const time = new Date(ev.created_at || Date.now()).toLocaleTimeString();
+      let badgeClass = 'bg-slate-500/10 text-slate-400 border border-slate-500/20';
+      let icon = 'fa-solid fa-circle-dot';
+      let title = type;
+      let desc = '';
+
+      if (type === 'run.started') {
+        badgeClass = 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30';
+        icon = 'fa-solid fa-rocket';
+        title = '启动协同';
+        desc = `协调员启动团队『${ev.payload?.team_name || 'ULOO Team'}』`;
+      } else if (type === 'run.step_started') {
+        badgeClass = 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30';
+        icon = 'fa-solid fa-forward-step';
+        title = '开始规划步骤';
+        desc = ev.payload?.title || `步骤 ${ev.payload?.step_id || ''}`;
+      } else if (type === 'tool.summary') {
+        badgeClass = 'bg-amber-500/15 text-amber-300 border border-amber-500/30';
+        icon = 'fa-solid fa-wrench';
+        title = `工具调用: ${ev.payload?.tool_name || 'tool'}`;
+        desc = ev.payload?.result_preview ? `预览: ${ev.payload.result_preview.substring(0, 100)}` : '工具调用完成';
+      } else if (type === 'agent.completed') {
+        badgeClass = 'bg-teal-500/15 text-teal-300 border border-teal-500/30';
+        icon = 'fa-solid fa-user-check';
+        title = '岗位交付';
+        desc = `智能体『${ev.payload?.name || '成员'}』完成分配子项`;
+      } else if (type === 'run.review_started') {
+        badgeClass = 'bg-purple-500/15 text-purple-300 border border-purple-500/30';
+        icon = 'fa-solid fa-clipboard-check';
+        title = '质量复核';
+        desc = '核验员正在核对信源真实性与输出完整性';
+      } else if (type === 'run.input_requested') {
+        badgeClass = 'bg-amber-400/20 text-amber-300 border border-amber-400/40 animate-pulse';
+        icon = 'fa-solid fa-hand';
+        title = '挂起待人工输入';
+        desc = ev.payload?.question || '等待用户补充关键参数...';
+      } else if (type === 'run.continued') {
+        badgeClass = 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+        icon = 'fa-solid fa-play';
+        title = '人工补充提交';
+        desc = `已注入输入: ${ev.payload?.supplement || ''}`;
+      } else if (type === 'run.completed') {
+        badgeClass = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold';
+        icon = 'fa-solid fa-check-double';
+        title = '协同交付完成';
+        desc = '最终调研成果已生成';
+      } else if (type === 'run.cancelled') {
+        badgeClass = 'bg-slate-500/20 text-slate-300 border border-slate-500/30 font-bold';
+        icon = 'fa-solid fa-ban';
+        title = '任务已中止';
+        desc = '用户手动取消执行';
+      } else if (type === 'run.failed') {
+        badgeClass = 'bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold';
+        icon = 'fa-solid fa-xmark';
+        title = '异常中断';
+        desc = ev.payload?.reason || ev.payload?.error || '执行失败';
+      } else {
+        desc = JSON.stringify(ev.payload || {});
+      }
+
+      const itemHtml = `
+        <div class="flex items-start gap-3 text-xs p-3 rounded-xl bg-black/40 border border-white/[0.06] transition hover:border-indigo-500/30">
+          <span class="font-mono text-[10px] text-slate-500 shrink-0 mt-0.5">${time}</span>
+          <span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1.5 shrink-0 ${badgeClass}">
+            <i class="${icon} text-[9px]"></i> ${title}
+          </span>
+          <span class="text-slate-300 flex-1 truncate text-[11px]">${desc}</span>
+        </div>
+      `;
+
+      container.insertAdjacentHTML('afterbegin', itemHtml);
+    }
+
+    function backToTasks() {
+      closeLiveStream();
+      document.getElementById('view-task-detail').classList.add('hidden');
+      document.getElementById('view-tasks').classList.remove('hidden');
+      document.getElementById('page-title').innerText = '任务协同中心';
+      fetchTasks();
+    }
+
+    function renderTaskDetail() {
+      if (!currentTask) return;
+      const statusMeta = STATUS_MAP[currentTask.status] || { text: currentTask.status, color: 'bg-slate-500/10 text-slate-400 border-slate-500/20' };
+
+      document.getElementById('detail-task-title').innerText = currentTask.title;
+      const badge = document.getElementById('detail-task-status-badge');
+      badge.innerText = statusMeta.text;
+      badge.className = `px-3 py-0.5 rounded-full text-xs font-semibold border ${statusMeta.color}`;
+      document.getElementById('detail-task-time').innerText = `发起于 ${new Date(currentTask.created_at).toLocaleString()}`;
+
+      const latestRun = currentRuns[0];
+
+      // 动作按钮逻辑
+      const actionsContainer = document.getElementById('detail-task-actions');
+      let actionHtml = '';
+
+      if (currentTask.status === 'awaiting_approval' || currentTask.status === 'draft') {
+        actionHtml += `<button onclick="executeCurrentTask()" class="uloo-glow-button px-4 py-2 rounded-xl text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition"><i class="fa-solid fa-play"></i> 批准并执行</button>`;
+      } else if (currentTask.status === 'failed') {
+        actionHtml += `<button onclick="executeCurrentTask()" class="uloo-glow-button px-4 py-2 rounded-xl text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition"><i class="fa-solid fa-rotate-right"></i> 重试运行</button>`;
+      } else if (currentTask.status === 'running') {
+        actionHtml += `
+          <button disabled class="px-3.5 py-2 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold flex items-center gap-1.5 cursor-wait">
+            <i class="fa-solid fa-spinner animate-spin"></i> 协同中
+          </button>
+          ${latestRun ? `
+            <button onclick="cancelCurrentRun('${latestRun.id}')" class="px-3.5 py-2 rounded-xl border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-semibold flex items-center gap-1.5 shadow-xs transition">
+              <i class="fa-solid fa-ban text-rose-400"></i> 中止任务
+            </button>
+          ` : ''}
+        `;
+      } else if (currentTask.status === 'awaiting_input') {
+        actionHtml += `
+          ${latestRun ? `
+            <button onclick="cancelCurrentRun('${latestRun.id}')" class="px-3.5 py-2 rounded-xl border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-semibold flex items-center gap-1.5 shadow-xs transition">
+              <i class="fa-solid fa-ban text-rose-400"></i> 中止任务
+            </button>
+          ` : ''}
+        `;
+      } else if (currentTask.status === 'cancelled') {
+        actionHtml += `<button onclick="executeCurrentTask()" class="uloo-glass-pill px-4 py-2 rounded-xl text-slate-200 hover:text-white text-xs font-medium flex items-center gap-1.5 transition"><i class="fa-solid fa-rotate-right text-indigo-400"></i> 重新启动</button>`;
+      } else if (currentTask.status === 'succeeded') {
+        actionHtml += `<button onclick="executeCurrentTask()" class="uloo-glass-pill px-4 py-2 rounded-xl text-slate-200 hover:text-white text-xs font-medium flex items-center gap-1.5 transition"><i class="fa-solid fa-arrows-rotate text-indigo-400"></i> 再次执行</button>`;
+      }
+      actionsContainer.innerHTML = actionHtml;
+
+      // 人机协同横幅
+      if (currentTask.status === 'awaiting_input' || latestRun?.status === 'awaiting_input') {
+        showHumanInputBanner(latestRun?.error_message || '智能体在执行复核中请求补充条件：');
+      } else {
+        hideHumanInputBanner();
+      }
+
+      // 错误横幅
+      const errorBanner = document.getElementById('detail-error-banner');
+      if (currentTask.status === 'failed' || latestRun?.status === 'failed') {
+        errorBanner.classList.remove('hidden');
+        document.getElementById('detail-error-title').innerText = `执行失败: ${latestRun?.error_code || 'ERROR'}`;
+        document.getElementById('detail-error-message').innerText = latestRun?.error_message || '未知原因导致中断';
+      } else {
+        errorBanner.classList.add('hidden');
+      }
+
+      // 规划信息
+      const plans = currentTask.plans || [];
+      const plan = plans.find(p => p.version === currentTask.current_plan_version) || plans[0];
+      if (plan) {
+        document.getElementById('detail-plan-version').innerText = `版本 v${plan.version}`;
+        document.getElementById('detail-plan-summary').innerText = plan.summary || '暂无总结';
+        document.getElementById('detail-plan-steps').innerHTML = (plan.steps || []).map((step, idx) => `
+          <div class="p-3.5 rounded-xl border border-white/[0.06] bg-black/30 space-y-2 text-xs transition hover:border-indigo-500/30">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-white"><span class="font-mono text-indigo-400 mr-1.5">0${idx + 1}.</span>${step.title}</span>
+              <span class="text-[10px] text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded font-mono">${step.status || 'pending'}</span>
+            </div>
+            <p class="text-slate-400 text-[11px] leading-relaxed">${step.description}</p>
+            <div class="text-[10px] text-slate-500 flex items-center gap-2 pt-1.5 border-t border-white/[0.04]">
+              <span><i class="fa-solid fa-user-tag text-indigo-400"></i> ${step.assigned_agent_id ? '已分派指定岗位' : '协调员自主调度'}</span>
+              ${step.depends_on?.length ? `<span>• 依赖: ${step.depends_on.join(', ')}</span>` : ''}
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // 成果交付物与真实信源解析
+      const deliverableCard = document.getElementById('detail-deliverable-body');
+      const sourcesList = document.getElementById('detail-sources-list');
+      const sourcesCount = document.getElementById('detail-sources-count');
+      const latestSuccessRun = currentRuns.find(r => r.status === 'succeeded');
+
+      if (latestSuccessRun && latestSuccessRun.output) {
+        let content = typeof latestSuccessRun.output === 'string' ? latestSuccessRun.output : (latestSuccessRun.output.content || JSON.stringify(latestSuccessRun.output, null, 2));
+        deliverableCard.innerHTML = marked.parse(content);
+        window._currentDeliverableText = content;
+
+        // 提取成果中的所有真实跳转链接
+        const extractedSources = extractMarkdownLinks(content);
+        sourcesCount.innerText = `${extractedSources.length} 个来源`;
+        if (extractedSources.length > 0) {
+          sourcesList.innerHTML = extractedSources.map(s => `
+            <a href="${s.url}" target="_blank" rel="noopener noreferrer" class="uloo-glass-pill flex items-center justify-between p-3 rounded-xl group">
+              <div class="min-w-0 pr-2">
+                <div class="font-semibold text-slate-200 group-hover:text-indigo-300 truncate text-[11px]">${s.title}</div>
+                <div class="text-[10px] text-slate-500 font-mono truncate flex items-center gap-1.5 mt-0.5">
+                  <i class="fa-solid fa-globe text-[9px] text-indigo-400"></i> ${s.domain}
+                </div>
+              </div>
+              <span class="shrink-0 text-indigo-400 group-hover:translate-x-0.5 group-hover:text-indigo-300 text-xs transition">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+              </span>
+            </a>
+          `).join('');
+        } else {
+          sourcesList.innerHTML = `<div class="col-span-full text-slate-500 text-xs py-2 italic">正文中尚未抽取到超链接，您可点击正文中具体标注查看。</div>`;
+        }
+      } else {
+        deliverableCard.innerHTML = `<span class="text-slate-500 italic">任务尚未完成交付，完成后此处将直接渲染多智能体团队输出的结构化报告与结论。</span>`;
+        sourcesCount.innerText = `0 个来源`;
+        sourcesList.innerHTML = `<div class="col-span-full text-slate-500 text-xs py-2">暂无可用来源</div>`;
+        window._currentDeliverableText = '';
+      }
+
+      // 运行历史事件轨迹初始化渲染
+      const eventsContainer = document.getElementById('detail-run-events');
+      if (latestRun && latestRun.events && latestRun.events.length) {
+        document.getElementById('detail-run-status').innerText = `Run: ${latestRun.id.substring(0, 8)} (${latestRun.status})`;
+        const sortedEvents = [...latestRun.events].reverse();
+        eventsContainer.innerHTML = sortedEvents.map(ev => {
+          const time = new Date(ev.created_at).toLocaleTimeString();
+          return `
+            <div class="flex items-start gap-2.5 text-xs p-3 rounded-xl bg-black/40 border border-white/[0.06] transition hover:border-indigo-500/30">
+              <span class="font-mono text-[10px] text-slate-500 shrink-0 mt-0.5">${time}</span>
+              <span class="px-2.5 py-0.5 rounded-full text-[10px] bg-white/[0.05] border border-white/[0.1] text-slate-300 font-mono font-medium shrink-0">${ev.event_type}</span>
+              <span class="text-slate-300 flex-1 truncate text-[11px]">${ev.payload?.team_name || JSON.stringify(ev.payload || {})}</span>
+            </div>
+          `;
+        }).join('');
+      } else {
+        document.getElementById('detail-run-status').innerText = latestRun ? `Run: ${latestRun.id.substring(0, 8)} (${latestRun.status})` : '暂无执行记录';
+        eventsContainer.innerHTML = `<div class="text-slate-500 text-xs py-6 text-center">等待事件产生...</div>`;
+      }
+    }
+
+    // 从文本中提取 Markdown 链接与真实 URL
+    function extractMarkdownLinks(text) {
+      const results = [];
+      const seenUrls = new Set();
+      
+      const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g;
+      let match;
+      while ((match = mdRegex.exec(text)) !== null) {
+        const title = match[1].trim();
+        const url = match[2].trim();
+        if (!seenUrls.has(url)) {
+          seenUrls.add(url);
+          try {
+            const domain = new URL(url).hostname;
+            results.push({ title: title || domain, url, domain });
+          } catch {
+            results.push({ title, url, domain: '外部信源' });
+          }
+        }
+      }
+
+      const urlRegex = /(?<!\()(https?:\/\/[a-zA-Z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+)/g;
+      while ((match = urlRegex.exec(text)) !== null) {
+        const url = match[1].trim();
+        if (!seenUrls.has(url)) {
+          seenUrls.add(url);
+          try {
+            const domain = new URL(url).hostname;
+            results.push({ title: domain, url, domain });
+          } catch {
+            results.push({ title: url, url, domain: '外部信源' });
+          }
+        }
+      }
+
+      return results;
+    }
+
+    // 执行任务
+    async function executeCurrentTask() {
+      if (!currentTask) return;
+      try {
+        await apiRequest(`/tasks/${currentTask.id}/execute`, {
+          method: 'POST',
+          body: JSON.stringify(currentTask.current_plan_version ? { expected_plan_version: currentTask.current_plan_version } : {})
+        });
+        openTaskDetail(currentTask.id);
+      } catch (err) {
+        alert('执行启动失败: ' + err.message);
+      }
+    }
+
+    // 中止任务执行
+    async function cancelCurrentRun(runId) {
+      if (!confirm('确定要中止当前智能体团队的协同执行吗？')) return;
+      try {
+        await apiRequest(`/runs/${runId}/cancel`, { method: 'POST' });
+        closeLiveStream();
+        alert('已成功中止任务协同执行！');
+        if (currentTask) openTaskDetail(currentTask.id);
+      } catch (err) {
+        alert('中止执行失败: ' + err.message);
+      }
+    }
+
+    // 提交人机协同补充输入
+    async function submitHumanSupplement() {
+      const input = document.getElementById('detail-human-supplement-input');
+      const val = input.value.trim();
+      if (!val) {
+        alert('请输入要补充的条件或说明');
+        return;
+      }
+      const latestRun = currentRuns[0];
+      if (!latestRun) return;
+
+      const btn = document.getElementById('detail-human-supplement-btn');
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> 提交中...`;
+
+      try {
+        await apiRequest(`/runs/${latestRun.id}/continue`, {
+          method: 'POST',
+          body: JSON.stringify({ supplement: val })
+        });
+        hideHumanInputBanner();
+        input.value = '';
+        alert('已成功注入补充信息，智能体团队已恢复执行！');
+        if (currentTask) openTaskDetail(currentTask.id);
+      } catch (err) {
+        alert('提交补充失败: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> 提交补充并恢复执行`;
+      }
+    }
+
+    // 复制与下载交付物
+    function copyDeliverable() {
+      if (!window._currentDeliverableText) return alert('当前没有可复制的交付内容');
+      navigator.clipboard.writeText(window._currentDeliverableText).then(() => {
+        alert('报告内容已成功复制到剪贴板！');
+      });
+    }
+
+    function downloadDeliverable() {
+      if (!window._currentDeliverableText) return alert('当前没有可导出的交付内容');
+      const blob = new Blob([window._currentDeliverableText], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentTask?.title || 'ULOO_调研报告'}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // 团队与智能体展示
+    async function fetchTeams() {
+      const container = document.getElementById('teams-list-grid');
+      container.innerHTML = `<div class="col-span-full text-center py-16 text-slate-500 text-sm">正在加载团队...</div>`;
+      try {
+        const data = await apiRequest('/teams?limit=50');
+        cachedTeams = data.items || [];
+        container.innerHTML = cachedTeams.map(team => `
+          <div class="uloo-card p-6 rounded-2xl space-y-4">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-white text-base">${team.name}</h3>
+              <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-mono font-semibold">模式: ${team.mode}</span>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed">${team.description || '暂无描述'}</p>
+            <div class="space-y-2 pt-3 border-t border-white/[0.06]">
+              <div class="text-[11px] font-semibold text-slate-400 font-mono">成员岗位 IDs:</div>
+              <div class="flex flex-wrap gap-1.5">
+                ${(team.member_agent_ids || []).map(id => `<span class="font-mono text-[10px] bg-white/[0.04] border border-white/[0.08] text-slate-300 px-2 py-0.5 rounded">${id.substring(0, 8)}...</span>`).join('')}
+              </div>
+            </div>
+            <div class="bg-black/30 p-3.5 rounded-xl border border-white/[0.05] text-xs text-slate-400 space-y-1">
+              <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono">团队调度约定:</div>
+              <ul class="list-disc list-inside text-[11px] text-slate-300 space-y-1">
+                ${(team.instructions || []).map(ins => `<li>${ins}</li>`).join('')}
+              </ul>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        container.innerHTML = `<div class="col-span-full text-rose-400 text-xs p-6 text-center">加载失败: ${err.message}</div>`;
+      }
+    }
+
+    async function fetchAgents() {
+      const container = document.getElementById('agents-list-grid');
+      container.innerHTML = `<div class="col-span-full text-center py-16 text-slate-500 text-sm">正在加载智能体...</div>`;
+      try {
+        const data = await apiRequest('/agents?limit=50');
+        cachedAgents = data.items || [];
+        container.innerHTML = cachedAgents.map(ag => `
+          <div class="uloo-card-interactive p-6 rounded-2xl space-y-3.5 flex flex-col justify-between">
+            <div class="space-y-2.5">
+              <div class="flex items-center justify-between">
+                <h4 class="font-bold text-sm text-white">${ag.name}</h4>
+                <span class="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-medium">启用</span>
+              </div>
+              <div class="text-xs text-indigo-400 font-medium">职责: ${ag.role || '执行岗位'}</div>
+              <div class="text-[11px] text-slate-400 line-clamp-3 leading-relaxed">${ag.instructions?.[0] || '自主检索与核验'}</div>
+            </div>
+            <div class="pt-3 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-slate-500 font-mono">
+              <span>模型: ${ag.model_ref || '系统默认'}</span>
+              <span>工具: ${ag.tool_refs?.length || 0} 个</span>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        container.innerHTML = `<div class="col-span-full text-rose-400 text-xs p-6 text-center">加载失败: ${err.message}</div>`;
+      }
+    }
+
+    // 记忆管理
+    async function fetchMemories() {
+      const container = document.getElementById('memories-list-grid');
+      container.innerHTML = `<div class="col-span-full text-center py-16 text-slate-500 text-sm">正在加载长期记忆...</div>`;
+      try {
+        const data = await apiRequest('/memories?limit=50');
+        renderMemoriesList(data.items || []);
+      } catch (err) {
+        container.innerHTML = `<div class="col-span-full text-rose-400 text-xs p-6 text-center">加载记忆失败: ${err.message}</div>`;
+      }
+    }
+
+    function renderMemoriesList(items) {
+      const container = document.getElementById('memories-list-grid');
+      if (!items || items.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full uloo-card rounded-2xl border-dashed border-white/[0.1] p-16 text-center text-slate-500 text-sm">
+            <i class="fa-solid fa-brain text-4xl mb-3 block text-slate-600"></i>
+            暂无沉淀的长期记忆条目，可点击上方按钮录入
+          </div>`;
+        return;
+      }
+      container.innerHTML = items.map(mem => `
+        <div class="uloo-card p-5 rounded-2xl space-y-3 flex flex-col justify-between">
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full ${mem.category === 'fact' ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30' : mem.category === 'preference' ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30' : 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'}">${mem.category.toUpperCase()}</span>
+              <span class="text-[10px] font-mono text-slate-500">${new Date(mem.created_at).toLocaleDateString()}</span>
+            </div>
+            <p class="text-xs text-slate-200 leading-relaxed font-sans">${mem.content}</p>
+          </div>
+          <div class="pt-3 border-t border-white/[0.06] flex flex-wrap gap-1">
+            ${(mem.keywords || []).map(kw => `<span class="text-[10px] bg-white/[0.04] border border-white/[0.08] text-slate-400 px-1.5 py-0.5 rounded font-mono">#${kw}</span>`).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function searchMemories() {
+      const q = document.getElementById('memory-search-input').value.trim();
+      if (!q) return fetchMemories();
+      const container = document.getElementById('memories-list-grid');
+      container.innerHTML = `<div class="col-span-full text-center py-16 text-slate-500 text-sm">正在检索语义相关记忆...</div>`;
+      try {
+        const data = await apiRequest(`/memories/search?query=${encodeURIComponent(q)}&limit=10`);
+        renderMemoriesList(data.items || []);
+      } catch (err) {
+        container.innerHTML = `<div class="col-span-full text-rose-400 text-xs p-6 text-center">检索异常: ${err.message}</div>`;
+      }
+    }
+
+    function openNewMemoryModal() {
+      document.getElementById('new-memory-modal').classList.remove('hidden');
+    }
+    function closeNewMemoryModal() {
+      document.getElementById('new-memory-modal').classList.add('hidden');
+    }
+    async function handleCreateMemory(e) {
+      e.preventDefault();
+      const category = document.getElementById('modal-memory-category').value;
+      const content = document.getElementById('modal-memory-content').value.trim();
+      const rawKeywords = document.getElementById('modal-memory-keywords').value.trim();
+      const keywords = rawKeywords ? rawKeywords.split(/[,，]/).map(k => k.trim()).filter(Boolean) : [];
+
+      const btn = document.getElementById('modal-memory-submit-btn');
+      btn.disabled = true;
+      try {
+        await apiRequest('/memories', {
+          method: 'POST',
+          body: JSON.stringify({ category, content, keywords })
+        });
+        closeNewMemoryModal();
+        document.getElementById('modal-memory-content').value = '';
+        document.getElementById('modal-memory-keywords').value = '';
+        fetchMemories();
+      } catch (err) {
+        alert('保存记忆失败: ' + err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // 弹窗创建新任务
+    async function openNewTaskModal() {
+      document.getElementById('new-task-modal').classList.remove('hidden');
+      if (!cachedTeams.length) {
+        const data = await apiRequest('/teams?limit=50');
+        cachedTeams = data.items || [];
+      }
+      const select = document.getElementById('modal-team');
+      select.innerHTML = cachedTeams.map(t => `<option value="${t.id}" class="bg-slate-900 text-slate-200">${t.name} (${t.mode})</option>`).join('');
+    }
+
+    function closeNewTaskModal() {
+      document.getElementById('new-task-modal').classList.add('hidden');
+    }
+
+    async function handleCreateTask(e) {
+      e.preventDefault();
+      const query = document.getElementById('modal-query').value.trim();
+      const title = document.getElementById('modal-title').value.trim() || query.substring(0, 30);
+      const teamId = document.getElementById('modal-team').value;
+      const execMode = document.querySelector('input[name="exec-mode"]:checked').value;
+
+      const submitBtn = document.getElementById('modal-submit-btn');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> 正在处理中...`;
+
+      try {
+        const task = await apiRequest('/tasks', {
+          method: 'POST',
+          body: JSON.stringify({ title, query, team_id: teamId })
+        });
+
+        if (execMode === 'direct') {
+          await apiRequest(`/tasks/${task.id}/execute`, {
+            method: 'POST',
+            body: JSON.stringify({})
+          });
+        } else {
+          await apiRequest(`/tasks/${task.id}/plan`, {
+            method: 'POST',
+            body: JSON.stringify({})
+          });
+        }
+
+        closeNewTaskModal();
+        openTaskDetail(task.id);
+      } catch (err) {
+        alert('创建任务失败: ' + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<span>确认发起</span>`;
+      }
+    }
+
+    // 初始加载
+    fetchTasks();
+  </script>
+</body>
+</html>

@@ -1,3 +1,4 @@
+# AI生成
 """Explicit tool allow-list for Agno Agents."""
 
 from collections.abc import Callable, Iterable
@@ -6,17 +7,23 @@ from typing import Any
 from agno.tools.function import Function
 from agno.tools.toolkit import Toolkit
 
+from .code_interpreter import code_interpreter
 from .models import RuntimeConfigurationError
 from .web_search import web_search
 
 AgnoTool = Toolkit | Callable[..., Any] | Function | dict[str, Any]
+
+_DEFAULT_TOOLS: dict[str, AgnoTool] = {
+    "web-search": web_search,
+    "code-interpreter": code_interpreter,
+}
 
 
 class ToolRegistry:
     """Resolve tool references without dynamic imports or arbitrary execution."""
 
     def __init__(self, tools: dict[str, AgnoTool] | None = None) -> None:
-        self._tools = dict(tools) if tools is not None else {"web-search": web_search}
+        self._tools = dict(tools) if tools is not None else dict(_DEFAULT_TOOLS)
 
     def resolve_many(self, refs: Iterable[str]) -> list[AgnoTool]:
         resolved: list[AgnoTool] = []

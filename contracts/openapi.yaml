@@ -520,6 +520,65 @@ components:
       - name
       title: McpToolInfo
       type: object
+    MemoryCreate:
+      description: Payload to record a new long-term memory.
+      properties:
+        category:
+          default: fact
+          description: 'Memory type: fact, preference, or guideline'
+          enum:
+          - fact
+          - preference
+          - guideline
+          title: Category
+          type: string
+        content:
+          description: Durable memory content
+          maxLength: 10000
+          minLength: 1
+          title: Content
+          type: string
+        keywords:
+          description: Keywords for fast semantic recall
+          items:
+            type: string
+          title: Keywords
+          type: array
+        source_run_id:
+          anyOf:
+          - format: uuid
+            type: string
+          - type: 'null'
+          description: Optional Task Run ID that consolidated this memory
+          title: Source Run Id
+      required:
+      - content
+      title: MemoryCreate
+      type: object
+    MemoryListResponse:
+      description: Paginated list of memories.
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/MemoryResponse'
+          title: Items
+          type: array
+        limit:
+          title: Limit
+          type: integer
+        offset:
+          title: Offset
+          type: integer
+        total:
+          title: Total
+          type: integer
+      required:
+      - items
+      - total
+      - offset
+      - limit
+      title: MemoryListResponse
+      type: object
     MemoryPolicy:
       properties:
         read_scopes:
@@ -540,6 +599,72 @@ components:
           title: Write Scope
           type: string
       title: MemoryPolicy
+      type: object
+    MemoryRecallResponse:
+      description: Top matched memories recalled for a specific query.
+      properties:
+        formatted_context:
+          title: Formatted Context
+          type: string
+        query:
+          title: Query
+          type: string
+        recalled:
+          items:
+            $ref: '#/components/schemas/MemoryResponse'
+          title: Recalled
+          type: array
+      required:
+      - query
+      - recalled
+      - formatted_context
+      title: MemoryRecallResponse
+      type: object
+    MemoryResponse:
+      description: Full detail of a memory item.
+      properties:
+        category:
+          title: Category
+          type: string
+        content:
+          title: Content
+          type: string
+        created_at:
+          format: date-time
+          title: Created At
+          type: string
+        id:
+          format: uuid
+          title: Id
+          type: string
+        keywords:
+          items:
+            type: string
+          title: Keywords
+          type: array
+        source_run_id:
+          anyOf:
+          - format: uuid
+            type: string
+          - type: 'null'
+          title: Source Run Id
+        updated_at:
+          format: date-time
+          title: Updated At
+          type: string
+        workspace_id:
+          format: uuid
+          title: Workspace Id
+          type: string
+      required:
+      - id
+      - workspace_id
+      - category
+      - content
+      - keywords
+      - created_at
+      - updated_at
+      title: MemoryResponse
       type: object
     ModelConfigSync:
       description: Batch of model provider configurations to sync.
@@ -1873,82 +1998,6 @@ info:
   version: 0.1.0
 openapi: 3.1.0
 paths:
-  /:
-    get:
-      operationId: root__get
-      responses:
-        '200':
-          content:
-            application/json:
-              schema: {}
-          description: Successful Response
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Bad Request
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Not Found
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Conflict
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Unprocessable Entity
-        '500':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Internal Server Error
-        '501':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Not Implemented
-        '502':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Bad Gateway
-        '503':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Service Unavailable
-        '504':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-          description: Gateway Timeout
-      summary: Root
   /api/v1/agents:
     get:
       description: List and search agents.
@@ -1997,6 +2046,22 @@ paths:
           minimum: 1
           title: Limit
           type: integer
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -2109,6 +2174,22 @@ paths:
       description: Create a new Agent definition.
       operationId: create_agent_api_v1_agents_post
       parameters:
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -2235,6 +2316,22 @@ paths:
           format: uuid
           title: Agent Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -2350,6 +2447,22 @@ paths:
           format: uuid
           title: Agent Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -2469,6 +2582,22 @@ paths:
           format: uuid
           title: Agent Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -2595,6 +2724,22 @@ paths:
           format: uuid
           title: Agent Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -2723,6 +2868,22 @@ paths:
           format: uuid
           title: Agent Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -2836,6 +2997,22 @@ paths:
       description: Return implemented capabilities; planned features remain false.
       operationId: get_capabilities_api_v1_capabilities_get
       parameters:
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -3108,6 +3285,720 @@ paths:
       summary: Readiness
       tags:
       - health
+  /api/v1/memories:
+    get:
+      description: List durable memories in the current workspace with optional keyword filtering.
+      operationId: list_memories_api_v1_memories_get
+      parameters:
+      - description: Filter by fact, preference, or guideline
+        in: query
+        name: category
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter by fact, preference, or guideline
+          title: Category
+      - description: Optional search keywords
+        in: query
+        name: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Optional search keywords
+          title: Query
+      - in: query
+        name: offset
+        required: false
+        schema:
+          default: 0
+          minimum: 0
+          title: Offset
+          type: integer
+      - in: query
+        name: limit
+        required: false
+        schema:
+          default: 20
+          maximum: 100
+          minimum: 1
+          title: Limit
+          type: integer
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryListResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: List Memories
+      tags:
+      - memories
+    post:
+      description: Record a durable memory item (fact, preference, or guideline) in the workspace.
+      operationId: create_memory_api_v1_memories_post
+      parameters:
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoryCreate'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Create Memory
+      tags:
+      - memories
+  /api/v1/memories/recall:
+    get:
+      description: Recall relevant facts and preferences for a task query, returning formatted prompt context.
+      operationId: recall_memories_endpoint_api_v1_memories_recall_get
+      parameters:
+      - description: Task query to recall relevant memories for
+        in: query
+        name: query
+        required: true
+        schema:
+          description: Task query to recall relevant memories for
+          minLength: 1
+          title: Query
+          type: string
+      - in: query
+        name: limit
+        required: false
+        schema:
+          default: 5
+          maximum: 20
+          minimum: 1
+          title: Limit
+          type: integer
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryRecallResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Recall Memories Endpoint
+      tags:
+      - memories
+  /api/v1/memories/{memory_id}:
+    delete:
+      description: Delete a memory item.
+      operationId: delete_memory_api_v1_memories__memory_id__delete
+      parameters:
+      - in: path
+        name: memory_id
+        required: true
+        schema:
+          format: uuid
+          title: Memory Id
+          type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      responses:
+        '204':
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Delete Memory
+      tags:
+      - memories
+    get:
+      description: Retrieve a single memory item by ID.
+      operationId: get_memory_api_v1_memories__memory_id__get
+      parameters:
+      - in: path
+        name: memory_id
+        required: true
+        schema:
+          format: uuid
+          title: Memory Id
+          type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemoryResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Get Memory
+      tags:
+      - memories
   /api/v1/models/config:
     put:
       description: 'Receive model provider configurations from the BFF.
@@ -3120,6 +4011,22 @@ paths:
         This eliminates the need for .env configuration (S1-3).'
       operationId: sync_model_config_api_v1_models_config_put
       parameters:
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -3273,6 +4180,22 @@ paths:
           minimum: 1
           title: Limit
           type: integer
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -3393,6 +4316,22 @@ paths:
           format: uuid
           title: Run Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -3524,6 +4463,22 @@ paths:
           format: uuid
           title: Run Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -3672,6 +4627,22 @@ paths:
           format: uuid
           title: Run Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -3815,6 +4786,22 @@ paths:
           minimum: 0
           title: After
           type: integer
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -3954,6 +4941,22 @@ paths:
           description: If false, execute in background and return 202 immediately
           title: Wait
           type: boolean
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -4119,6 +5122,22 @@ paths:
             so that browsers' native EventSource automatically resumes on reconnect without replaying events the client already
             observed.
           title: After
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -4230,6 +5249,22 @@ paths:
     get:
       operationId: list_skills_api_v1_skills_get
       parameters:
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -4344,6 +5379,22 @@ paths:
     post:
       operationId: create_skills_api_v1_skills_post
       parameters:
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -4468,6 +5519,22 @@ paths:
         schema:
           title: Key
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -4581,6 +5648,22 @@ paths:
         schema:
           title: Key
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -4737,6 +5820,22 @@ paths:
           minimum: 1
           title: Limit
           type: integer
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -4849,6 +5948,22 @@ paths:
       description: Create a task and persist the user's original request.
       operationId: create_task_api_v1_tasks_post
       parameters:
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -4975,6 +6090,22 @@ paths:
           format: uuid
           title: Task Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -5095,6 +6226,22 @@ paths:
           format: uuid
           title: Task Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -5228,6 +6375,22 @@ paths:
           format: uuid
           title: Task Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -5356,6 +6519,22 @@ paths:
           format: uuid
           title: Task Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -5476,6 +6655,22 @@ paths:
           format: uuid
           title: Task Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -5601,6 +6796,22 @@ paths:
           format: uuid
           title: Task Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -5729,6 +6940,22 @@ paths:
           format: uuid
           title: Task Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -5869,6 +7096,22 @@ paths:
           description: If false, execute in background and return 202 immediately
           title: Wait
           type: boolean
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -5997,6 +7240,22 @@ paths:
           format: uuid
           title: Task Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -6157,6 +7416,22 @@ paths:
           minimum: 1
           title: Limit
           type: integer
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -6269,6 +7544,22 @@ paths:
       description: Create a new Team definition.
       operationId: create_team_api_v1_teams_post
       parameters:
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -6394,6 +7685,22 @@ paths:
         schema:
           title: Team Key
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -6514,6 +7821,22 @@ paths:
           format: uuid
           title: Team Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -6629,6 +7952,22 @@ paths:
           format: uuid
           title: Team Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -6748,6 +8087,22 @@ paths:
           format: uuid
           title: Team Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -6874,6 +8229,22 @@ paths:
           format: uuid
           title: Team Id
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -6986,6 +8357,22 @@ paths:
     get:
       operationId: list_tools_api_v1_tools_get
       parameters:
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -7100,6 +8487,22 @@ paths:
     post:
       operationId: create_tools_api_v1_tools_post
       parameters:
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -7219,6 +8622,22 @@ paths:
       description: Connect to an MCP Server and discover its exposed tools.
       operationId: discover_mcp_tools_api_v1_tools_mcp_discover_post
       parameters:
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -7343,6 +8762,22 @@ paths:
         schema:
           title: Key
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false
@@ -7456,6 +8891,22 @@ paths:
         schema:
           title: Key
           type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
       - in: header
         name: authorization
         required: false

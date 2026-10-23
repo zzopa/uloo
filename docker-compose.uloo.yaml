@@ -1,0 +1,70 @@
+# AI生成
+# ULOO Standalone Multi-Agent Platform (Pure Clean Mode)
+# 一键拉起纯净独立模式：PostgreSQL + Redis + ULOO Core (含内置极速 UI)
+
+version: "3.9"
+
+services:
+  uloo-db:
+    image: pgvector/pgvector:pg16
+    container_name: uloo-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${ULOO_DB_NAME:-dify}
+      POSTGRES_USER: ${ULOO_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${ULOO_DB_PASSWORD:-difyai123456}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - uloo-pgdata:/var/lib/postgresql/data
+    ports:
+      - "${ULOO_DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dify"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  uloo-redis:
+    image: redis:7-alpine
+    container_name: uloo-redis
+    restart: always
+    ports:
+      - "${ULOO_REDIS_PORT:-6379}:6379"
+    volumes:
+      - uloo-redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  uloo-core:
+    build:
+      context: ./services/uloo-core
+      dockerfile: Dockerfile
+    container_name: uloo-core
+    restart: always
+    depends_on:
+      uloo-db:
+        condition: service_healthy
+      uloo-redis:
+        condition: service_healthy
+    ports:
+      - "8200:8200"
+    environment:
+      - PORT=8200
+      - ULOO_DATABASE_URL=postgresql+asyncpg://${ULOO_DB_USER:-postgres}:${ULOO_DB_PASSWORD:-difyai123456}@uloo-db:5432/${ULOO_DB_NAME:-dify}
+      - ULOO_API_TOKEN=${ULOO_API_TOKEN:-uloo-dev-service-token-2026-local}
+      - ULOO_DIFY_INTERNAL_URL=http://localhost:5001
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - DEEPSEEK_API_BASE=${DEEPSEEK_API_BASE:-http://172.26.197.154:3000/v1}
+      - MODEL_DEFAULT=${MODEL_DEFAULT:-deepseek-chat}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8200/api/v1/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  uloo-pgdata:
+  uloo-redisdata:

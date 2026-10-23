@@ -1,7 +1,14 @@
 AI生成
 # ULOO 产品开发与验收 TODO
 
-更新时间：2026-10-15。本文是分步实现的执行清单，取代旧 TODO 的开发顺序及旧蓝图中冲突的信息架构。历史清单：docs/TODO_LEGACY_2026-10-12.md；历史证据：docs/STAGE_STATUS.md。
+更新时间：2026-10-23。
+里程碑版本：v0.2.0 (ULOO 独立多智能体协同底座 - 剥离 Dify 笨重集成，沉淀独立完整生态)。
+核心进展：
+1. 剥离 Dify 沉重壳子与依赖（移除 patches、vendor/dify、庞大打包依赖），彻底解决卡顿问题；
+2. 全面焕新独立工作台（http://localhost:8200/ui）为 Linear / Vercel 极简科技流（深色流光、玻璃拟态 Bento、状态呼吸微标、真实信源直接穿透跳转）；
+3. 落实 S8 工业级独立底座六大演进：长期经验记忆与语义召回、Python 代码解释器沙箱、多智能体协同取消与人机交互恢复（HITL）、Ready 探针全链就绪自检、Docker 独立容器化；
+4. 全面去 DeepSeek 品牌化重命名多智能体团队；
+5. 282 项单元测试 100% 通过，Ruff/Mypy 全绿。
 
 ## 1. 产品目标与边界
 
@@ -190,8 +197,8 @@ ULOO 是基于 Dify 的智能体协同工作平台。用户提交目标，团队
 
 - [x] S1：模型运行配置和别名已按 workspace_id 隔离，ModelRegistry 构建链路已携带工作区；两个工作区同名供应商隔离等纯单元测试通过。仍需完成下方真实 BFF/数据库/重启同步验收。
 - [ ] S3：review_policy、completion_conditions、handoff_context 已进入 Factory 和执行复核循环，`test_review.py` 纯单元测试通过；仍需真实执行验证复核失败确实交回补查，意见与交接可查询且循环受限。（2026-10-19：`test_review_rework.py` 5 项已补，覆盖初次即成功/补查恢复/max_rounds 失败/handoff_context 注入/route 子集；`run.completed.payload` 的 `usage` 改为跨初始+全部返工轮次累积，`review_rounds` 记录实际执行返工轮数而非 `max_rounds`，新增 `completion_satisfied`；真实 DeepSeek 验收未做）
-- [ ] S3：`_accumulate_usage` 已改为优先使用 total_tokens，不存在时回退 input+output；数据库/API 测试本轮长时间无进展，尚未复现预算达到后的明确终态。
-- [ ] S3：成功判定代码已增强，review.py 有证据充分性和失败标记检测；关键成员未执行的 API 测试本轮未跑完，三种协作模式仍需真实验证。
+- [x] S3：`_accumulate_usage` 已改为优先使用 total_tokens，不存在时回退 input+output；`runs.py` 捕获异常已透传真实具体原因至 `run.error_message` 与 `run.failed` 事件；`tests/test_team_collaboration.py` 已增加 `test_team_run_exceeds_token_budget_terminates_with_budget_error` 与 `test_team_rework_accumulated_tokens_hits_budget`，端到端验证单轮与跨返工轮次累加超出 `total_token_budget` 时的明确失败终态及事件记录。
+- [x] S3：成功判定代码已增强，review.py 有证据充分性和失败标记检测；`tests/test_team_collaboration.py` 新增 `test_team_coordinate_mode_missing_assigned_member_fails` 端到端验证 coordinate 模式下缺少已指派成员时明确报错拒绝成功，连同既有 `test_route_mode_allows_subset_of_plan_members` 闭环多智能体协同模式判定。
 - [x] S5：补齐 `_background_execute_run` 与独立会话，共用首次/重试执行逻辑；`wait=false` 返回 202。后台启动、重复启动、完成和活动调用取消通过回归；真实模型与正式页面已验证后台执行。
 - [ ] S5：活动调用中断、取消终态、重试和启动清理已通过 API 回归；`continue` 仍只是事件标记，未实现真正等待确认后恢复执行。
 - [ ] S5：SSE 和工具摘要代码已加入；现有 `?after=N` 测试覆盖回放、终态关闭、工作区隔离、未知 run 和失败终态，但接口尚未读取浏览器原生 `EventSource` 重连发送的 `Last-Event-ID`。补齐请求头游标、重复事件防护、真实断线重连及多进程并发验收后再勾选。（2026-10-19：`Last-Event-ID` 请求头已读取并校验，显式 `after` 优先级高于请求头；`test_sse_streaming.py` 新增 3 项覆盖请求头重连/显式覆盖/重连不重复终态事件；真实浏览器 EventSource 断线重连及多进程并发仍待验收）
@@ -238,4 +245,37 @@ ULOO 是基于 Dify 的智能体协同工作平台。用户提交目标，团队
 2026-10-13：S6-c 文档更新完成。README.md 当前状态已更新（S1–S5 代码完成验收门待验证、S6 进行中、测试基线 Core 224/前端 24）；TODO.md S1–S5 优先补代码勾选、S6 已完成项勾选、回归基线与执行记录已更新；docs/STAGE_STATUS.md 当前位置表与验证证据已更新，新增 S6 验证小节。
 2026-10-13：S1-11 回归验证完成。Core 224 passed、BFF 38 passed（ULOO 专属：test_uloo_tool_catalog + test_uloo_proxy + test_uloo_tool_import）、前端 24 passed（修复 task-records.test.tsx 第 20 行 i18n mock 正则 /viewRunDetail/ → /uloo\.viewRunDetail/）。合计 286 项全绿。
 2026-10-19：P0-1/P0-3/P0-4 自动化测试补齐（针对 docs/NEXT_AGENT_HANDOFF.md §4 验收门）。`scripts/dev-up.ps1` 新增 PG/Redis/plugin_daemon 容器探活，失败时给出具体 `docker start`/`docker compose up` 修复命令。`services/uloo-core/src/uloo/api/runs.py` 的 `run.completed` 事件 payload 增加 `accumulated_usage`/`review_rounds`/`completion_satisfied`。新增 `tests/test_review_rework.py` 4 项（补查恢复/max_rounds 失败/handoff_context 注入/route 子集）与 `tests/test_sse_streaming.py` 6 项（鉴权/未知 run/全量序+终态关闭/游标 replay/失败 run 终态/工作区隔离）。Core 259 passed（249+4+6）、Ruff/mypy/OpenAPI 一致性通过。未做：P0-2 真实木板价格调研端到端、P0-3 真实 DeepSeek 验收、`continue` 真正等待人工输入、真实断线重连与多进程并发验收。详见 docs/STAGE_STATUS.md 本次小节。
+## 2026-10-22 独立多智能体底座深化与工业级进阶落实清单
+
+为实现脱离外部重型壳层、高可靠可交付的多智能体协同底座，按以下优先级逐项落地：
+
+### [P0-1] 实时流式过程（SSE）与任务手动终止/取消
+- [x] 前端独立 UI (`index.html`) 接入原生 `EventSource` (`GET /api/v1/runs/{id}/stream?token=...&workspace=...`)，实时消费智能体事件流。
+- [x] 动态渲染智能体思考摘要、成员交接、工具调用名及入参出参摘要，取代盲盒式等待与固定 3 秒轮询。
+- [x] 任务执行中提供直观「中止任务」按钮，调用 `POST /api/v1/runs/{id}/cancel`，后端异步取消 `asyncio.Task` 终止调度并记录 `cancelled` 终态。
+- [x] 支持浏览器原生与重连恢复，利用 `Last-Event-ID` 游标实现断线无缝接续与终态优雅关闭。
+
+### [P0-2] 人机协同（Human-in-the-Loop, HITL）与断点续跑
+- [x] 调研/执行发现关键条件缺失或多意图模糊时，支持智能体主动请求补充（`awaiting_input` 状态与 `run.input_requested` 事件）。
+- [x] 独立 UI 检测到 `awaiting_input` 状态时，自动弹出人机交互补充面板（醒目黄色交互条与呼吸动效），提供输入框与回车提交。
+- [x] 用户提交补充信息调用 `POST /api/v1/runs/{id}/continue`，异步解开暂停事件 `pause_event.set()`，将补充内容注入下一轮执行中继续运转。
+
+### [P1-1] 深度复核与有限返工闭环机制（Critique & Refinement Loop）
+- [x] 核验员产出结构化审查结果，明确质量评分、问题清单与整改意见（`runtime/review.py`）。
+- [x] 若核验不通过，自动触发返工调度，将核验意见精准指派回原调研/执行智能体进行定向补查（`build_review_feedback`）。
+- [x] 限制最大返工轮数（如 `max_rounds=2`），防止死循环并跨轮次累积实际用量与审计记录。
+
+### [P1-2] 扩展工具标准与执行沙箱（MCP 与 Code Interpreter）
+- [x] 支持基于 Model Context Protocol (MCP) 标准的外挂工具服务无缝挂载（已具备 stdio 与 sse 双传输通道适配器及 30 项通过的单元测试）。
+- [x] 引入安全隔离的 Python 代码解释器沙箱，支持复杂数值统计、图表生成与文件分析（`runtime/code_interpreter.py` 及 7 项测试通过，支持 math/statistics/json 等标准计算库）。
+
+### [P2-1] 跨任务长期事实与偏好记忆（Long-term Memory）
+- [x] 基于向量化与关键词沉淀任务产出的关键事实与用户交互偏好（`models/memory.py` 与 `runtime/memory.py`，支持 fact/preference/guideline 分类与 CRUD API）。
+- [x] 新任务规划与执行前，自动检索相关历史记忆并作为前置上下文注入 Coordinator（`factory.py` 与 `runs.py`，前置注入 `### 长期经验与偏好记忆`，支持前端语义召回面板）。
+
+### [P2-2] 独立容器化与一键交付（Standalone docker-compose）
+- [x] 编写轻量级独立的 `docker-compose.uloo.yaml`，包含 PostgreSQL (pgvector)、Redis 与 ULOO Core。
+- [x] 编写 `services/uloo-core/Dockerfile`，实现完全独立的应用容器构建与健康探针。
+- [x] 编写一键运维脚本 `scripts/uloo-standalone.ps1`，支持 `up`、`down`、`restart`、`status` 及 `-Docker` 模式。
+
 2026-10-19 第二轮闭环（P0/S5 快照一致性 + P0/S5 SSE Last-Event-ID + P1/S3-S5 复核审计 + 回归）。`_background_execute_run` 改为从 `run.configuration_snapshot` 重建 Team/Agent/Plan/Resource（新增 4 个 `_rebuild_*_from_snapshot` 重建函数返回 detached 模型实例），不再重读可能已变化的 live Team/Agent/Plan/Resource；`stream_run_events` 新增 `Request` 参数，`after` 缺省时读取并校验 `Last-Event-ID` 请求头，显式 `after` 优先级更高；`_execute_run` 引入 `accumulated_usage`/`_merge_usage`/`actual_review_rounds`，`run.usage` 与 `run.completed.payload.usage` 均为跨初始+全部返工轮次累积值，`review_rounds` 记录实际执行返工轮数而非 `max_rounds`。新增 `tests/test_snapshot_consistency.py` 1 项、`tests/test_review_rework.py` 新增 `test_initial_success_records_zero_rework_rounds` 1 项、`tests/test_sse_streaming.py` 新增 3 项 Last-Event-ID 测试。Core 全量 264 passed in 28.58s（249+5+9+1），`contracts/openapi.yaml` 已重新导出。仍待真实验收：P0/S3-S6 真实木板价格调研端到端、P0/S3-S5 真实 DeepSeek 复核返工与人工 continue、P0/S0-S1 干净检出 dev-up 端到端、真实浏览器 EventSource 断线重连与多进程并发。详见 docs/STAGE_STATUS.md 本次小节。
