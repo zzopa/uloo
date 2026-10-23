@@ -720,10 +720,10 @@ async def _persist_round_events(
         for row in existing_events
         if row[0] == "tool.summary" and isinstance(row[2], dict) and row[2].get("tool_call_id")
     }
-    existing_member_ids = {
-        row[1]
+    existing_members_in_round = {
+        (row[1], row[2].get("round"))
         for row in existing_events
-        if row[0] == "agent.completed"
+        if row[0] == "agent.completed" and isinstance(row[2], dict)
     }
 
     for tool_summary in result.tool_summaries:
@@ -745,7 +745,7 @@ async def _persist_round_events(
         seq += 1
     for member_result in result.member_results:
         agent_id = member_result["agent_id"]
-        if agent_id in existing_member_ids:
+        if (agent_id, round_label) in existing_members_in_round:
             continue
         db.add(
             RunEvent(

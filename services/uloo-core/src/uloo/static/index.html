@@ -1354,7 +1354,7 @@
                 </div>
                 <div>
                   <div class="font-bold">多智能体协同已圆满交付</div>
-                  <div class="text-[10px] text-emerald-400/70 font-mono">所有规划步骤与事实核验已就绪</div>
+                  <div class="text-[10px] text-emerald-400/70 font-mono">所有规划步骤、检索信源与事实核验已就绪</div>
                 </div>
               </div>
               <button onclick="switchCanvasTab('deliverable')" class="studio-pill-btn px-3 py-1.5 rounded-xl text-emerald-200 hover:text-white text-xs flex items-center gap-1.5 font-bold transition">
@@ -1365,18 +1365,24 @@
           ` + eventsHtml;
         } else if (latestRun.status === 'running' || currentTask?.status === 'running') {
           eventsHtml = `
-            <div class="flex items-center gap-2.5 p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs animate-pulse mb-3">
-              <i class="fa-solid fa-circle-notch animate-spin"></i>
-              <span>多智能体正在深度检索与协同推理中，下方为实时推送的推演流...</span>
+            <div id="live-activity-bar" class="flex items-center justify-between p-3.5 rounded-xl bg-indigo-950/70 border border-indigo-500/40 text-indigo-200 text-xs shadow-[0_0_20px_rgba(99,102,241,0.2)] mb-3">
+              <div class="flex items-center gap-2.5">
+                <i class="fa-solid fa-spinner animate-spin text-indigo-400 text-sm"></i>
+                <span id="live-activity-text" class="font-medium">多智能体协同推演中：正在动态分工、采集一手信源与交叉核验...</span>
+              </div>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 animate-pulse">LIVE 实时动态</span>
             </div>
           ` + eventsHtml;
         }
         container.innerHTML = eventsHtml;
       } else if (latestRun && (latestRun.status === 'running' || currentTask?.status === 'running')) {
         container.innerHTML = `
-          <div class="flex items-center justify-center gap-2.5 p-8 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs">
-            <i class="fa-solid fa-spinner animate-spin text-base"></i>
-            <span>已建立 SSE 实时通道，等待智能体执行步骤并回传事件...</span>
+          <div id="live-activity-bar" class="flex items-center justify-between p-3.5 rounded-xl bg-indigo-950/70 border border-indigo-500/40 text-indigo-200 text-xs shadow-[0_0_20px_rgba(99,102,241,0.2)] mb-3">
+            <div class="flex items-center gap-2.5">
+              <i class="fa-solid fa-spinner animate-spin text-indigo-400 text-sm"></i>
+              <span id="live-activity-text" class="font-medium">已建立 SSE 实时通道，等待智能体执行步骤并回传操作信息...</span>
+            </div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 animate-pulse">LIVE 实时动态</span>
           </div>`;
       } else {
         container.innerHTML = `<div class="text-slate-500 text-xs py-10 text-center">当前任务暂无执行事件轨迹</div>`;
@@ -1391,25 +1397,37 @@
       let desc = '';
 
       if (type === 'run.started') {
-        badgeClass = 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30';
+        badgeClass = 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-semibold';
         icon = 'fa-solid fa-rocket';
         title = '启动协同';
         desc = `协调员启动团队『${ev.payload?.team_name || 'ULOO Team'}』`;
+      } else if (type === 'agent.started') {
+        badgeClass = 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-bold';
+        icon = 'fa-solid fa-user-astronaut';
+        title = '任务派发';
+        desc = ev.payload?.message || `协调员向【${ev.payload?.name || '专家成员'}】派发任务: ${ev.payload?.task || ''}`;
+      } else if (type === 'tool.calling') {
+        badgeClass = 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 animate-pulse font-semibold';
+        icon = 'fa-solid fa-satellite-dish';
+        title = '联网检索';
+        desc = ev.payload?.message || `正在联网检索: ${ev.payload?.query || ''}`;
+      } else if (type === 'tool.summary') {
+        badgeClass = 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold';
+        icon = 'fa-solid fa-square-check';
+        title = '信源获取';
+        const q = ev.payload?.query ? `【${ev.payload.query}】` : '';
+        const dur = ev.payload?.elapsed ? ` (耗时 ${ev.payload.elapsed}s)` : '';
+        desc = ev.payload?.result_preview ? `${q} ${ev.payload.result_preview}${dur}` : `工具调用完成${dur}`;
+      } else if (type === 'agent.completed') {
+        badgeClass = 'bg-teal-500/20 text-teal-300 border border-teal-500/30 font-bold';
+        icon = 'fa-solid fa-circle-check';
+        title = '推演就绪';
+        desc = ev.payload?.message || `智能体『${ev.payload?.name || '成员'}』完成分配子项`;
       } else if (type === 'run.step_started') {
         badgeClass = 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30';
         icon = 'fa-solid fa-forward-step';
         title = '规划步骤';
         desc = ev.payload?.title || `步骤 ${ev.payload?.step_id || ''}`;
-      } else if (type === 'tool.summary') {
-        badgeClass = 'bg-amber-500/15 text-amber-300 border-amber-500/30';
-        icon = 'fa-solid fa-wrench';
-        title = `调用: ${ev.payload?.tool_name || 'tool'}`;
-        desc = ev.payload?.result_preview ? `预览: ${ev.payload.result_preview.substring(0, 100)}` : '工具调用完成';
-      } else if (type === 'agent.completed') {
-        badgeClass = 'bg-teal-500/15 text-teal-300 border-teal-500/30';
-        icon = 'fa-solid fa-user-check';
-        title = '岗位就绪';
-        desc = `智能体『${ev.payload?.name || '成员'}』完成分配子项`;
       } else if (type === 'run.review_started') {
         badgeClass = 'bg-purple-500/15 text-purple-300 border-purple-500/30';
         icon = 'fa-solid fa-clipboard-check';
@@ -1482,10 +1500,10 @@
       };
 
       const eventTypes = [
-        'run.started', 'run.step_started', 'run.member_started', 'tool.summary',
-        'agent.completed', 'run.review_started', 'run.review_completed',
-        'run.input_requested', 'run.continued', 'run.completed', 'run.failed',
-        'run.cancelled', 'terminal'
+        'run.started', 'run.step_started', 'run.member_started', 'agent.started',
+        'tool.calling', 'tool.summary', 'agent.completed', 'run.review_started',
+        'run.review_completed', 'run.input_requested', 'run.continued', 'run.completed',
+        'run.failed', 'run.cancelled', 'terminal'
       ];
 
       eventTypes.forEach(evtName => {
@@ -1509,7 +1527,27 @@
         if (container.querySelector('.text-slate-500') || container.querySelector('.text-center')) {
           container.innerHTML = '';
         }
-        container.insertAdjacentHTML('afterbegin', formatEventToHtml(ev, type));
+        const activityBar = container.querySelector('#live-activity-bar');
+        const eventCard = formatEventToHtml(ev, type);
+        if (activityBar) {
+          activityBar.insertAdjacentHTML('afterend', eventCard);
+        } else {
+          container.insertAdjacentHTML('afterbegin', eventCard);
+        }
+      }
+
+      // 实时更新顶部推演雷达状态条文本
+      const activityText = document.getElementById('live-activity-text');
+      if (activityText) {
+        if (type === 'tool.calling') {
+          activityText.innerHTML = `正在联网检索: <span class="text-cyan-300 font-mono">${ev.payload?.query || ''}</span>`;
+        } else if (type === 'tool.summary') {
+          activityText.innerHTML = `信源采集就绪: <span class="text-emerald-300 font-mono">${ev.payload?.query || ''}</span> (${ev.payload?.count || 0}条信源)`;
+        } else if (type === 'agent.started') {
+          activityText.innerHTML = `协调员已派发任务给: <span class="text-indigo-300 font-bold">${ev.payload?.name || '专家成员'}</span>`;
+        } else if (type === 'agent.completed') {
+          activityText.innerHTML = `<span class="text-teal-300 font-bold">${ev.payload?.name || '专家成员'}</span> 阶段推演完成，交还主控...`;
+        }
       }
 
       if (type === 'run.input_requested' || ev.status === 'awaiting_input') {
