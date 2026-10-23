@@ -73,13 +73,13 @@ def build_agent(
     )
     instructions = list(definition.instructions or [])
     instructions.append(
-        "CITATION AND SOURCE MANDATE: Every factual assertion, data point, and quote in the final report MUST cite its real source with a clickable Markdown hyperlink [Source Title](URL). Provide a dedicated '### 🔗 数据出处与核验信源' section listing all real source URLs at the end."
+        "【权威官方信源硬性约束】: 报告中引用的所有出处超链接必须是真实官方网站或权威机构网站（如国家卫健委/市场监管总局/国家食品安全风险评估中心 cfsa.net.cn、世界卫生组织 WHO、美国 FDA、国家标准公开平台、央媒新华社/央视网/人民网、大学与科研院所）。严禁引用任何搜索引擎中间跳转链接（如包含 sogou.com/link 或 bing.com 等跳转链接），严禁引用自媒体营销号、文库分享网站（如豆丁网、百度文库）或商业推销网站。"
     )
     skill_instructions, _ = tool_registry.skill_config(definition.skill_refs or [])
     instructions.extend(skill_instructions)
     if "web-search" in (definition.tool_refs or []):
         instructions.append(
-            "CITATION MANDATE: When providing findings from web search, ALWAYS cite the real source with a Markdown hyperlink [Source Title](URL) using the actual URL from search results."
+            "CITATION MANDATE: When providing findings from web search, ALWAYS cite the real official source URL [Source Title](URL) using the actual destination website URL from search results. NEVER cite search engine redirect links (sogou.com/link, bing.com, etc.). Strictly filter out marketing blogs, SEO content farms, doc sharing sites, and commercial spam."
         )
     if definition.output_schema is not None:
         model.request_params = {"response_format": {"type": "json_object"}}
@@ -297,13 +297,14 @@ def build_team(
         instructions.append(
             "【协同调度规范 (Coordinated Multi-Agent Execution Protocol)】:\n"
             "1. 严禁一次性盲目并发派发所有任务。你必须按严密的流水线分工调度各成员智能体：\n"
-            "   - 第一步（事实与民意调研）：首先向负责检索/调研的成员派发任务，收集互联网上公众/网民的真实讨论焦点、民间顾虑与一手信源；\n"
-            "   - 第二步（移交与独立核验）：等待调研员完成返回后，提取调研员收集到的具体观点、网传争议与链接，作为任务输入明确移交给核验员，要求核验员对这些具体言论逐条进行真实性核验与科学标准比对；\n"
+            "   - 第一步（事实与民意调研）：首先向负责检索/调研的成员派发任务，收集互联网上公众/网民的真实讨论焦点、民间顾虑与一手官方信源；\n"
+            "   - 第二步（移交与独立核验）：等待调研员完成返回后，提取调研员收集到的具体观点、网传争议与链接，作为任务输入明确移交给核验员，要求核验员对这些具体言论逐条进行真实性核验与科学标准比对，剔除任何非官方营销号噪音；\n"
             "   - 第三步（综合研判与成果输出）：在各成员均完成实质性工作后，由你整合两方成果输出最终报告。\n"
-            "2. 针对网络讨论类任务的交付标准：\n"
+            "2. 针对权威信源与交付标准：\n"
+            "   - 【信源规范】：所有引用链接必须来自真实官方网站（政府部门、世卫组织、国家标准委员会、权威央媒），绝对禁止引用 sogou.com/link、bing.com 等搜索引擎中间跳转链接，严格过滤营销号和诈骗/推销网站；\n"
             "   - 必须设立专门章节【👥 网络舆情与公众讨论焦点】，真实反映民间关切（如辅食/糙米担忧、网传致癌流言、民间淘米降砷法）；\n"
             "   - 必须设立【⚖️ 核心争议深度对撞（民间网传关切 vs 权威科学事实）】；\n"
-            "   - 必须设立【🔗 数据与信息来源清单】，罗列包含真实链接的 Markdown 引用 [来源标题](URL)。"
+            "   - 必须设立【🔗 数据与信息来源清单】，清晰列出包含真实官方网站的 Markdown 引用 [官方机构名称/权威报道标题 - 官方网站](真实官方URL)。"
         )
     if definition.leader_agent_id:
         instructions.insert(
