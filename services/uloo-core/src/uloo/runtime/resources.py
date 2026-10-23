@@ -1,6 +1,8 @@
 """Load one workspace catalog before constructing any Agent or Team."""
 
 import hashlib
+import json
+import time
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models.resource import ResourceDefinition
 from ..schemas.resource import SearchConfig
 from .dify_tools import dify_tool
+from .live_events import emit_live_event
 from .mcp_adapter import MCPToolAdapter
 from .models import RuntimeConfigurationError
 from .tools import AgnoTool, ToolRegistry
@@ -36,16 +39,64 @@ async def definitions(db: AsyncSession, workspace_id, kind: str):
 
 
 def configured_search(item):
+    tool_key = item.get("key", "web-search")
+
     def search(query: str) -> str:
-        return web_search((item["config"]["query_prefix"] + " " + query).strip(), item["config"]["max_results"])
+        prefix = item.get("config", {}).get("query_prefix", "")
+        clean_query = (prefix + " " + query).strip() if prefix else query.strip()
+        max_results = item.get("config", {}).get("max_results", 5)
+
+        # 1. 触发工具调用前即时打点：在 SSE 管道中实时广播正在检索的关键词
+        emit_live_event(
+            event_type="tool.calling",
+            source_type="tool",
+            source_id=tool_key,
+            payload={
+                "tool_name": tool_key,
+                "query": clean_query,
+                "message": f"正在联网检索: {clean_query}",
+            },
+        )
+
+        t0 = time.monotonic()
+        res_str = web_search(clean_query, max_results)
+        elapsed = round(time.monotonic() - t0, 2)
+
+        # 2. 检索返回后即时打点：实时回传获取到的信源与条目数量
+        try:
+            res_obj = json.loads(res_str)
+            sources = res_obj.get("results", [])
+            status = res_obj.get("status", "ok")
+            titles = [s.get("title", "") for s in sources[:3] if s.get("title")]
+            preview = f"已检索到 {len(sources)} 条有效信源: " + " | ".join(titles) if sources else "未获取到直接网页结果"
+        except Exception:
+            sources = []
+            status = "error"
+            preview = "检索返回格式异常"
+
+        emit_live_event(
+            event_type="tool.summary",
+            source_type="tool",
+            source_id=tool_key,
+            payload={
+                "tool_name": tool_key,
+                "query": clean_query,
+                "count": len(sources),
+                "status": status,
+                "elapsed": elapsed,
+                "result_preview": preview,
+                "sources": sources[:5],
+            },
+        )
+        return res_str
 
     search.__name__ = (
         "search_"
-        + item["key"][:32].replace("-", "_").replace(".", "_")
+        + tool_key[:32].replace("-", "_").replace(".", "_")
         + "_"
-        + hashlib.sha256(item["key"].encode()).hexdigest()[:8]
+        + hashlib.sha256(tool_key.encode()).hexdigest()[:8]
     )
-    search.__doc__ = item["description"] or "Search public internet pages; cite returned source URLs."
+    search.__doc__ = item.get("description") or "Search public internet pages; cite returned source URLs."
     return search
 
 

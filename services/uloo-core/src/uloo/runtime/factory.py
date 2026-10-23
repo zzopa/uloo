@@ -1,6 +1,7 @@
 # AI生成
 """Map persisted ULOO definitions to real Agno Agent and Team objects."""
 
+import inspect
 import json
 from collections.abc import Iterable
 from typing import Literal, cast
@@ -13,6 +14,7 @@ from ..config import settings
 from ..models.agent import AgentDefinition
 from ..models.team import TeamDefinition
 from ..schemas.task import TaskPlanDraft
+from .live_events import emit_live_event
 from .models import ModelRegistry, RuntimeConfigurationError
 from .tools import ToolRegistry
 
@@ -149,6 +151,105 @@ def validate_agent_runtime_config(
     return model, resolved_tools
 
 
+def _wrap_team_transfer_function(team: Team) -> None:
+    """Wrap Agno Team's get_transfer_task_function to emit observable real-time delegation events."""
+    orig_get_transfer_func = getattr(team, "get_transfer_task_function", None)
+    if not orig_get_transfer_func:
+        return
+
+    def wrapped_get_transfer_func(*args, **kwargs):
+        func = orig_get_transfer_func(*args, **kwargs)
+        orig_entrypoint = func.entrypoint
+
+        if inspect.iscoroutinefunction(orig_entrypoint):
+            async def wrapped_entrypoint(member_id: str, task_description: str, **inner_kwargs):
+                member_name = member_id
+                for m in getattr(team, "members", []):
+                    if getattr(m, "agent_id", None) == member_id:
+                        member_name = getattr(m, "name", member_id)
+                        break
+                emit_live_event(
+                    event_type="agent.started",
+                    source_type="agent",
+                    source_id=member_id,
+                    payload={
+                        "member_id": member_id,
+                        "name": member_name,
+                        "task": task_description,
+                        "message": f"协调员向【{member_name}】派发任务: {task_description[:100]}",
+                    },
+                )
+                try:
+                    res = await orig_entrypoint(member_id, task_description, **inner_kwargs)
+                    emit_live_event(
+                        event_type="agent.completed",
+                        source_type="agent",
+                        source_id=member_id,
+                        payload={
+                            "member_id": member_id,
+                            "name": member_name,
+                            "message": f"【{member_name}】完成分配阶段推演",
+                        },
+                    )
+                    return res
+                except Exception as exc:
+                    emit_live_event(
+                        event_type="agent.failed",
+                        source_type="agent",
+                        source_id=member_id,
+                        status="failed",
+                        payload={"member_id": member_id, "name": member_name, "error": str(exc)},
+                    )
+                    raise
+
+            func.entrypoint = wrapped_entrypoint
+        else:
+            def wrapped_entrypoint(member_id: str, task_description: str, **inner_kwargs):
+                member_name = member_id
+                for m in getattr(team, "members", []):
+                    if getattr(m, "agent_id", None) == member_id:
+                        member_name = getattr(m, "name", member_id)
+                        break
+                emit_live_event(
+                    event_type="agent.started",
+                    source_type="agent",
+                    source_id=member_id,
+                    payload={
+                        "member_id": member_id,
+                        "name": member_name,
+                        "task": task_description,
+                        "message": f"协调员向【{member_name}】派发任务: {task_description[:100]}",
+                    },
+                )
+                try:
+                    res = orig_entrypoint(member_id, task_description, **inner_kwargs)
+                    emit_live_event(
+                        event_type="agent.completed",
+                        source_type="agent",
+                        source_id=member_id,
+                        payload={
+                            "member_id": member_id,
+                            "name": member_name,
+                            "message": f"【{member_name}】完成分配阶段推演",
+                        },
+                    )
+                    return res
+                except Exception as exc:
+                    emit_live_event(
+                        event_type="agent.failed",
+                        source_type="agent",
+                        source_id=member_id,
+                        status="failed",
+                        payload={"member_id": member_id, "name": member_name, "error": str(exc)},
+                    )
+                    raise
+
+            func.entrypoint = wrapped_entrypoint
+        return func
+
+    team.get_transfer_task_function = wrapped_get_transfer_func
+
+
 def build_team(
     definition: TeamDefinition,
     member_definitions: Iterable[AgentDefinition],
@@ -243,7 +344,7 @@ def build_team(
     coordinator_model.max_tokens = limits.get("max_tokens", 20000)
     for member in runtime_members:
         cast(OpenAILike, member.model).max_tokens = coordinator_model.max_tokens
-    return Team(
+    team = Team(
         team_id=str(definition.id),
         add_datetime_to_instructions=True,
         name=definition.name,
@@ -267,3 +368,6 @@ def build_team(
         markdown=False,
         stream_member_events=True,
     )
+
+    _wrap_team_transfer_function(team)
+    return team

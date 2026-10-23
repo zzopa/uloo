@@ -344,6 +344,58 @@
     body.theme-apple ::-webkit-scrollbar-thumb:hover {
       background: rgba(0, 0, 0, 0.28) !important;
     }
+
+    /* 限制工作台与右侧画卷视窗高度边界，彻底解决底部内容被截断溢出看不见的问题 */
+    #view-studio {
+      height: calc(100vh - 3.5rem) !important;
+      max-height: calc(100vh - 3.5rem) !important;
+      min-height: 0 !important;
+      overflow: hidden !important;
+    }
+
+    #view-studio > div:first-child {
+      height: 100% !important;
+      max-height: 100% !important;
+      min-height: 0 !important;
+      overflow: hidden !important;
+    }
+
+    #view-studio > div:last-child {
+      height: 100% !important;
+      max-height: 100% !important;
+      min-height: 0 !important;
+      overflow: hidden !important;
+    }
+
+    #canvas-active-state {
+      height: 100% !important;
+      max-height: 100% !important;
+      min-height: 0 !important;
+      display: flex !important;
+      flex-direction: column !important;
+      overflow: hidden !important;
+    }
+
+    #canvas-pane-trace,
+    #canvas-pane-deliverable {
+      flex: 1 1 0% !important;
+      min-height: 0 !important;
+      max-height: calc(100vh - 13.5rem) !important;
+      overflow-y: auto !important;
+      overscroll-behavior: contain !important;
+    }
+
+    #missions-stream {
+      min-height: 0 !important;
+      max-height: calc(100vh - 19rem) !important;
+      overflow-y: auto !important;
+      overscroll-behavior: contain !important;
+    }
+
+    #canvas-sources-grid {
+      max-height: 260px;
+      overflow-y: auto;
+    }
   </style>
 </head>
 <body class="h-screen w-screen overflow-hidden flex flex-col font-sans select-none antialiased">
@@ -412,10 +464,10 @@
   </header>
 
   <!-- 2. 主场景 1: 双栏沉浸式智能体协同工坊 (Studio Dual-Pane Workspace) -->
-  <main id="view-studio" class="flex-1 flex min-w-0 overflow-hidden studio-grid relative">
+  <main id="view-studio" class="flex-1 flex min-w-0 min-h-0 h-[calc(100vh-3.5rem)] max-h-[calc(100vh-3.5rem)] overflow-hidden studio-grid relative">
     
     <!-- 左栏: 指令指挥舱与任务流水线 (Master Command & Mission Column) - 430px 固定/自适应 -->
-    <div class="w-[430px] shrink-0 border-r border-white/[0.08] flex flex-col bg-[#080C16]/95 backdrop-blur-2xl z-20">
+    <div class="w-[430px] shrink-0 border-r border-white/[0.08] flex flex-col min-h-0 h-full max-h-full overflow-hidden bg-[#080C16]/95 backdrop-blur-2xl z-20">
       
       <!-- Top: Direct Prompt Command Bar (免弹窗·指令直接输入舱) -->
       <div class="p-4 border-b border-white/[0.08] space-y-3 bg-gradient-to-b from-indigo-500/[0.05] to-transparent">
@@ -473,7 +525,7 @@
       </div>
 
       <!-- Missions List (任务流卡片列) -->
-      <div id="missions-stream" class="flex-1 overflow-y-auto p-3 space-y-2.5">
+      <div id="missions-stream" class="flex-1 min-h-0 overflow-y-auto p-3 pb-12 space-y-2.5">
         <div class="text-center py-16 text-slate-500 text-xs">
           <i class="fa-solid fa-spinner animate-spin text-indigo-400 text-lg mb-2 block"></i>
           正在同步任务流水线...
@@ -483,7 +535,7 @@
     </div>
 
     <!-- 右栏: 动态协同画卷与成果工作台 (Dynamic Mission Canvas) - 占据主视区 -->
-    <div class="flex-1 flex flex-col min-w-0 bg-[#060911]/90 backdrop-blur-xl overflow-hidden relative">
+    <div class="flex-1 flex flex-col min-w-0 min-h-0 h-full max-h-full bg-[#060911]/90 backdrop-blur-xl overflow-hidden relative">
 
       <!-- 空白占位状态 (未选中任何任务时) -->
       <div id="canvas-empty-state" class="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
@@ -498,7 +550,7 @@
       </div>
 
       <!-- 选中任务后的核心画布 (Mission Studio Canvas) -->
-      <div id="canvas-active-state" class="flex-1 flex flex-col min-w-0 hidden">
+      <div id="canvas-active-state" class="flex-1 flex flex-col min-w-0 min-h-0 h-full max-h-full overflow-hidden hidden">
         
         <!-- Canvas Top Bar: 任务控制与状态抬头 -->
         <div class="h-16 px-6 border-b border-white/[0.08] bg-[#0A0E1A]/80 backdrop-blur-md flex items-center justify-between shrink-0 gap-4">
@@ -560,8 +612,8 @@
           </div>
         </div>
 
-        <!-- Tab 1 内容: 实时推演轨迹与人机交互流 -->
-        <div id="canvas-pane-trace" class="flex-1 overflow-y-auto p-6 space-y-4">
+        <!-- Tab 1 内容: 实时推演轨迹与人机交互流 (具备严格高度边界与平滑内滚动) -->
+        <div id="canvas-pane-trace" class="flex-1 overflow-y-auto min-h-0 max-h-[calc(100vh-13.5rem)] p-6 pb-20 space-y-4">
           
           <!-- 人机协同关键介入舱 (HITL Awaiting Input Cockpit) -->
           <div id="canvas-hitl-banner" class="hidden studio-panel-glow border-amber-500/50 bg-amber-500/10 p-5 rounded-2xl space-y-3.5 backdrop-blur-2xl">
@@ -602,8 +654,8 @@
 
         </div>
 
-        <!-- Tab 2 内容: 最终交付成果报告与信源直达 -->
-        <div id="canvas-pane-deliverable" class="flex-1 overflow-y-auto p-8 space-y-6 hidden">
+        <!-- Tab 2 内容: 最终交付成果报告与信源直达 (具备严格高度边界与平滑内滚动) -->
+        <div id="canvas-pane-deliverable" class="flex-1 overflow-y-auto min-h-0 max-h-[calc(100vh-13.5rem)] p-8 pb-24 space-y-6 hidden">
           
           <!-- 成果报告主体 -->
           <div class="studio-panel rounded-2xl p-7 border border-white/[0.08] shadow-2xl">
@@ -623,7 +675,7 @@
             </div>
 
             <!-- Markdown 渲染正文 -->
-            <div id="canvas-deliverable-markdown" class="markdown-canvas">
+            <div id="canvas-deliverable-markdown" class="markdown-canvas overflow-x-auto">
               <span class="text-slate-500 italic text-xs">任务尚未生成成果，智能体团队执行完毕后将在此处呈现。</span>
             </div>
           </div>
@@ -637,7 +689,7 @@
               </div>
               <span id="canvas-sources-count" class="text-[10px] font-mono text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-full">0 个真实信源</span>
             </div>
-            <div id="canvas-sources-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <div id="canvas-sources-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs max-h-72 overflow-y-auto pr-1">
               <!-- 动态信源卡片 -->
             </div>
           </div>

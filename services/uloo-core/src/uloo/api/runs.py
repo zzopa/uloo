@@ -33,6 +33,7 @@ from ..models.run import RUN_STATUSES, Run, RunEvent
 from ..models.task import Task, TaskPlan
 from ..models.team import TeamDefinition, TeamMember
 from ..runtime import build_team, execute_agent
+from ..runtime.live_events import clear_active_run, set_active_run
 from ..runtime.dify_tools import clear_runtime_caller, set_runtime_caller
 from ..runtime.memory import format_memories_for_prompt, recall_memories
 from ..runtime.models import RuntimeConfigurationError
@@ -702,14 +703,33 @@ async def _persist_round_events(
     *,
     round_label: str = "initial",
 ) -> int:
-    """S5-补3: Persist tool.summary and agent.completed events for one execution round.
+    """S5-补3: Persist tool.summary and agent.completed events for one execution round."""
+    max_seq = await db.scalar(
+        select(func.max(RunEvent.sequence)).where(RunEvent.run_id == run.id)
+    )
+    seq = max(next_seq, (max_seq or 0) + 1)
 
-    Events are committed immediately so that clients polling the events
-    endpoint with a cursor can observe progress in real time.
-    Returns the next available sequence number.
-    """
-    seq = next_seq
+    existing_events = (
+        await db.execute(
+            select(RunEvent.event_type, RunEvent.source_id, RunEvent.payload)
+            .where(RunEvent.run_id == run.id)
+        )
+    ).all()
+    existing_tool_calls = {
+        row[2].get("tool_call_id")
+        for row in existing_events
+        if row[0] == "tool.summary" and isinstance(row[2], dict) and row[2].get("tool_call_id")
+    }
+    existing_member_ids = {
+        row[1]
+        for row in existing_events
+        if row[0] == "agent.completed"
+    }
+
     for tool_summary in result.tool_summaries:
+        cid = tool_summary.get("tool_call_id")
+        if cid and cid in existing_tool_calls:
+            continue
         db.add(
             RunEvent(
                 workspace_id=workspace_id,
@@ -724,6 +744,9 @@ async def _persist_round_events(
         )
         seq += 1
     for member_result in result.member_results:
+        agent_id = member_result["agent_id"]
+        if agent_id in existing_member_ids:
+            continue
         db.add(
             RunEvent(
                 workspace_id=workspace_id,
@@ -731,7 +754,7 @@ async def _persist_round_events(
                 sequence=seq,
                 event_type="agent.completed",
                 source_type="agent",
-                source_id=member_result["agent_id"],
+                source_id=agent_id,
                 status="succeeded",
                 payload={**member_result, "message": f"{member_result['name']} completed its assigned work", "round": round_label},
             )
@@ -947,9 +970,11 @@ async def _execute_owned_run(
     current = asyncio.current_task()
     assert current is not None
     _active_runs[str(run.id)] = current
+    set_active_run(run.id, context.workspace_id)
     try:
         return await _execute_run(db, run, task, plan, team_definition, member_definitions, resources, context)
     finally:
+        clear_active_run()
         _active_runs.pop(str(run.id), None)
         # P0/S3-5: If the run was paused awaiting input and is now leaving
         # the executor (success, failure, or cancellation), release any
@@ -1066,7 +1091,10 @@ async def _execute_run(
 
         # S5-补3: Persist tool summaries and agent events immediately so that
         # clients polling /runs/{id}/events can observe progress in real time.
-        next_seq = 2  # sequence 1 is run.started
+        max_seq = await db.scalar(
+            select(func.max(RunEvent.sequence)).where(RunEvent.run_id == run.id)
+        )
+        next_seq = (max_seq or 0) + 1
         next_seq = await _persist_round_events(
             db, run, context.workspace_id, result, next_seq, round_label="initial"
         )
