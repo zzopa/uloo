@@ -146,14 +146,218 @@
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 999px; }
     ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+
+    /* =========================================================
+       Apple Human Interface (macOS / Liquid Glass Light) 样式体系
+       ========================================================= */
+    body.theme-apple {
+      background-color: #F5F5F7 !important;
+      background-image: 
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 113, 227, 0.09), transparent 70%),
+        radial-gradient(ellipse 60% 40% at 85% 100%, rgba(52, 199, 89, 0.06), transparent 70%) !important;
+      color: #1D1D1F !important;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif !important;
+    }
+
+    body.theme-apple .studio-grid {
+      background-size: 24px 24px !important;
+      background-image: radial-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px) !important;
+    }
+
+    body.theme-apple .studio-panel {
+      background: rgba(255, 255, 255, 0.85) !important;
+      backdrop-filter: blur(28px) saturate(180%) !important;
+      -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+      border: 1px solid rgba(0, 0, 0, 0.08) !important;
+      box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
+    }
+
+    body.theme-apple .studio-panel-glow {
+      background: rgba(255, 255, 255, 0.95) !important;
+      backdrop-filter: blur(28px) saturate(180%) !important;
+      border: 1px solid rgba(0, 113, 227, 0.35) !important;
+      box-shadow: 0 8px 30px -4px rgba(0, 113, 227, 0.16), 0 1px 3px 0 rgba(0, 0, 0, 0.04) !important;
+    }
+
+    body.theme-apple .interactive-card {
+      background: rgba(255, 255, 255, 0.75) !important;
+      border: 1px solid rgba(0, 0, 0, 0.07) !important;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+    }
+
+    body.theme-apple .interactive-card:hover {
+      background: #FFFFFF !important;
+      border-color: rgba(0, 113, 227, 0.4) !important;
+      box-shadow: 0 8px 24px -4px rgba(0, 113, 227, 0.15), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+      transform: translateY(-1.5px) !important;
+    }
+
+    body.theme-apple .interactive-card.active-mission {
+      background: #FFFFFF !important;
+      border-color: #0071E3 !important;
+      box-shadow: 0 4px 16px -2px rgba(0, 113, 227, 0.25), 0 0 0 1px #0071E3 !important;
+    }
+
+    body.theme-apple .studio-launch-btn {
+      background: linear-gradient(135deg, #0071E3 0%, #0077ED 50%, #0096E6 100%) !important;
+      box-shadow: 0 4px 14px rgba(0, 113, 227, 0.35) !important;
+      color: #FFFFFF !important;
+    }
+
+    body.theme-apple .studio-pill-btn {
+      background: rgba(0, 0, 0, 0.04) !important;
+      border: 1px solid rgba(0, 0, 0, 0.08) !important;
+      color: #1D1D1F !important;
+    }
+
+    body.theme-apple .studio-pill-btn:hover {
+      background: rgba(0, 113, 227, 0.08) !important;
+      border-color: #0071E3 !important;
+      color: #0071E3 !important;
+    }
+
+    body.theme-apple header {
+      background: rgba(255, 255, 255, 0.85) !important;
+      border-color: rgba(0, 0, 0, 0.08) !important;
+    }
+
+    body.theme-apple #view-studio > div:first-child {
+      background: rgba(246, 246, 248, 0.94) !important;
+      border-color: rgba(0, 0, 0, 0.08) !important;
+    }
+
+    body.theme-apple #view-studio > div:last-child {
+      background: rgba(242, 242, 245, 0.85) !important;
+    }
+
+    body.theme-apple #canvas-active-state > div:first-child {
+      background: rgba(255, 255, 255, 0.9) !important;
+      border-color: rgba(0, 0, 0, 0.08) !important;
+    }
+
+    body.theme-apple #canvas-active-state > div:nth-child(2) {
+      background: rgba(250, 250, 252, 0.92) !important;
+      border-color: rgba(0, 0, 0, 0.06) !important;
+    }
+
+    body.theme-apple #canvas-active-state > div:nth-child(3) {
+      background: rgba(255, 255, 255, 0.85) !important;
+      border-color: rgba(0, 0, 0, 0.06) !important;
+    }
+
+    body.theme-apple [class*="bg-\[\#0"] {
+      background-color: rgba(255, 255, 255, 0.88) !important;
+    }
+    body.theme-apple [class*="bg-black\/"] {
+      background-color: rgba(0, 0, 0, 0.04) !important;
+    }
+    body.theme-apple [class*="border-white\/"] {
+      border-color: rgba(0, 0, 0, 0.08) !important;
+    }
+
+    body.theme-apple .text-white { color: #1D1D1F !important; }
+    body.theme-apple .text-slate-100 { color: #1D1D1F !important; }
+    body.theme-apple .text-slate-200 { color: #333336 !important; }
+    body.theme-apple .text-slate-300 { color: #515154 !important; }
+    body.theme-apple .text-slate-400 { color: #6E6E73 !important; }
+    body.theme-apple .text-slate-500 { color: #86868B !important; }
+
+    body.theme-apple textarea,
+    body.theme-apple input,
+    body.theme-apple select {
+      background: #FFFFFF !important;
+      color: #1D1D1F !important;
+      border-color: rgba(0, 0, 0, 0.12) !important;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    }
+    body.theme-apple textarea::placeholder,
+    body.theme-apple input::placeholder {
+      color: #86868B !important;
+    }
+    body.theme-apple select option {
+      background: #FFFFFF !important;
+      color: #1D1D1F !important;
+    }
+
+    body.theme-apple .markdown-canvas { color: #1D1D1F !important; }
+    body.theme-apple .markdown-canvas h1,
+    body.theme-apple .markdown-canvas h2,
+    body.theme-apple .markdown-canvas h3 {
+      color: #1D1D1F !important;
+      border-color: rgba(0, 0, 0, 0.08) !important;
+    }
+    body.theme-apple .markdown-canvas p,
+    body.theme-apple .markdown-canvas ul,
+    body.theme-apple .markdown-canvas ol { color: #333336 !important; }
+    body.theme-apple .markdown-canvas pre {
+      background: #EFEFF2 !important;
+      color: #1D1D1F !important;
+      border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
+    body.theme-apple .markdown-canvas code {
+      background: rgba(0, 0, 0, 0.05) !important;
+      color: #0071E3 !important;
+    }
+    body.theme-apple .markdown-canvas pre code { background: transparent !important; color: inherit !important; }
+    body.theme-apple .markdown-canvas blockquote {
+      background: rgba(0, 113, 227, 0.05) !important;
+      border-left: 3px solid #0071E3 !important;
+      color: #1D1D1F !important;
+    }
+    body.theme-apple .markdown-canvas th {
+      background: rgba(0, 0, 0, 0.03) !important;
+      color: #1D1D1F !important;
+    }
+    body.theme-apple .markdown-canvas td,
+    body.theme-apple .markdown-canvas th { border-color: rgba(0, 0, 0, 0.08) !important; }
+
+    body.theme-apple #canvas-live-events-list > div {
+      background: #FFFFFF !important;
+      border-color: rgba(0, 0, 0, 0.06) !important;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03) !important;
+    }
+    body.theme-apple #canvas-live-events-list > div span.text-slate-300 { color: #1D1D1F !important; }
+    body.theme-apple #canvas-live-events-list > div span.text-slate-500 { color: #86868B !important; }
+
+    body.theme-apple #mode-switcher-container {
+      background: rgba(0, 0, 0, 0.05) !important;
+      border-color: rgba(0, 0, 0, 0.08) !important;
+    }
+    body.theme-apple #theme-switcher {
+      background: rgba(0, 0, 0, 0.05) !important;
+      border-color: rgba(0, 0, 0, 0.08) !important;
+    }
+    body.theme-apple #modal-memory > div {
+      background: rgba(255, 255, 255, 0.98) !important;
+      border-color: rgba(0, 0, 0, 0.1) !important;
+      box-shadow: 0 24px 70px -12px rgba(0, 0, 0, 0.25) !important;
+    }
+    body.theme-apple #canvas-empty-state div.bg-indigo-500\/10 {
+      background: rgba(0, 113, 227, 0.08) !important;
+      border-color: rgba(0, 113, 227, 0.2) !important;
+      color: #0071E3 !important;
+    }
+    body.theme-apple ::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.16) !important;
+      border-radius: 9999px !important;
+    }
+    body.theme-apple ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 0, 0, 0.28) !important;
+    }
   </style>
 </head>
 <body class="h-screen w-screen overflow-hidden flex flex-col font-sans select-none antialiased">
 
   <!-- 1. 全局极简航行顶栏 (Global Flight Control Header) -->
-  <header class="h-14 bg-[#070A12]/80 border-b border-white/[0.08] px-5 flex items-center justify-between shrink-0 backdrop-blur-2xl z-30">
+  <header class="h-14 bg-[#070A12]/80 border-b border-white/[0.08] px-5 flex items-center justify-between shrink-0 backdrop-blur-2xl z-30 transition-colors duration-200">
     <!-- Brand / Engine Identity -->
     <div class="flex items-center gap-3">
+      <!-- macOS traffic lights (Apple 风格红黄绿视窗圆点) -->
+      <div id="mac-traffic-lights" class="hidden flex items-center gap-1.5 mr-1">
+        <span class="size-3 rounded-full bg-[#FF5F56] border border-black/10 inline-block shadow-xs"></span>
+        <span class="size-3 rounded-full bg-[#FFBD2E] border border-black/10 inline-block shadow-xs"></span>
+        <span class="size-3 rounded-full bg-[#27C93F] border border-black/10 inline-block shadow-xs"></span>
+      </div>
       <div class="relative size-8 rounded-xl bg-gradient-to-tr from-indigo-500 via-indigo-600 to-cyan-400 flex items-center justify-center text-white font-black text-sm shadow-[0_0_16px_rgba(99,102,241,0.5)]">
         U
         <span class="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-emerald-400 border-2 border-[#070A12]"></span>
@@ -166,7 +370,7 @@
     </div>
 
     <!-- Center Segmented Pill Switcher (切换三大核心交互场景) -->
-    <div class="flex items-center p-1 rounded-full bg-[#0D1322] border border-white/[0.08] shadow-inner text-xs font-semibold">
+    <div id="mode-switcher-container" class="flex items-center p-1 rounded-full bg-[#0D1322] border border-white/[0.08] shadow-inner text-xs font-semibold">
       <button onclick="switchStudioMode('studio')" id="mode-btn-studio" class="px-4 py-1.5 rounded-full transition-all text-white bg-indigo-600 shadow-[0_0_12px_rgba(99,102,241,0.4)] flex items-center gap-2">
         <i class="fa-solid fa-wand-magic-sparkles text-[11px]"></i>
         <span>协同指挥舱</span>
@@ -181,13 +385,25 @@
       </button>
     </div>
 
-    <!-- Right Telemetry & Status HUD -->
-    <div class="flex items-center gap-4 text-xs font-mono">
-      <div class="hidden md:flex items-center gap-2 text-slate-400 text-[11px] bg-white/[0.03] border border-white/[0.06] px-3 py-1 rounded-full">
+    <!-- Right Controls: 主题切换 + 遥测状态 HUD -->
+    <div class="flex items-center gap-3 text-xs">
+      <!-- 极客暗黑 vs 苹果极简 主题切换胶囊 -->
+      <div id="theme-switcher" class="flex items-center p-0.5 rounded-full bg-black/40 border border-white/[0.08] text-[11px] font-sans">
+        <button onclick="setTheme('cyber')" id="btn-theme-cyber" class="px-2.5 py-1 rounded-full text-white bg-indigo-600 shadow-[0_0_12px_rgba(99,102,241,0.4)] flex items-center gap-1.5 font-bold transition">
+          <i class="fa-solid fa-moon text-[10px]"></i>
+          <span>极客暗黑</span>
+        </button>
+        <button onclick="setTheme('apple')" id="btn-theme-apple" class="px-2.5 py-1 rounded-full text-slate-400 hover:text-white flex items-center gap-1.5 font-medium transition">
+          <i class="fa-brands fa-apple text-[12px]"></i>
+          <span>苹果极简</span>
+        </button>
+      </div>
+
+      <div class="hidden md:flex items-center gap-2 text-slate-400 text-[11px] font-mono bg-white/[0.03] border border-white/[0.06] px-3 py-1 rounded-full">
         <span class="size-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399] animate-pulse"></span>
         <span>Node: 8200 Active</span>
         <span class="text-slate-600">|</span>
-        <span class="text-indigo-400">SSE Stream Ready</span>
+        <span class="text-indigo-400">SSE Ready</span>
       </div>
       <button onclick="fetchTasks()" title="同步状态" class="size-8 rounded-full bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:text-white text-slate-400 flex items-center justify-center transition">
         <i class="fa-solid fa-rotate-right text-xs"></i>
@@ -612,19 +828,82 @@
       if (indicator) indicator.classList.add('hidden');
     }
 
-    // 顶栏主场景切换 (Studio / Swarm / Cortex)
-    function switchStudioMode(mode) {
+    // 双主题体系 (极客暗黑 Cyber Dark vs 苹果极简 Apple Light)
+    let currentTheme = 'cyber';
+    let currentMode = 'studio';
+    let currentCanvasTab = 'trace';
+
+    function setTheme(theme) {
+      currentTheme = theme;
+      localStorage.setItem('uloo_theme', theme);
+
+      const trafficLights = document.getElementById('mac-traffic-lights');
+      const btnCyber = document.getElementById('btn-theme-cyber');
+      const btnApple = document.getElementById('btn-theme-apple');
+
+      if (theme === 'apple') {
+        document.body.classList.remove('theme-cyber');
+        document.body.classList.add('theme-apple');
+        if (trafficLights) {
+          trafficLights.classList.remove('hidden');
+          trafficLights.classList.add('flex');
+        }
+        if (btnApple) {
+          btnApple.className = "px-2.5 py-1 rounded-full text-white bg-[#0071E3] shadow-sm flex items-center gap-1.5 font-bold transition";
+        }
+        if (btnCyber) {
+          btnCyber.className = "px-2.5 py-1 rounded-full text-slate-500 hover:text-slate-800 flex items-center gap-1.5 font-medium transition";
+        }
+      } else {
+        document.body.classList.remove('theme-apple');
+        document.body.classList.add('theme-cyber');
+        if (trafficLights) {
+          trafficLights.classList.add('hidden');
+          trafficLights.classList.remove('flex');
+        }
+        if (btnCyber) {
+          btnCyber.className = "px-2.5 py-1 rounded-full text-white bg-indigo-600 shadow-[0_0_12px_rgba(99,102,241,0.4)] flex items-center gap-1.5 font-bold transition";
+        }
+        if (btnApple) {
+          btnApple.className = "px-2.5 py-1 rounded-full text-slate-400 hover:text-white flex items-center gap-1.5 font-medium transition";
+        }
+      }
+
+      renderStudioModeButtons();
+      switchCanvasTab(currentCanvasTab);
+    }
+
+    function renderStudioModeButtons() {
       ['studio', 'swarm', 'cortex'].forEach(m => {
         const btn = document.getElementById(`mode-btn-${m}`);
-        const view = document.getElementById(`view-${m}`);
-        if (m === mode) {
-          btn.className = "px-4 py-1.5 rounded-full transition-all text-white bg-indigo-600 shadow-[0_0_12px_rgba(99,102,241,0.4)] flex items-center gap-2";
-          view.classList.remove('hidden');
+        if (!btn) return;
+        if (m === currentMode) {
+          if (currentTheme === 'apple') {
+            btn.className = "px-4 py-1.5 rounded-full transition-all text-white bg-[#0071E3] shadow-sm flex items-center gap-2";
+          } else {
+            btn.className = "px-4 py-1.5 rounded-full transition-all text-white bg-indigo-600 shadow-[0_0_12px_rgba(99,102,241,0.4)] flex items-center gap-2";
+          }
         } else {
-          btn.className = "px-4 py-1.5 rounded-full transition-all text-slate-400 hover:text-white flex items-center gap-2";
-          view.classList.add('hidden');
+          if (currentTheme === 'apple') {
+            btn.className = "px-4 py-1.5 rounded-full transition-all text-slate-500 hover:text-slate-900 flex items-center gap-2";
+          } else {
+            btn.className = "px-4 py-1.5 rounded-full transition-all text-slate-400 hover:text-white flex items-center gap-2";
+          }
         }
       });
+    }
+
+    // 顶栏主场景切换 (Studio / Swarm / Cortex)
+    function switchStudioMode(mode) {
+      currentMode = mode;
+      ['studio', 'swarm', 'cortex'].forEach(m => {
+        const view = document.getElementById(`view-${m}`);
+        if (view) {
+          if (m === mode) view.classList.remove('hidden');
+          else view.classList.add('hidden');
+        }
+      });
+      renderStudioModeButtons();
 
       if (mode === 'studio') fetchTasks();
       if (mode === 'swarm') fetchSwarmData();
@@ -633,19 +912,30 @@
 
     // 画布子 Tab 切换 (实时推演 vs 成果报告)
     function switchCanvasTab(tab) {
+      currentCanvasTab = tab;
       const traceTab = document.getElementById('canvas-tab-trace');
       const delTab = document.getElementById('canvas-tab-deliverable');
       const tracePane = document.getElementById('canvas-pane-trace');
       const delPane = document.getElementById('canvas-pane-deliverable');
 
+      if (!traceTab || !delTab || !tracePane || !delPane) return;
+
       if (tab === 'trace') {
-        traceTab.className = "py-3 border-b-2 border-indigo-500 text-white flex items-center gap-2 transition";
-        delTab.className = "py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition";
+        traceTab.className = currentTheme === 'apple'
+          ? "py-3 border-b-2 border-[#0071E3] text-[#0071E3] font-bold flex items-center gap-2 transition"
+          : "py-3 border-b-2 border-indigo-500 text-white flex items-center gap-2 transition";
+        delTab.className = currentTheme === 'apple'
+          ? "py-3 border-b-2 border-transparent text-[#6E6E73] hover:text-[#1D1D1F] flex items-center gap-2 transition"
+          : "py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition";
         tracePane.classList.remove('hidden');
         delPane.classList.add('hidden');
       } else {
-        traceTab.className = "py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition";
-        delTab.className = "py-3 border-b-2 border-indigo-500 text-white flex items-center gap-2 transition";
+        traceTab.className = currentTheme === 'apple'
+          ? "py-3 border-b-2 border-transparent text-[#6E6E73] hover:text-[#1D1D1F] flex items-center gap-2 transition"
+          : "py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 transition";
+        delTab.className = currentTheme === 'apple'
+          ? "py-3 border-b-2 border-[#0071E3] text-[#0071E3] font-bold flex items-center gap-2 transition"
+          : "py-3 border-b-2 border-indigo-500 text-white flex items-center gap-2 transition";
         tracePane.classList.add('hidden');
         delPane.classList.remove('hidden');
       }
@@ -1466,7 +1756,9 @@
       }
     }
 
-    // 初始启动执行
+    // 初始启动执行 (读取持久化主题偏好，默认极客暗黑)
+    const savedTheme = localStorage.getItem('uloo_theme') || 'cyber';
+    setTheme(savedTheme);
     loadTeamsToSelect();
     fetchTasks();
   </script>
