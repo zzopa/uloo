@@ -476,7 +476,7 @@
       <div class="flex items-baseline gap-2">
         <span class="font-extrabold text-sm tracking-wider text-white">ULOO</span>
         <span class="text-[10px] font-mono tracking-widest text-slate-400 uppercase">Synergy Studio</span>
-        <span class="font-mono text-[9px] bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-2 py-0.5 rounded-full ml-1 font-bold">v0.2.3 · 逐行推演流增强版</span>
+        <span class="font-mono text-[9px] bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-2 py-0.5 rounded-full ml-1 font-bold">v0.2.4 · 团队岗位矩阵配置版</span>
       </div>
     </div>
 
@@ -487,8 +487,8 @@
         <span>协同指挥舱</span>
       </button>
       <button onclick="switchStudioMode('swarm')" id="mode-btn-swarm" class="px-4 py-1.5 rounded-full transition-all text-slate-400 hover:text-white flex items-center gap-2">
-        <i class="fa-solid fa-network-wired text-[11px]"></i>
-        <span>智能体集群拓扑</span>
+        <i class="fa-solid fa-users-gear text-[11px]"></i>
+        <span>团队与岗位配置</span>
       </button>
       <button onclick="switchStudioMode('cortex')" id="mode-btn-cortex" class="px-4 py-1.5 rounded-full transition-all text-slate-400 hover:text-white flex items-center gap-2">
         <i class="fa-solid fa-brain text-[11px]"></i>
@@ -544,12 +544,16 @@
 
           <!-- Prompt Controls Strip -->
           <div class="pt-2 flex items-center justify-between gap-2 border-t border-white/[0.05]">
-            <!-- Team Selector Dropdown -->
+            <!-- Team Selector Dropdown & Post Config Shortcut -->
             <div class="flex items-center gap-1.5 min-w-0">
               <i class="fa-solid fa-users-gear text-indigo-400 text-xs shrink-0"></i>
-              <select id="prompt-team-select" class="bg-black/50 border border-white/[0.08] text-slate-200 text-[11px] rounded-lg px-2 py-1 outline-none font-medium truncate max-w-[170px]">
+              <select id="prompt-team-select" class="bg-black/50 border border-white/[0.08] text-slate-200 text-[11px] rounded-lg px-2 py-1 outline-none font-medium truncate max-w-[160px]">
                 <option value="" disabled selected>选择协同团队...</option>
               </select>
+              <button type="button" onclick="switchStudioMode('swarm')" class="px-2 py-1 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 hover:text-white hover:bg-indigo-600/30 text-[10px] font-medium flex items-center gap-1 transition shrink-0" title="打开团队岗位配置界面">
+                <i class="fa-solid fa-sliders text-[9px]"></i>
+                <span>配置岗位</span>
+              </button>
             </div>
 
             <!-- Launch Button -->
@@ -984,36 +988,92 @@
 
   </main>
 
-  <!-- 3. 主场景 2: 智能体集群拓扑 (Swarm Topology View) -->
+  <!-- 3. 主场景 2: 智能体团队与岗位编排配置 (Team & Post Matrix Studio) -->
   <section id="view-swarm" class="flex-1 overflow-y-auto p-8 space-y-6 studio-grid hidden">
     <div class="max-w-6xl mx-auto space-y-6">
       
-      <!-- 拓扑头部说明 -->
-      <div class="studio-panel p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h2 class="text-base font-bold text-white flex items-center gap-2.5">
-            <i class="fa-solid fa-network-wired text-indigo-400"></i>
-            <span>多智能体协同蜂群 (Multi-Agent Swarm Topology)</span>
-          </h2>
-          <p class="text-xs text-slate-400 mt-1">每个团队由领域专家与核验监督角色构成，具备独立模型分配、沙箱调用与记忆关联能力。</p>
+      <!-- 1. 顶部控制栏: 标题 + 当前团队切换 + 一键保存 -->
+      <div class="studio-panel p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-white/[0.08] shadow-2xl">
+        <div class="flex items-center gap-3.5">
+          <div class="size-11 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center font-bold text-lg shadow-[0_0_15px_rgba(99,102,241,0.3)]">
+            <i class="fa-solid fa-users-gear"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-bold text-white">智能体团队与岗位编排配置</h2>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-semibold">可视化可调配</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">清晰展现团队协同分工与岗位架构。支持将当前 4 大核心智能体灵活指派至不同业务岗位，保存后实时同步生效。</p>
+          </div>
         </div>
-        <div class="flex items-center gap-2 text-xs font-mono">
-          <span class="px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">模式: 协同编排 (Agno)</span>
+
+        <div class="flex items-center gap-3 flex-wrap">
+          <!-- 团队切换下拉 -->
+          <div class="flex items-center gap-2 bg-black/50 border border-white/[0.1] rounded-xl px-3 py-1.5 shadow-inner">
+            <span class="text-[11px] text-slate-400 font-medium shrink-0">当前配置团队:</span>
+            <select id="matrix-team-selector" onchange="onMatrixTeamSelected()" class="bg-transparent text-xs text-indigo-300 font-bold outline-none cursor-pointer">
+              <!-- 动态团队选项 -->
+            </select>
+          </div>
+
+          <!-- 保存岗位配置按钮 -->
+          <button onclick="saveTeamMatrixConfig()" id="btn-save-matrix" class="studio-launch-btn px-4 py-2 rounded-xl text-white text-xs font-semibold flex items-center gap-2 shadow-lg active:scale-95 transition">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span>保存岗位编排</span>
+          </button>
         </div>
       </div>
 
-      <!-- 团队卡片列表 -->
-      <div id="swarm-teams-container" class="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div class="col-span-full text-center py-12 text-slate-500 text-xs">正在加载集群团队...</div>
+      <!-- 2. 当前团队画像与模式卡片 (Team Header Card) -->
+      <div class="studio-panel p-5 rounded-2xl border border-white/[0.08] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="space-y-1.5">
+          <div class="flex items-center gap-2.5">
+            <span id="matrix-team-name" class="font-bold text-white text-sm">--</span>
+            <span id="matrix-team-mode-badge" class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-semibold">模式: coordinate</span>
+            <span id="matrix-team-key" class="text-[10px] font-mono text-slate-500">key: --</span>
+          </div>
+          <p id="matrix-team-desc" class="text-xs text-slate-400 leading-relaxed max-w-3xl">--</p>
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+          <button onclick="addNewRolePost()" class="studio-pill-btn px-3 py-1.5 rounded-xl text-indigo-300 hover:text-white text-xs flex items-center gap-1.5 font-medium transition">
+            <i class="fa-solid fa-plus text-[10px]"></i>
+            <span>新增业务岗位</span>
+          </button>
+          <button onclick="resetMatrixToDefault()" class="studio-pill-btn px-3 py-1.5 rounded-xl text-slate-400 hover:text-slate-200 text-xs flex items-center gap-1.5 transition" title="一键装配 4 智能体标准全职流水线">
+            <i class="fa-solid fa-wand-magic-sparkles text-[10px] text-amber-400"></i>
+            <span>一键装配 4 岗位推荐</span>
+          </button>
+        </div>
       </div>
 
-      <!-- 智能体岗位库矩阵 -->
-      <div class="studio-panel p-6 rounded-2xl space-y-4">
-        <h3 class="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2">
-          <i class="fa-solid fa-robot text-cyan-400"></i> 智能体专业岗位库 (Agent Roster)
-        </h3>
-        <div id="swarm-agents-container" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <!-- 动态智能体卡片 -->
+      <!-- 3. 岗位与智能体绑定矩阵 (Posts & Roles Matrix List) -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between text-xs px-1">
+          <span class="text-slate-300 flex items-center gap-2 font-mono uppercase tracking-wider text-[11px] font-bold">
+            <i class="fa-solid fa-sitemap text-indigo-400"></i>
+            <span>团队协同岗位编制与委派矩阵 (Team Posts & Assigned Agents)</span>
+          </span>
+          <span class="text-slate-400 text-[11px] font-mono">编制总岗位: <span id="matrix-post-count" class="text-indigo-300 font-bold">0</span> 个 (执行时将按此顺序展开流水线)</span>
+        </div>
+
+        <!-- 动态岗位列表卡片容器 -->
+        <div id="matrix-posts-container" class="space-y-3">
+          <!-- 动态渲染每个岗位的配置卡片 -->
+        </div>
+      </div>
+
+      <!-- 4. 4 大核心智能体实体档案库 (Available Agents Roster) -->
+      <div class="studio-panel p-6 rounded-2xl space-y-4 border border-white/[0.08]">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2">
+            <i class="fa-solid fa-robot text-cyan-400"></i>
+            <span>4 大核心智能体专家池 (Available 4-Agent Specialist Pool)</span>
+          </h3>
+          <span class="text-[10px] text-slate-400 font-mono">各专家均支持挂载互联网检索与事实核验能力</span>
+        </div>
+        <div id="matrix-agents-roster" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- 动态渲染 4 大智能体实体卡片 -->
         </div>
       </div>
 
@@ -2287,9 +2347,49 @@
     }
 
     // 智能体蜂群拓扑数据加载
+    // ==========================================
+    // 智能体团队与岗位编排配置中心 (Team & Post Matrix Studio)
+    // ==========================================
+    let currentMatrixTeamId = null;
+    let currentMatrixPosts = []; // [{ id, title, duty, agentId, isLeader }]
+
+    // 4 大核心智能体标杆定义
+    const CORE_AGENTS_DEFINITION = [
+      {
+        id: '58044a93-1df2-42cf-be6a-efeab72a047e',
+        tag: '情报挖掘',
+        badgeColor: 'border-cyan-500/30 text-cyan-300 bg-cyan-500/10',
+        icon: 'fa-solid fa-satellite-dish',
+        presetTitle: '互联网信息检索专员',
+        presetDuty: '负责全网公开信息多维调研、突发事件跟踪与民间热点言论检索'
+      },
+      {
+        id: 'b8686f2c-2155-4f7a-acd1-7c869fb93f08',
+        tag: '独立审验',
+        badgeColor: 'border-amber-500/30 text-amber-300 bg-amber-500/10',
+        icon: 'fa-solid fa-shield-halved',
+        presetTitle: '事实与信源核验员',
+        presetDuty: '负责国家权威法规标准比对、剔除自媒体营销号与防幻觉审查'
+      },
+      {
+        id: '2e1f82e4-d304-4544-a23e-3f4b80bbd6a4',
+        tag: '逻辑分析',
+        badgeColor: 'border-indigo-500/30 text-indigo-300 bg-indigo-500/10',
+        icon: 'fa-solid fa-chart-line',
+        presetTitle: '业务逻辑与数据分析师',
+        presetDuty: '负责深度业务拆解、定量指标推演与数据一致性交叉验证'
+      },
+      {
+        id: 'd4e855e7-5b09-44bf-bff3-af0a263a2bfe',
+        tag: '研报统筹',
+        badgeColor: 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10',
+        icon: 'fa-solid fa-file-signature',
+        presetTitle: '终审主编与研报统筹员',
+        presetDuty: '负责各成员成果汇聚合流、逻辑研判与最终高规格决策研报交付'
+      }
+    ];
+
     async function fetchSwarmData() {
-      const teamsContainer = document.getElementById('swarm-teams-container');
-      const agentsContainer = document.getElementById('swarm-agents-container');
       try {
         const [teamsData, agentsData] = await Promise.all([
           apiRequest('/teams?limit=50'),
@@ -2298,40 +2398,341 @@
         cachedTeams = teamsData.items || [];
         cachedAgents = agentsData.items || [];
 
-        teamsContainer.innerHTML = cachedTeams.map(t => `
-          <div class="studio-panel p-6 rounded-2xl space-y-4">
-            <div class="flex items-center justify-between">
-              <h3 class="font-bold text-white text-base">${t.name}</h3>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-mono">模式: ${t.mode}</span>
+        // 默认选中互联网调研团队（或第一个团队）
+        if (!currentMatrixTeamId && cachedTeams.length > 0) {
+          const pref = cachedTeams.find(t => t.name.includes('Internet') || t.key.includes('market') || t.name.includes('调研'));
+          currentMatrixTeamId = pref ? pref.id : cachedTeams[0].id;
+        }
+
+        renderMatrixTeamSelector();
+        loadMatrixForTeam(currentMatrixTeamId);
+        renderCoreAgentsRoster();
+      } catch (err) {
+        console.error('加载团队与岗位矩阵失败:', err);
+      }
+    }
+
+    function renderMatrixTeamSelector() {
+      const select = document.getElementById('matrix-team-selector');
+      if (!select) return;
+      select.innerHTML = cachedTeams.map(t => `
+        <option value="${t.id}" ${t.id === currentMatrixTeamId ? 'selected' : ''}>
+          ${t.name} (${t.mode})
+        </option>
+      `).join('');
+    }
+
+    function onMatrixTeamSelected() {
+      const select = document.getElementById('matrix-team-selector');
+      if (select) {
+        currentMatrixTeamId = select.value;
+        loadMatrixForTeam(currentMatrixTeamId);
+      }
+    }
+
+    function loadMatrixForTeam(teamId) {
+      const team = cachedTeams.find(t => t.id === teamId);
+      if (!team) return;
+
+      // 更新团队头部说明卡片
+      const nameEl = document.getElementById('matrix-team-name');
+      const keyEl = document.getElementById('matrix-team-key');
+      const modeEl = document.getElementById('matrix-team-mode-badge');
+      const descEl = document.getElementById('matrix-team-desc');
+      if (nameEl) nameEl.innerText = team.name;
+      if (keyEl) keyEl.innerText = `key: ${team.key}`;
+      if (modeEl) modeEl.innerText = `模式: ${team.mode}`;
+      if (descEl) descEl.innerText = team.description || '多智能体协同流水线编排团队';
+
+      // 构建岗位列表
+      const memberIds = team.member_agent_ids || [];
+      const leaderId = team.leader_agent_id || memberIds[0];
+
+      currentMatrixPosts = memberIds.map((aid, idx) => {
+        const ag = cachedAgents.find(a => a.id === aid);
+        const coreDef = CORE_AGENTS_DEFINITION.find(c => c.id === aid);
+        const title = coreDef?.presetTitle || ag?.name || `协同业务岗位 ${idx + 1}`;
+        const duty = coreDef?.presetDuty || ag?.role || '负责该阶段专项子任务推进与推演成果交付';
+        return {
+          id: `post-${idx + 1}`,
+          title: title,
+          duty: duty,
+          agentId: aid,
+          isLeader: aid === leaderId
+        };
+      });
+
+      renderMatrixPosts();
+    }
+
+    function renderMatrixPosts() {
+      const container = document.getElementById('matrix-posts-container');
+      const countEl = document.getElementById('matrix-post-count');
+      if (countEl) countEl.innerText = currentMatrixPosts.length;
+      if (!container) return;
+
+      if (!currentMatrixPosts || currentMatrixPosts.length === 0) {
+        container.innerHTML = `
+          <div class="studio-panel border-dashed border-white/[0.1] p-12 text-center text-slate-500 text-xs">
+            当前团队尚未编制岗位，点击右上角【新增业务岗位】或【一键装配 4 岗位推荐】
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = currentMatrixPosts.map((post, idx) => {
+        const currentAgent = cachedAgents.find(a => a.id === post.agentId);
+        const toolBadge = (currentAgent?.tool_refs && currentAgent.tool_refs.length > 0)
+          ? `<span class="px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 font-mono text-[10px]"><i class="fa-solid fa-satellite-dish text-[9px] mr-1"></i>具备联网检索能力</span>`
+          : `<span class="px-2 py-0.5 rounded bg-slate-500/10 border border-slate-500/20 text-slate-400 font-mono text-[10px]">基础模型直接推理</span>`;
+
+        // 构造智能体选择器选项
+        const agentOptionsHtml = cachedAgents.map(ag => {
+          const isCore = CORE_AGENTS_DEFINITION.some(c => c.id === ag.id);
+          const star = isCore ? '★ ' : '';
+          return `<option value="${ag.id}" ${ag.id === post.agentId ? 'selected' : ''}>${star}${ag.name} (${ag.role ? ag.role.substring(0, 16) + '...' : '智能体'})</option>`;
+        }).join('');
+
+        return `
+          <div class="studio-panel p-4 rounded-2xl border border-white/[0.08] hover:border-indigo-500/40 transition-all space-y-3">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+              <!-- 岗位定义 -->
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <div class="size-9 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 flex items-center justify-center font-bold text-xs shrink-0 font-mono">
+                  #${idx + 1}
+                </div>
+                <div class="flex-1 min-w-0 space-y-1">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <input type="text" value="${post.title}" onchange="onPostTitleChanged(${idx}, this.value)" class="font-bold text-white text-xs bg-black/40 border border-white/[0.1] rounded-lg px-2.5 py-1 focus:border-indigo-500 outline-none w-52" placeholder="岗位名称" />
+                    ${post.isLeader ? '<span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold flex items-center gap-1 shrink-0"><i class="fa-solid fa-crown text-[9px]"></i>主控领队 (Leader)</span>' : ''}
+                  </div>
+                  <input type="text" value="${post.duty}" onchange="onPostDutyChanged(${idx}, this.value)" class="text-[11px] text-slate-400 bg-transparent border-b border-transparent hover:border-white/[0.1] focus:border-indigo-500/40 outline-none w-full max-w-xl truncate leading-normal" placeholder="岗位职责描述..." />
+                </div>
+              </div>
+
+              <!-- 岗位委派智能体下拉 -->
+              <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end shrink-0">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-slate-400 shrink-0 font-medium font-sans">委派智能体:</span>
+                  <select onchange="onPostAgentChanged(${idx}, this.value)" class="bg-[#0E1526] border border-indigo-500/30 text-indigo-200 text-xs rounded-xl px-3 py-1.5 outline-none font-semibold focus:ring-2 focus:ring-indigo-500/40 transition cursor-pointer max-w-[220px] truncate">
+                    ${agentOptionsHtml}
+                  </select>
+                </div>
+
+                <div class="flex items-center gap-1.5 shrink-0">
+                  <button type="button" onclick="setPostAsLeader(${idx})" class="px-2.5 py-1.5 rounded-xl text-xs font-medium ${post.isLeader ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-amber-300 hover:bg-white/[0.05]'} transition flex items-center gap-1" title="设为此团队主控领队">
+                    <i class="fa-solid fa-crown text-[10px]"></i>
+                    <span class="text-[10px]">设为领队</span>
+                  </button>
+                  <button type="button" onclick="removeRolePost(${idx})" class="px-2 py-1.5 rounded-xl text-xs text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition" title="移除此岗位">
+                    <i class="fa-solid fa-trash-can text-[10px]"></i>
+                  </button>
+                </div>
+              </div>
             </div>
-            <p class="text-xs text-slate-400 leading-relaxed">${t.description || '暂无描述'}</p>
-            <div class="bg-black/30 p-3 rounded-xl border border-white/[0.05] text-xs text-slate-300 space-y-1">
-              <span class="text-[10px] font-mono text-slate-500 uppercase">调度约束:</span>
-              <ul class="list-disc list-inside text-[11px] text-slate-400 space-y-0.5">
-                ${(t.instructions || []).map(ins => `<li>${ins}</li>`).join('')}
-              </ul>
+
+            <!-- 岗位挂载能力条 -->
+            <div class="pt-2 border-t border-white/[0.04] flex items-center justify-between text-[11px] flex-wrap gap-2">
+              <div class="flex items-center gap-2">
+                <span class="text-slate-500 font-mono text-[10px]">智能体能力:</span>
+                ${toolBadge}
+                <span class="px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-purple-300 font-mono text-[10px]">${currentAgent?.model_ref || 'DeepSeek-V3.1'}</span>
+              </div>
+              <span class="text-emerald-400 text-[10px] flex items-center gap-1 font-mono">
+                <span class="size-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 岗位状态: 正常履职中
+              </span>
             </div>
           </div>
-        `).join('');
+        `;
+      }).join('');
+    }
 
-        agentsContainer.innerHTML = cachedAgents.map(ag => `
-          <div class="interactive-card p-5 rounded-2xl space-y-3 flex flex-col justify-between">
+    function onPostAgentChanged(idx, agentId) {
+      if (currentMatrixPosts[idx]) {
+        currentMatrixPosts[idx].agentId = agentId;
+        const coreDef = CORE_AGENTS_DEFINITION.find(c => c.id === agentId);
+        const ag = cachedAgents.find(a => a.id === agentId);
+        if (coreDef) {
+          currentMatrixPosts[idx].title = coreDef.presetTitle;
+          currentMatrixPosts[idx].duty = coreDef.presetDuty;
+        } else if (ag) {
+          currentMatrixPosts[idx].title = ag.name;
+          currentMatrixPosts[idx].duty = ag.role || '负责该阶段专项子任务推进';
+        }
+        renderMatrixPosts();
+        renderCoreAgentsRoster();
+      }
+    }
+
+    function onPostTitleChanged(idx, val) {
+      if (currentMatrixPosts[idx]) currentMatrixPosts[idx].title = val;
+    }
+
+    function onPostDutyChanged(idx, val) {
+      if (currentMatrixPosts[idx]) currentMatrixPosts[idx].duty = val;
+    }
+
+    function setPostAsLeader(idx) {
+      currentMatrixPosts.forEach((p, i) => {
+        p.isLeader = (i === idx);
+      });
+      renderMatrixPosts();
+    }
+
+    function addNewRolePost() {
+      // 找出当前未分配或任一核心智能体
+      const assignedIds = new Set(currentMatrixPosts.map(p => p.agentId));
+      const unassigned = CORE_AGENTS_DEFINITION.find(c => !assignedIds.has(c.id)) || CORE_AGENTS_DEFINITION[0];
+      const nextIdx = currentMatrixPosts.length + 1;
+
+      currentMatrixPosts.push({
+        id: `post-${nextIdx}`,
+        title: unassigned.presetTitle,
+        duty: unassigned.presetDuty,
+        agentId: unassigned.id,
+        isLeader: currentMatrixPosts.length === 0
+      });
+      renderMatrixPosts();
+      renderCoreAgentsRoster();
+    }
+
+    function removeRolePost(idx) {
+      if (currentMatrixPosts.length <= 1) {
+        alert('团队至少需要保留 1 个协同岗位');
+        return;
+      }
+      const wasLeader = currentMatrixPosts[idx]?.isLeader;
+      currentMatrixPosts.splice(idx, 1);
+      if (wasLeader && currentMatrixPosts.length > 0) {
+        currentMatrixPosts[0].isLeader = true;
+      }
+      renderMatrixPosts();
+      renderCoreAgentsRoster();
+    }
+
+    function resetMatrixToDefault() {
+      // 一键装配 4 智能体标准全职矩阵
+      currentMatrixPosts = CORE_AGENTS_DEFINITION.map((core, i) => ({
+        id: `post-${i + 1}`,
+        title: core.presetTitle,
+        duty: core.presetDuty,
+        agentId: core.id,
+        isLeader: i === 0
+      }));
+      renderMatrixPosts();
+      renderCoreAgentsRoster();
+    }
+
+    function renderCoreAgentsRoster() {
+      const container = document.getElementById('matrix-agents-roster');
+      if (!container) return;
+
+      container.innerHTML = CORE_AGENTS_DEFINITION.map(core => {
+        const ag = cachedAgents.find(a => a.id === core.id);
+        const assignedPost = currentMatrixPosts.find(p => p.agentId === core.id);
+        const isAssigned = !!assignedPost;
+
+        return `
+          <div class="interactive-card p-4 rounded-2xl space-y-3 flex flex-col justify-between border ${isAssigned ? 'border-indigo-500/50 bg-indigo-950/20' : 'border-white/[0.08]'}">
             <div class="space-y-2">
               <div class="flex items-center justify-between">
-                <span class="font-bold text-xs text-white">${ag.name}</span>
-                <span class="text-[9px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">就绪</span>
+                <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                  <i class="${core.icon} text-indigo-400 text-[11px]"></i>
+                  <span>${ag?.name || core.presetTitle}</span>
+                </span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full font-mono ${core.badgeColor}">${core.tag}</span>
               </div>
-              <div class="text-[11px] text-indigo-400 font-medium">职责: ${ag.role || '执行岗位'}</div>
-              <p class="text-[11px] text-slate-400 line-clamp-2">${ag.instructions?.[0] || '自主检索与核验'}</p>
+              <p class="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">${core.presetDuty}</p>
             </div>
-            <div class="pt-2.5 border-t border-white/[0.05] flex items-center justify-between text-[10px] text-slate-500 font-mono">
-              <span>模型: ${ag.model_ref || '默认'}</span>
-              <span>工具: ${ag.tool_refs?.length || 0} 个</span>
+
+            <div class="space-y-2 pt-2 border-t border-white/[0.05]">
+              <div class="flex items-center justify-between text-[10px] font-mono">
+                <span class="text-slate-500">网络工具:</span>
+                <span class="text-cyan-300 font-semibold"><i class="fa-solid fa-check text-[9px] mr-1"></i>web-search</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-mono ${isAssigned ? 'text-emerald-400 font-bold' : 'text-slate-500'}">
+                  ${isAssigned ? `<i class="fa-solid fa-circle-check text-[9px] mr-1"></i>已委派: ${assignedPost.title.substring(0, 8)}` : '空闲未委派'}
+                </span>
+                <button type="button" onclick="quickAssignAgentToTeam('${core.id}')" class="text-[10px] px-2 py-1 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 hover:text-white hover:bg-indigo-600 transition">
+                  ${isAssigned ? '重设岗位' : '+ 委派此智能体'}
+                </button>
+              </div>
             </div>
           </div>
-        `).join('');
+        `;
+      }).join('');
+    }
+
+    function quickAssignAgentToTeam(agentId) {
+      const coreDef = CORE_AGENTS_DEFINITION.find(c => c.id === agentId);
+      if (!coreDef) return;
+      const existing = currentMatrixPosts.find(p => p.agentId === agentId);
+      if (existing) {
+        alert(`智能体【${coreDef.presetTitle}】当前已委派给岗位【${existing.title}】`);
+        return;
+      }
+      currentMatrixPosts.push({
+        id: `post-${currentMatrixPosts.length + 1}`,
+        title: coreDef.presetTitle,
+        duty: coreDef.presetDuty,
+        agentId: coreDef.id,
+        isLeader: currentMatrixPosts.length === 0
+      });
+      renderMatrixPosts();
+      renderCoreAgentsRoster();
+    }
+
+    async function saveTeamMatrixConfig() {
+      const team = cachedTeams.find(t => t.id === currentMatrixTeamId);
+      if (!team) return;
+
+      if (!currentMatrixPosts || currentMatrixPosts.length === 0) {
+        alert('请至少配置 1 个岗位');
+        return;
+      }
+
+      const btn = document.getElementById('btn-save-matrix');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>正在保存...</span>`;
+
+      try {
+        const memberIds = currentMatrixPosts.map(p => p.agentId);
+        const leaderPost = currentMatrixPosts.find(p => p.isLeader);
+        const leaderId = leaderPost ? leaderPost.agentId : memberIds[0];
+
+        const patchBody = {
+          member_agent_ids: memberIds,
+          leader_agent_id: leaderId,
+          expected_version: team.version
+        };
+
+        const updated = await apiRequest(`/teams/${team.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(patchBody)
+        });
+
+        // 更新本地缓存
+        team.version = updated.version;
+        team.member_agent_ids = updated.member_agent_ids;
+        team.leader_agent_id = updated.leader_agent_id;
+
+        const idx = cachedTeams.findIndex(t => t.id === team.id);
+        if (idx !== -1) cachedTeams[idx] = updated;
+
+        // 重新同步指挥舱团队选择器
+        populateTeamSelector();
+
+        alert(`✅ 岗位编排配置已保存！\n\n已成功为团队【${team.name}】指派 ${memberIds.length} 个智能体岗位：\n` +
+          currentMatrixPosts.map((p, i) => `  ${i + 1}. ${p.title} (${p.isLeader ? '主控领队' : '协同成员'})`).join('\n') +
+          `\n\n下次在协同指挥舱发起任务时，流水线将严格按照此岗位架构展开！`
+        );
       } catch (err) {
-        console.error('加载拓扑失败:', err);
+        alert('保存岗位编排失败: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
       }
     }
 
