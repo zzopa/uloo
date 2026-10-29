@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import json
 import re
 import uuid
@@ -11,11 +12,13 @@ import uuid
 from agno.agent import Agent
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from ..config import settings
 from ..logging import get_logger
 from ..models.memory import MemoryItem
+from .live_events import emit_live_event
 from .models import ModelRegistry
 
 logger = get_logger(__name__)
@@ -227,3 +230,233 @@ async def distill_run_memories(
     except Exception as exc:
         logger.warning("wiki_distillation_error", run_id=str(run_id), error=str(exc))
         return []
+
+
+_tool_engine = None
+_tool_session_factory = None
+
+
+def _get_tool_session_factory() -> async_sessionmaker[AsyncSession]:
+    """Provide a thread-safe connection pool with NullPool so worker threads don't collide on asyncpg loops."""
+    global _tool_engine, _tool_session_factory
+    if _tool_session_factory is None:
+        _tool_engine = create_async_engine(
+            settings.database_url,
+            poolclass=NullPool,
+            connect_args={"server_settings": {"search_path": settings.db_schema}},
+        )
+        _tool_session_factory = async_sessionmaker(
+            _tool_engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+        )
+    return _tool_session_factory
+
+
+def _run_async_in_thread(coro):
+    """Run an async coroutine safely inside a worker thread, preventing event loop collisions."""
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(lambda: asyncio.run(coro)).result()
+
+
+async def _resolve_workspace_uuid(workspace_id: str | uuid.UUID | None, db: AsyncSession) -> uuid.UUID:
+    """Resolve workspace UUID from explicit parameter, context, or database fallback."""
+    if workspace_id:
+        if isinstance(workspace_id, uuid.UUID):
+            return workspace_id
+        try:
+            return uuid.UUID(str(workspace_id).strip())
+        except (ValueError, TypeError):
+            pass
+
+    existing_ws = await db.scalar(select(MemoryItem.workspace_id).limit(1))
+    if existing_ws:
+        return existing_ws
+
+    return uuid.UUID("39dc2f4f-2dc3-4cc5-af5f-daad8ee83b6b")
+
+
+def wiki_memory(
+    action: str,
+    query: str = "",
+    content: str = "",
+    category: str = "fact",
+    keywords: str = "",
+    workspace_id: str | uuid.UUID | None = None,
+) -> str:
+    """Query or persist entity facts, user preferences, and execution guidelines in the workspace Long-Term Memory (LLM-Wiki).
+
+    Args:
+        action: Either 'query' (search historical memories) or 'save' (persist a new confirmed memory entry).
+        query: Search keywords or topic for action='query' (e.g. '张三 行业资质' or '报告排版偏好').
+        content: Memory content to persist for action='save' (must be substantive, 1-2 concise sentences containing subject name).
+        category: Category of memory: 'fact' (objective entity fact), 'preference' (user style/decision preference), or 'guideline' (procedural rule).
+        keywords: Comma-separated or space-separated key entity tags for action='save' (e.g. '张三, 资质评审, 企业背景').
+        workspace_id: Tenant workspace scope (injected automatically).
+
+    Returns:
+        Structured result string detailing recalled facts or confirmation of persistence.
+    """
+    act = (action or "").strip().lower()
+
+    if act == "query":
+        clean_query = query.strip()
+        if not clean_query:
+            return "提示: 请提供具体的查询关键词 (query)，例如: wiki_memory(action='query', query='目标实体或概念')。"
+
+        emit_live_event(
+            event_type="tool.calling",
+            source_type="tool",
+            source_id="wiki-memory",
+            payload={
+                "tool_name": "wiki-memory",
+                "action": "query",
+                "query": clean_query,
+                "message": f"正在检索长期记忆中枢 (LLM-Wiki): {clean_query}",
+            },
+        )
+
+        async def _exec_query() -> list[MemoryItem]:
+            factory = _get_tool_session_factory()
+            async with factory() as session:
+                ws_uuid = await _resolve_workspace_uuid(workspace_id, session)
+                cat_filter = category.strip().lower() if category.strip().lower() in {"fact", "preference", "guideline"} else None
+                return await recall_memories(session, ws_uuid, query=clean_query, limit=5, category=cat_filter)
+
+        try:
+            items = _run_async_in_thread(_exec_query())
+        except Exception as exc:
+            logger.warning("wiki_memory_query_failed", query=clean_query, error=str(exc))
+            emit_live_event(
+                event_type="tool.summary",
+                source_type="tool",
+                source_id="wiki-memory",
+                payload={
+                    "tool_name": "wiki-memory",
+                    "action": "query",
+                    "query": clean_query,
+                    "status": "error",
+                    "result_preview": f"查询失败: {exc}",
+                },
+            )
+            return f"检索长期记忆失败: {exc}"
+
+        preview = f"查得 {len(items)} 条匹配记忆词条" if items else "未找到相关记忆词条"
+        emit_live_event(
+            event_type="tool.summary",
+            source_type="tool",
+            source_id="wiki-memory",
+            payload={
+                "tool_name": "wiki-memory",
+                "action": "query",
+                "query": clean_query,
+                "count": len(items),
+                "status": "ok",
+                "result_preview": preview,
+                "sources": [
+                    {"category": it.category, "content": it.content, "keywords": it.keywords}
+                    for it in items[:3]
+                ],
+            },
+        )
+
+        lines = [f"【长期记忆中枢 (LLM-Wiki) 检索结果 - 关键词: {clean_query}】"]
+        if not items:
+            lines.append("未检索到相关历史实体事实或偏好词条。请基于当前最新信源开展专业推演。")
+        else:
+            for idx, item in enumerate(items, 1):
+                cat_badge = {"fact": "行业事实", "preference": "用户偏好", "guideline": "执行约定"}.get(
+                    item.category, item.category
+                )
+                tag_str = f" [标签: {', '.join(item.keywords)}]" if item.keywords else ""
+                lines.append(f"{idx}. [{cat_badge}] {item.content}{tag_str}")
+        return "\n".join(lines)
+
+    elif act == "save":
+        clean_content = content.strip()
+        if len(clean_content) < 5:
+            return "保存失败: 记忆词条内容 (content) 必须是具有实质价值的事实或偏好描述，长度至少 5 个字符。"
+
+        cat = category.strip().lower()
+        if cat not in {"fact", "preference", "guideline"}:
+            cat = "fact"
+
+        kw_list: list[str] = []
+        if isinstance(keywords, list):
+            kw_list = [str(k).strip() for k in keywords if str(k).strip()]
+        elif isinstance(keywords, str) and keywords.strip():
+            parts = re.split(r"[,;，；\s]+", keywords.strip())
+            kw_list = [p for p in parts if p]
+        if not kw_list:
+            kw_list = list(_tokenize(clean_content))[:4]
+
+        emit_live_event(
+            event_type="tool.calling",
+            source_type="tool",
+            source_id="wiki-memory",
+            payload={
+                "tool_name": "wiki-memory",
+                "action": "save",
+                "category": cat,
+                "content": clean_content[:120],
+                "keywords": kw_list,
+                "message": f"正在向长期记忆中枢写入 [{cat}] 词条: {clean_content[:80]}...",
+            },
+        )
+
+        async def _exec_save() -> MemoryItem:
+            factory = _get_tool_session_factory()
+            async with factory() as session:
+                ws_uuid = await _resolve_workspace_uuid(workspace_id, session)
+                mem_item = MemoryItem(
+                    workspace_id=ws_uuid,
+                    category=cat,
+                    content=clean_content,
+                    keywords=kw_list,
+                )
+                session.add(mem_item)
+                await session.commit()
+                await session.refresh(mem_item)
+                return mem_item
+
+        try:
+            saved_item = _run_async_in_thread(_exec_save())
+        except Exception as exc:
+            logger.warning("wiki_memory_save_failed", error=str(exc))
+            emit_live_event(
+                event_type="tool.summary",
+                source_type="tool",
+                source_id="wiki-memory",
+                payload={
+                    "tool_name": "wiki-memory",
+                    "action": "save",
+                    "status": "error",
+                    "result_preview": f"持久化失败: {exc}",
+                },
+            )
+            return f"沉淀长期记忆失败: {exc}"
+
+        emit_live_event(
+            event_type="tool.summary",
+            source_type="tool",
+            source_id="wiki-memory",
+            payload={
+                "tool_name": "wiki-memory",
+                "action": "save",
+                "category": cat,
+                "id": str(saved_item.id),
+                "status": "ok",
+                "result_preview": f"成功持久化记忆词条: {saved_item.content[:100]}",
+            },
+        )
+
+        return (
+            f"【长期记忆中枢 (LLM-Wiki) 持久化成功】\n"
+            f"- 词条类别: {cat}\n"
+            f"- 核心内容: {saved_item.content}\n"
+            f"- 标签索引: {', '.join(saved_item.keywords)}\n"
+            f"- 记忆ID: {saved_item.id}"
+        )
+
+    else:
+        return f"不支持的操作 '{action}'。wiki_memory 仅支持 action='query' (检索记忆) 或 action='save' (沉淀记忆)。"

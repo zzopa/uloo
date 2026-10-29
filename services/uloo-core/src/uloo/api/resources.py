@@ -12,16 +12,19 @@ from ..models.resource import ResourceDefinition
 from ..runtime.mcp_adapter import MCPToolAdapter
 from ..runtime.resources import definitions
 from ..schemas.resource import (
+    CodeInterpreterConfig,
     DifyToolConfig,
     McpDiscoverRequest,
     McpDiscoverResponse,
     McpSseToolConfig,
     McpStdioToolConfig,
+    PdfParserConfig,
     ResourceCreate,
     ResourceResponse,
     ResourceUpdate,
     SearchConfig,
     SkillConfig,
+    WikiMemoryConfig,
 )
 from ..security import RequestContext, require_service_context
 
@@ -30,9 +33,13 @@ router = APIRouter(tags=["resources"])
 _TOOL_CONFIG_MODELS: dict[str, type] = {
     "dify": DifyToolConfig,
     "builtin": SearchConfig,
-    "mcp_sse": McpSseToolConfig,
+    "mcp_sse":标志 if False else McpSseToolConfig,
     "mcp_stdio": McpStdioToolConfig,
+    "wiki_memory": WikiMemoryConfig,
+    "pdf_parser": PdfParserConfig,
+    "code_interpreter": CodeInterpreterConfig,
 }
+_TOOL_CONFIG_MODELS["mcp_sse"] = McpSseToolConfig
 
 
 def validate_config(kind: str, config: dict) -> dict:
@@ -98,7 +105,7 @@ def register(kind: str):
             )
             .with_for_update()
         )
-        if existing or (kind == "tools" and body.key == "web-search"):
+        if existing or (kind == "tools" and body.key in ("web-search", "pdf-parser", "code-interpreter", "wiki-memory")):
             raise ApiError(409, "RESOURCE_KEY_CONFLICT", "Resource key already exists")
         resource = ResourceDefinition(
             workspace_id=context.workspace_id,
@@ -150,8 +157,8 @@ def register(kind: str):
     ):
         from ..models.agent import AgentDefinition
 
-        if kind == "tools" and key == "web-search":
-            raise ApiError(409, "BUILTIN_RESOURCE", "Disable the built-in search instead of deleting it")
+        if kind == "tools" and key in ("web-search", "pdf-parser", "code-interpreter", "wiki-memory"):
+            raise ApiError(409, "BUILTIN_RESOURCE", f"Disable the built-in {key} instead of deleting it")
         resource = await db.scalar(
             select(ResourceDefinition)
             .where(

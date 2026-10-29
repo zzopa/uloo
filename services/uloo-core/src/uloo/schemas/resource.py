@@ -15,6 +15,24 @@ class SearchConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
 
+class WikiMemoryConfig(BaseModel):
+    tool_type: Literal["wiki_memory"] = "wiki_memory"
+    adapter: Literal["wiki-memory"] = "wiki-memory"
+    model_config = {"extra": "forbid"}
+
+
+class PdfParserConfig(BaseModel):
+    tool_type: Literal["pdf_parser"] = "pdf_parser"
+    adapter: Literal["pdf-parser"] = "pdf-parser"
+    model_config = {"extra": "forbid"}
+
+
+class CodeInterpreterConfig(BaseModel):
+    tool_type: Literal["code_interpreter"] = "code_interpreter"
+    adapter: Literal["code-interpreter"] = "code-interpreter"
+    model_config = {"extra": "forbid"}
+
+
 class McpSseToolConfig(BaseModel):
     """MCP tool accessible via SSE transport."""
 

@@ -92,6 +92,12 @@ def build_agent(
         instructions.append(
             "CITATION MANDATE: When providing findings from web search, ALWAYS cite the real official source URL [Source Title](URL) using the actual destination website URL from search results. NEVER cite search engine redirect links (sogou.com/link, bing.com, etc.). Strictly filter out marketing blogs, SEO content farms, doc sharing sites, and commercial spam."
         )
+    if "wiki-memory" in (definition.tool_refs or []):
+        instructions.append(
+            "【长期记忆中枢 (LLM-Wiki) 赋能指引】: 你拥有 wiki_memory 长期记忆工具。\n"
+            "1. 检索既有认知：在针对特定企业、人物、法律规程或用户专属偏好展开推演前，主动调用 wiki_memory(action='query', query='...') 检索历史记忆，吸取既有认知与判定结论。\n"
+            "2. 核心事实沉淀：在核验出确凿的重大主体事实（如法定代表人、注册资本、核心业务资质、真实持股）、关键指标或拒签死穴后，主动调用 wiki_memory(action='save', content='...', category='fact', keywords='...') 将其写入长期记忆库，实现跨任务认知持续沉淀。"
+        )
     if any(k in (definition.name or "") or k in (definition.role or "") for k in ("统筹", "主编", "合流", "终审")):
         instructions.append(
             "【终审主编直接合流撰写指令】：作为终审主编与统筹岗位，前序各专员已经完成了详尽的附件解析、全网搜索、信源交叉核验与数据测算。你的首要任务是综合前序各岗位的实质成果直接进行系统合流、红蓝对抗审查与全篇决策研报撰写，严禁调用联网搜索发起多轮重复检索，必须立即集中全部算力完成深度长篇决策研报的直接撰写与交付！"
@@ -463,7 +469,10 @@ def build_team(
             f"   - 【严禁自说自话与虚构包装】：评估类任务（如资格审查、可行性论证、合规审查）必须坚持客观事实与证据闭环。严禁把普通岗位职责（如车间采购、日常质检、行政主管）强行升华拔高为'国家级战略贡献'，严禁虚构缺乏实据支撑的经济数据与战略关联！\n"
             f"   - 【红蓝对抗审查】：派发任务给信源核验与数据分析岗位时，必须明确指示其扮演'苛刻的官方审查官/移民官/风控审计师'角色，对申请人或项目的每一项主张进行证据链闭环检验（是否排他？是否具备全国性重大影响？是否有第三方客观权威成果？是否仅属于特定雇主的日常职务职责？）；\n"
             f"   - 【严禁法条与概念复读】：报告严禁大段抄录法规条文、政策定义或名词解释。审查的唯一重点是'人/标的物与标准的硬碰硬对碰'，必须开门见山给出定性结论（适不适合、可行不可行、拒签/失败概率多大、致命死穴在哪）；\n"
-            f"   - 【务实替代方案】：若评估结论为不适合或高风险，报告必须基于当事人或标的物的真实长处，给出合乎现实、切实可行的替代落地路径（如雇主担保、跨国派遣或其他稳妥方案），而不是兜售虚假希望。"
+            f"   - 【务实替代方案】：若评估结论为不适合或高风险，报告必须基于当事人或标的物的真实长处，给出合乎现实、切实可行的替代落地路径（如雇主担保、跨国派遣或其他稳妥方案），而不是兜售虚假希望。\n"
+            f"7. 【长期记忆 (LLM-Wiki) 协同流转与沉淀规范 (Long-Term Memory Cortex)】:\n"
+            f"   - 【调研与分析阶段主动对齐】：信息调研专员与数据分析师在接单后，除联网检索与附件解析外，若涉及特定主体或前置结论，可主动调用 wiki_memory(action='query', query='...') 检索知识库中的先验事实与偏好；\n"
+            f"   - 【确凿事实与裁决准则沉淀】：当核验专员或分析师穿透得到关键真实事实、核心数据或终审主编做出关键合流裁决时，可主动调用 wiki_memory(action='save', content='...', category='fact', keywords='...') 沉淀至长期记忆库，确保团队经验演进跨任务复用。"
         )
     if definition.leader_agent_id:
         instructions.insert(

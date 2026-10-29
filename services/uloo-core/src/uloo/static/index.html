@@ -3158,7 +3158,13 @@
       } else if (type === 'tool.calling') {
         const isPdf = ev.payload?.tool_name === 'pdf-parser' || ev.source_id === 'pdf-parser';
         const isCode = ev.payload?.tool_name === 'code-interpreter' || ev.source_id === 'code-interpreter';
-        if (isPdf) {
+        const isMem = ev.payload?.tool_name === 'wiki-memory' || ev.source_id === 'wiki-memory';
+        if (isMem) {
+          const act = ev.payload?.action === 'save' ? '记忆沉淀' : '记忆检索';
+          badgeClass = 'bg-purple-500/20 text-purple-300 border border-purple-500/40 animate-pulse font-semibold';
+          icon = 'fa-solid fa-brain';
+          title = act;
+        } else if (isPdf) {
           badgeClass = 'bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse font-semibold';
           icon = 'fa-solid fa-file-pdf';
           title = 'PDF解析';
@@ -3175,7 +3181,14 @@
       } else if (type === 'tool.summary') {
         const isPdf = ev.payload?.tool_name === 'pdf-parser' || ev.source_id === 'pdf-parser';
         const isCode = ev.payload?.tool_name === 'code-interpreter' || ev.source_id === 'code-interpreter';
-        if (isPdf) {
+        const isMem = ev.payload?.tool_name === 'wiki-memory' || ev.source_id === 'wiki-memory';
+        if (isMem) {
+          const act = ev.payload?.action === 'save' ? '记忆已沉淀' : '记忆已召回';
+          badgeClass = 'bg-purple-500/15 text-purple-300 border border-purple-500/30 font-semibold';
+          icon = 'fa-solid fa-brain';
+          title = act;
+          desc = ev.payload?.result_preview || '长期记忆中枢操作完成';
+        } else if (isPdf) {
           badgeClass = 'bg-rose-500/15 text-rose-300 border border-rose-500/30 font-semibold';
           icon = 'fa-solid fa-file-lines';
           title = '文档已解析';
@@ -3364,15 +3377,38 @@
         appendLiveTerminalLog('rocket', '协同启动', '主控协调员已载入方案，开启多智能体协同流水线', 'text-indigo-300');
       } else if (type === 'tool.calling') {
         startLiveTimer();
-        const q = ev.payload?.query || '';
-        if (activityText) activityText.innerHTML = `正在联网穿透: <span class="text-cyan-300 font-mono">${escapeHtml(q)}</span>`;
-        appendLiveTerminalLog('satellite-dish', '联网检索', `正在穿透搜索: "${escapeHtml(q)}"`, 'text-cyan-300 animate-pulse');
+        const isMem = ev.payload?.tool_name === 'wiki-memory' || ev.source_id === 'wiki-memory';
+        const isPdf = ev.payload?.tool_name === 'pdf-parser' || ev.source_id === 'pdf-parser';
+        const q = ev.payload?.query || ev.payload?.message || '';
+        if (isMem) {
+          const act = ev.payload?.action === 'save' ? '沉淀记忆' : '检索记忆';
+          if (activityText) activityText.innerHTML = `长期记忆中枢: <span class="text-purple-300 font-mono">${escapeHtml(act)} - ${escapeHtml(q)}</span>`;
+          appendLiveTerminalLog('brain', 'LLM-Wiki', `长期记忆中枢: ${escapeHtml(ev.payload?.message || q)}`, 'text-purple-300 animate-pulse');
+        } else if (isPdf) {
+          if (activityText) activityText.innerHTML = `正在解析文档: <span class="text-rose-300 font-mono">${escapeHtml(q)}</span>`;
+          appendLiveTerminalLog('file-pdf', '文档解析', `正在解析 PDF: "${escapeHtml(q)}"`, 'text-rose-300 animate-pulse');
+        } else {
+          if (activityText) activityText.innerHTML = `正在联网穿透: <span class="text-cyan-300 font-mono">${escapeHtml(q)}</span>`;
+          appendLiveTerminalLog('satellite-dish', '联网检索', `正在穿透搜索: "${escapeHtml(q)}"`, 'text-cyan-300 animate-pulse');
+        }
       } else if (type === 'tool.summary') {
         startLiveTimer();
-        const count = ev.payload?.count || 0;
-        const dur = ev.payload?.elapsed || 0;
-        if (activityText) activityText.innerHTML = `信源采集就绪: <span class="text-emerald-300 font-bold">${count} 条信源</span> (耗时 ${dur}s)`;
-        appendLiveTerminalLog('square-check', '信源就绪', `成功捕获 ${count} 条真实官方/商业信源 (耗时 ${dur}s)`, 'text-emerald-300');
+        const isMem = ev.payload?.tool_name === 'wiki-memory' || ev.source_id === 'wiki-memory';
+        const isPdf = ev.payload?.tool_name === 'pdf-parser' || ev.source_id === 'pdf-parser';
+        if (isMem) {
+          const preview = ev.payload?.result_preview || '长期记忆中枢操作完成';
+          if (activityText) activityText.innerHTML = `记忆中枢就绪: <span class="text-purple-300 font-bold">${escapeHtml(preview)}</span>`;
+          appendLiveTerminalLog('brain', '记忆闭环', `${escapeHtml(preview)}`, 'text-purple-300');
+        } else if (isPdf) {
+          const preview = ev.payload?.result_preview || 'PDF文档内容已成功提取';
+          if (activityText) activityText.innerHTML = `PDF解析就绪: <span class="text-rose-300 font-bold">${escapeHtml(preview)}</span>`;
+          appendLiveTerminalLog('file-lines', '文档就绪', `${escapeHtml(preview)}`, 'text-rose-300');
+        } else {
+          const count = ev.payload?.count || 0;
+          const dur = ev.payload?.elapsed || 0;
+          if (activityText) activityText.innerHTML = `信源采集就绪: <span class="text-emerald-300 font-bold">${count} 条信源</span> (耗时 ${dur}s)`;
+          appendLiveTerminalLog('square-check', '信源就绪', `成功捕获 ${count} 条真实官方/商业信源 (耗时 ${dur}s)`, 'text-emerald-300');
+        }
       } else if (type === 'agent.started') {
         startLiveTimer();
         const name = ev.payload?.name || '专家成员';
@@ -3707,6 +3743,14 @@
             config: { tool_type: 'pdf_parser' }
           });
         }
+        if (!cachedTools.some(t => t.key === 'wiki-memory')) {
+          cachedTools.push({
+            key: 'wiki-memory',
+            name: '长期记忆中枢 (LLM-Wiki)',
+            description: '跨任务经验中枢：主动检索先验结论与用户偏好 (query)，或持久化沉淀客观事实与规程 (save)',
+            config: { tool_type: 'wiki_memory' }
+          });
+        }
 
         // 默认选中互联网调研团队（或第一个团队）
         if (!currentMatrixTeamId && cachedTeams.length > 0) {
@@ -3800,6 +3844,9 @@
           }
           if (t === 'pdf-parser') {
             return `<span class="px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-300 font-mono text-[10px] flex items-center gap-1 shrink-0"><i class="fa-solid fa-file-pdf text-[9px]"></i>PDF文档解析</span>`;
+          }
+          if (t === 'wiki-memory') {
+            return `<span class="px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-purple-300 font-mono text-[10px] flex items-center gap-1 shrink-0"><i class="fa-solid fa-brain text-[9px]"></i>长期记忆中枢</span>`;
           }
           if (t.startsWith('mcp-') || t.startsWith('mcp_')) {
             return `<span class="px-2 py-0.5 rounded bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-mono text-[10px] flex items-center gap-1 shrink-0"><i class="fa-solid fa-plug text-[9px]"></i>${escapeHtml(t)}</span>`;
@@ -4254,6 +4301,9 @@
         } else if (tool.key === 'pdf-parser') {
           icon = 'fa-solid fa-file-pdf text-rose-400';
           badge = 'PDF文档';
+        } else if (tool.key === 'wiki-memory') {
+          icon = 'fa-solid fa-brain text-purple-400';
+          badge = '长期记忆';
         } else if (tool.key.startsWith('mcp-') || tool.key.startsWith('mcp_') || tool.config?.tool_type?.startsWith('mcp')) {
           icon = 'fa-solid fa-plug text-indigo-400';
           badge = 'MCP协议';
@@ -4560,6 +4610,16 @@
             is_builtin: true
           });
         }
+        if (!cachedTools.some(t => t.key === 'wiki-memory')) {
+          cachedTools.push({
+            key: 'wiki-memory',
+            name: '长期记忆中枢 (LLM-Wiki)',
+            description: '跨任务经验中枢：主动检索先验结论与用户偏好 (query)，或持久化沉淀客观事实与规程 (save)',
+            config: { tool_type: 'wiki_memory' },
+            enabled: true,
+            is_builtin: true
+          });
+        }
 
         renderToolsCatalog(cachedTools, cachedAgents);
       } catch (err) {
@@ -4602,7 +4662,7 @@
       }
 
       container.innerHTML = tools.map(tool => {
-        const isBuiltin = tool.key === 'web-search' || tool.key === 'code-interpreter' || tool.key === 'pdf-parser';
+        const isBuiltin = tool.key === 'web-search' || tool.key === 'code-interpreter' || tool.key === 'pdf-parser' || tool.key === 'wiki-memory';
         const isMcp = tool.key.startsWith('mcp-') || tool.key.startsWith('mcp_') || tool.config?.tool_type?.startsWith('mcp');
         const isDify = tool.config?.tool_type === 'dify';
 
@@ -4610,7 +4670,11 @@
         let badgeColor = 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
         let icon = 'fa-solid fa-microchip text-emerald-400';
 
-        if (isMcp) {
+        if (tool.key === 'wiki-memory') {
+          badgeType = 'LLM-Wiki';
+          badgeColor = 'bg-purple-500/15 text-purple-300 border-purple-500/30';
+          icon = 'fa-solid fa-brain text-purple-400';
+        } else if (isMcp) {
           badgeType = (tool.config?.tool_type === 'mcp_stdio') ? 'MCP (Stdio)' : 'MCP (SSE)';
           badgeColor = 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30';
           icon = 'fa-solid fa-plug text-cyan-400';

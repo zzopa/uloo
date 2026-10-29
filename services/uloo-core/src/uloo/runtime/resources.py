@@ -13,6 +13,7 @@ from .code_interpreter import code_interpreter
 from .dify_tools import dify_tool
 from .live_events import emit_live_event
 from .mcp_adapter import MCPToolAdapter
+from .memory import wiki_memory
 from .models import RuntimeConfigurationError
 from .pdf_parser import pdf_parser
 from .tools import AgnoTool, ToolRegistry
@@ -41,6 +42,15 @@ BUILTIN_CODE_INTERPRETER = {
     "name": "代码解释器",
     "description": "在沙箱中执行 Python 代码进行数据计算与分析。",
     "config": {"tool_type": "code_interpreter"},
+    "enabled": True,
+    "version": 0,
+}
+
+BUILTIN_WIKI_MEMORY = {
+    "key": "wiki-memory",
+    "name": "长期记忆中枢",
+    "description": "跨任务检索历史实体事实与用户偏好 (action='query')，或主动持久化确凿实体结论与规程 (action='save')。",
+    "config": {"tool_type": "wiki_memory"},
     "enabled": True,
     "version": 0,
 }
@@ -254,6 +264,33 @@ def configured_pdf_parser(item):
     return parse_pdf
 
 
+def configured_wiki_memory(item, workspace_id=None):
+    tool_key = item.get("key", "wiki-memory")
+
+    def wiki_memory_tool(
+        action: str,
+        query: str = "",
+        content: str = "",
+        category: str = "fact",
+        keywords: str = "",
+    ) -> str:
+        return wiki_memory(
+            action=action,
+            query=query,
+            content=content,
+            category=category,
+            keywords=keywords,
+            workspace_id=workspace_id,
+        )
+
+    wiki_memory_tool.__name__ = "wiki_memory"
+    wiki_memory_tool.__doc__ = (
+        item.get("description")
+        or "Query (action='query') or persist (action='save') entity facts, user preferences, and guidelines in LLM-Wiki long-term memory."
+    )
+    return wiki_memory_tool
+
+
 class ResourceRegistry(ToolRegistry):
     def __init__(self, tools, skills, workspace_id=None):
         super().__init__(self._build_tool_map(tools, workspace_id))
@@ -273,6 +310,8 @@ class ResourceRegistry(ToolRegistry):
                 registry[item["key"]] = configured_code_interpreter(item)
             elif item["key"] == "pdf-parser" or tool_type == "pdf_parser":
                 registry[item["key"]] = configured_pdf_parser(item)
+            elif item["key"] == "wiki-memory" or tool_type == "wiki_memory":
+                registry[item["key"]] = configured_wiki_memory(item, workspace_id)
             elif tool_type == "builtin":
                 registry[item["key"]] = configured_search(item)
             elif tool_type in ("mcp_sse", "mcp_stdio"):

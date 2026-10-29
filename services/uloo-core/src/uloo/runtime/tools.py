@@ -8,6 +8,7 @@ from agno.tools.function import Function
 from agno.tools.toolkit import Toolkit
 
 from .code_interpreter import code_interpreter
+from .memory import wiki_memory
 from .models import RuntimeConfigurationError
 from .pdf_parser import pdf_parser
 from .web_search import web_search
@@ -18,6 +19,7 @@ _DEFAULT_TOOLS: dict[str, AgnoTool] = {
     "web-search": web_search,
     "code-interpreter": code_interpreter,
     "pdf-parser": pdf_parser,
+    "wiki-memory": wiki_memory,
 }
 
 
@@ -35,6 +37,8 @@ class ToolRegistry:
                 tool = _DEFAULT_TOOLS.get("code-interpreter")
             if tool is None and ref == "pdf-parser":
                 tool = _DEFAULT_TOOLS.get("pdf-parser")
+            if tool is None and ref == "wiki-memory":
+                tool = _DEFAULT_TOOLS.get("wiki-memory")
             if tool is None:
                 raise RuntimeConfigurationError(
                     "TOOL_CONFIG_MISSING",
