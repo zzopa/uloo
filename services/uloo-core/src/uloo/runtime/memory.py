@@ -127,7 +127,10 @@ async def recall_memories(
                 rrf_scores[item.id] = (score_kw, item)
 
             # Add vector semantic ranks (weight=1.2)
-            for rank, (item, _dist) in enumerate(vec_rows, 1):
+            # Relevance guard: if cosine distance > 0.60 and item has no keyword overlap, ignore as irrelevant noise
+            for rank, (item, dist) in enumerate(vec_rows, 1):
+                if dist is not None and float(dist) > 0.60 and item.id not in rrf_scores:
+                    continue
                 score_vec = 1.2 / (k_const + rank)
                 if item.id in rrf_scores:
                     prev_score, _ = rrf_scores[item.id]

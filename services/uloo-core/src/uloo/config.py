@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-m3"
     embedding_timeout_seconds: float = 8.0
 
+    # Execution Concurrency & DAG Parallel Pipeline
+    parallel_pipeline_enabled: bool = True
+    max_concurrent_agents: int = 4
+
     model_providers: dict[str, str] = {}
     model_provider_api_keys: dict[str, SecretStr] = {}
     # Optional catalog of selectable model ids per provider, surfaced via capabilities

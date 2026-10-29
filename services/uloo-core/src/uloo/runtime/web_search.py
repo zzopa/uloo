@@ -346,11 +346,23 @@ def web_search(query: str, max_results: int = 5) -> str:
         return json.dumps({"status": "invalid_query", "results": []}, ensure_ascii=False)
 
     cache_key = f"{query}::{max_results}"
+    core_entity = extract_core_entity(query)
+    entity_cache_key = f"entity::{core_entity}::{max_results}" if core_entity and len(core_entity) >= 2 else None
     now = time.time()
     if cache_key in _SEARCH_CACHE:
         cached_time, cached_val = _SEARCH_CACHE[cache_key]
         if now - cached_time < _CACHE_TTL_SECONDS:
             return cached_val
+    if entity_cache_key and entity_cache_key in _SEARCH_CACHE:
+        cached_time, cached_val = _SEARCH_CACHE[entity_cache_key]
+        if now - cached_time < _CACHE_TTL_SECONDS:
+            return cached_val
+
+    def _save_cache(val: str) -> str:
+        _SEARCH_CACHE[cache_key] = (now, val)
+        if entity_cache_key:
+            _SEARCH_CACHE[entity_cache_key] = (now, val)
+        return val
 
     sources = []
     is_chinese = bool(re.search(r"[\u4e00-\u9fff]", query))
@@ -365,8 +377,7 @@ def web_search(query: str, max_results: int = 5) -> str:
                 {"status": "ok", "retrieved_at": datetime.now(UTC).isoformat(), "results": sources[:max_results]},
                 ensure_ascii=False,
             )
-            _SEARCH_CACHE[cache_key] = (now, res_str)
-            return res_str
+            return _save_cache(res_str)
 
     # DDGS resolution (Primary for international queries, fallback for Chinese)
     try:
@@ -385,8 +396,7 @@ def web_search(query: str, max_results: int = 5) -> str:
                 {"status": "ok", "retrieved_at": datetime.now(UTC).isoformat(), "results": sources[:max_results]},
                 ensure_ascii=False,
             )
-            _SEARCH_CACHE[cache_key] = (now, res_str)
-            return res_str
+            return _save_cache(res_str)
     except DDGSException as exc:
         msg = str(exc)
         if "No results found" in msg:
@@ -395,8 +405,7 @@ def web_search(query: str, max_results: int = 5) -> str:
                 "results": [],
                 "suggestion": "公开互联网未检索到更多精确匹配。请基于已获取的线索与已有专业知识继续深度推演，请勿反复变换关键词进行无限次循环检索。"
             }, ensure_ascii=False)
-            _SEARCH_CACHE[cache_key] = (now, res_str)
-            return res_str
+            return _save_cache(res_str)
         if "offline" in msg:
             return json.dumps({"status": "unavailable", "results": []})
     except Exception:
@@ -419,5 +428,4 @@ def web_search(query: str, max_results: int = 5) -> str:
             "suggestion": "公开互联网未检索到更细粒度官方记录，请结合已有上下文与基础知识推进研判，请勿反复变换关键词进行无限次循环检索。"
         }, ensure_ascii=False)
 
-    _SEARCH_CACHE[cache_key] = (now, res_str)
-    return res_str
+    return _save_cache(res_str)

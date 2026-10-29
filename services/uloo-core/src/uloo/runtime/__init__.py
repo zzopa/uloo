@@ -5,6 +5,7 @@ from .execution import AgentExecutionResult, execute_agent
 from .factory import build_agent, build_planner_agent, build_team, validate_agent_runtime_config
 from .mcp_adapter import MCPToolAdapter
 from .models import ModelRegistry, RuntimeConfigurationError
+from .pipeline import build_dag_stages, execute_dag_pipeline, should_execute_dag_pipeline
 from .review import CompletionEvaluation, build_review_feedback, evaluate_completion
 from .tools import ToolRegistry
 
@@ -16,10 +17,13 @@ __all__ = [
     "RuntimeConfigurationError",
     "ToolRegistry",
     "build_agent",
+    "build_dag_stages",
     "build_planner_agent",
     "build_review_feedback",
     "build_team",
     "evaluate_completion",
     "execute_agent",
+    "execute_dag_pipeline",
+    "should_execute_dag_pipeline",
     "validate_agent_runtime_config",
 ]
