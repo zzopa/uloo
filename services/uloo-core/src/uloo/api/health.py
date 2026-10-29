@@ -40,8 +40,10 @@ async def readiness(response: Response) -> dict[str, Any]:
         agno_ok = True  # not required
     checks["agno"] = agno_ok
 
-    # Model config check (at least one provider configured)
-    checks["model_config"] = any(
+    # Model config check (universal LLM or at least one provider configured)
+    checks["model_config"] = bool(
+        settings.llm_base_url.strip() and settings.llm_api_key.get_secret_value().strip()
+    ) or any(
         provider in settings.model_providers and bool(secret.get_secret_value())
         for provider, secret in settings.model_provider_api_keys.items()
     )

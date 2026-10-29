@@ -16,8 +16,12 @@ __pycache__/
 .ruff_cache/
 *.log
 tmp/
+storage/
+output/
+scratch/
 vendor/dify/
 *.tar.gz
+*.sqlite3
 
 # Local agent session state and memory notes, not part of the product source.
 .workbuddy/

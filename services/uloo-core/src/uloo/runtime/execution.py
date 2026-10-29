@@ -53,10 +53,23 @@ def _response_output(agent: Agent | Team, content: Any) -> dict[str, Any]:
     schema = (getattr(agent, "extra_data", None) or {}).get("uloo_output_schema")
     if schema is not None:
         if isinstance(content, str):
-            fence = re.fullmatch(r"```(?:json)?\s*\n(.*)\n```", content.strip(), flags=re.DOTALL)
-            if fence:
-                content = fence.group(1)
-            content = json.loads(content)
+            cleaned = content.strip()
+            # 1. Try markdown code block extraction (lenient on prefix/suffix text)
+            m = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", cleaned, flags=re.DOTALL)
+            if m:
+                json_candidate = m.group(1).strip()
+            else:
+                json_candidate = cleaned
+
+            # 2. Try JSON parsing with fallback to outermost brace extraction
+            try:
+                content = json.loads(json_candidate)
+            except json.JSONDecodeError:
+                brace_match = re.search(r"(\{.*\})", cleaned, flags=re.DOTALL)
+                if brace_match:
+                    content = json.loads(brace_match.group(1).strip())
+                else:
+                    raise
         validator_for(schema)(schema, registry=Registry()).validate(content)
     return _serialize_output(content)
 
@@ -102,12 +115,16 @@ async def execute_agent(agent: Agent | Team, prompt: str, *, timeout_seconds: fl
         member = members.get(member_id)
         if member is None:
             continue
+        try:
+            m_output = _response_output(member, member_response.content)
+        except Exception:
+            m_output = {"content": str(member_response.content or "")}
         member_results.append(
             {
                 "agent_id": member_id,
                 "name": member.name,
                 "run_id": member_response.run_id,
-                "output": _response_output(member, member_response.content),
+                "output": m_output,
                 "usage": _serialize_usage(member_response.metrics),
             }
         )
@@ -120,9 +137,17 @@ async def execute_agent(agent: Agent | Team, prompt: str, *, timeout_seconds: fl
             if usage is None:
                 usage = {}
             usage[key] = usage.get(key, 0) + value
+    if isinstance(agent, Team):
+        try:
+            final_output = _response_output(agent, getattr(response, "content", None))
+        except Exception:
+            final_output = {"content": str(getattr(response, "content", None) or "")}
+    else:
+        final_output = _response_output(agent, getattr(response, "content", None))
+
     return AgentExecutionResult(
         run_id=str(response.run_id) if getattr(response, "run_id", None) else None,
-        output=_response_output(agent, getattr(response, "content", None)),
+        output=final_output,
         usage=usage,
         member_results=member_results,
         tool_summaries=tool_summaries,

@@ -76,6 +76,12 @@ class ModelRegistry:
             if secret and secret.get_secret_value():
                 return self._settings.model_providers[provider], secret
 
+        # 3. Universal LLM fallback (when ULOO_LLM_BASE_URL & ULOO_LLM_API_KEY are configured)
+        if self._settings.llm_base_url.strip() and self._settings.llm_api_key:
+            secret = self._settings.llm_api_key
+            if secret.get_secret_value().strip():
+                return self._settings.llm_base_url.strip(), secret
+
         return None
 
     def parse(self, model_ref: str) -> ParsedModelRef:
@@ -132,8 +138,12 @@ class ModelRegistry:
         base_url_str, secret = lookup
 
         base_url = base_url_str.strip() or None
+        model_id = parsed.model_id
+        if (parsed.provider == "default" or parsed.provider not in self._settings.model_providers) and self._settings.llm_model.strip():
+            model_id = self._settings.llm_model.strip()
+
         return OpenAILike(
-            id=parsed.model_id,
+            id=model_id,
             provider=parsed.provider,
             api_key=secret.get_secret_value(),
             base_url=base_url,

@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from .api import agents, capabilities, health, memories, models, resources, runs, tasks, teams
+from .api import agents, capabilities, files, health, memories, models, resources, runs, tasks, teams
 from .config import settings
 from .errors import ERROR_RESPONSES, register_exception_handlers
 from .logging import configure_logging, get_logger
@@ -85,6 +85,7 @@ def create_app() -> FastAPI:
     app.include_router(runs.router, prefix=api_prefix)
     app.include_router(models.router, prefix=api_prefix)
     app.include_router(memories.router, prefix=api_prefix)
+    app.include_router(files.router, prefix=api_prefix)
 
     # Mount standalone lightweight UI
     static_dir = Path(__file__).parent / "static"
@@ -94,7 +95,10 @@ def create_app() -> FastAPI:
         @app.get("/ui", include_in_schema=False)
         @app.get("/ui/{rest_of_path:path}", include_in_schema=False)
         async def serve_ui():
-            return FileResponse(str(static_dir / "index.html"))
+            return FileResponse(
+                str(static_dir / "index.html"),
+                headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+            )
 
         @app.get("/", include_in_schema=False)
         async def root():

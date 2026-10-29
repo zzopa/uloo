@@ -49,6 +49,11 @@ class Settings(BaseSettings):
 
     # Model providers (key=provider, value=base_url or empty for default)
     # e.g. {"openai": "https://api.openai.com/v1"}
+    # Universal / Simple LLM Configuration (OpenAI-compatible)
+    llm_base_url: str = ""
+    llm_api_key: SecretStr = SecretStr("")
+    llm_model: str = ""
+
     model_providers: dict[str, str] = {}
     model_provider_api_keys: dict[str, SecretStr] = {}
     # Optional catalog of selectable model ids per provider, surfaced via capabilities
@@ -61,7 +66,7 @@ class Settings(BaseSettings):
     # .env-configured provider for credential lookup.  If no alias exists, the
     # raw provider ID is used as the .env key (backward compatible).
     model_provider_aliases: dict[str, str] = {}
-    model_timeout_seconds: float = 300
+    model_timeout_seconds: float = 900
     planner_model_ref: str = ""
 
     @field_validator("db_schema")

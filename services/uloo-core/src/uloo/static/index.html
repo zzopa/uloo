@@ -390,6 +390,28 @@
       border-color: rgba(0, 0, 0, 0.1) !important;
       box-shadow: 0 24px 70px -12px rgba(0, 0, 0, 0.25) !important;
     }
+    body.theme-apple #modal-step-detail > div {
+      background: rgba(255, 255, 255, 0.98) !important;
+      border-color: rgba(0, 0, 0, 0.1) !important;
+      box-shadow: 0 24px 70px -12px rgba(0, 0, 0, 0.25) !important;
+      color: #1D1D1F !important;
+    }
+    body.theme-apple #modal-step-detail div.bg-\[\#090D18\] {
+      background: #F5F5F7 !important;
+      border-color: rgba(0, 0, 0, 0.08) !important;
+    }
+    body.theme-apple #modal-step-detail div.bg-\[\#0A0E1A\] {
+      background: #FFFFFF !important;
+      border-color: rgba(0, 0, 0, 0.08) !important;
+    }
+    body.theme-apple #modal-step-detail pre#step-modal-json {
+      background: #F5F5F7 !important;
+      color: #0071E3 !important;
+      border-color: rgba(0, 0, 0, 0.08) !important;
+    }
+    body.theme-apple #modal-step-detail #step-modal-markdown {
+      color: #1D1D1F !important;
+    }
     body.theme-apple #canvas-empty-state div.bg-indigo-500\/10 {
       background: rgba(0, 113, 227, 0.08) !important;
       border-color: rgba(0, 113, 227, 0.2) !important;
@@ -451,13 +473,126 @@
       overscroll-behavior: contain !important;
     }
 
-    #canvas-sources-grid {
-      max-height: 260px;
-      overflow-y: auto;
+    /* 确保正文、代码、成果报告及终端输出的文字自由划选与复制 */
+    body,
+    #view-studio,
+    .markdown-canvas,
+    #canvas-deliverable-markdown,
+    #step-modal-markdown,
+    #step-modal-json,
+    #canvas-events-feed,
+    #missions-stream,
+    pre, code, textarea, input, p, span, h1, h2, h3, h4, h5, h6, table, tr, td, th {
+      user-select: text !important;
+      -webkit-user-select: text !important;
     }
+
+    /* 仅保留控制按钮、图标与SVG画布防误选效果 */
+    button,
+    .btn,
+    .studio-pill-btn,
+    .studio-launch-btn,
+    #rail-svg-canvas,
+    .fa-solid, .fa-regular, .fa-brands {
+      user-select: none;
+      -webkit-user-select: none;
+    }
+  
+    /* =========================================================
+       UI/UX Pro Max: Global Contrast & Legibility Overhaul
+       ========================================================= */
+    :root {
+      --ui-text-primary: #F8FAFC;
+      --ui-text-secondary: #CBD5E1;
+      --ui-text-muted: #94A3B8;
+      --ui-text-faint: #64748B;
+    }
+
+    /* 优化全局微型字体，杜绝模糊字号 */
+    .text-\[9px\], .text-\[9\.5px\], .text-\[10px\] {
+      font-size: 11px !important;
+      line-height: 1.35 !important;
+      font-weight: 500 !important;
+    }
+    .text-\[10\.5px\], .text-\[11px\] {
+      font-size: 12px !important;
+      line-height: 1.4 !important;
+    }
+
+    /* 深色模式全局文本对比度提亮 (WCAG AA 4.5:1+) */
+    body:not(.theme-apple) .text-slate-400 {
+      color: #CBD5E1 !important; /* 提升次要文字为高对比亮浅灰 */
+    }
+    body:not(.theme-apple) .text-slate-500 {
+      color: #94A3B8 !important; /* 提升时间戳/元数据为清晰浅灰 */
+    }
+    body:not(.theme-apple) .text-slate-600 {
+      color: #94A3B8 !important;
+    }
+
+    /* 输入框与文本域占位符高对比度 */
+    body:not(.theme-apple) input::placeholder,
+    body:not(.theme-apple) textarea::placeholder {
+      color: #94A3B8 !important;
+      opacity: 0.95 !important;
+    }
+
+    /* 交付成果 Markdown 正文可读性质感重塑 */
+    .markdown-canvas {
+      color: #F8FAFC !important;
+      font-size: 0.95rem !important; /* 15.2px 标准舒适阅读字号 */
+      line-height: 1.8 !important;
+    }
+    .markdown-canvas p,
+    .markdown-canvas ul,
+    .markdown-canvas ol {
+      color: #E2E8F0 !important; /* 高对比亮白正文，杜绝低对比灰字 */
+      font-size: 0.95rem !important;
+      line-height: 1.8 !important;
+    }
+    .markdown-canvas strong,
+    .markdown-canvas b {
+      color: #FFFFFF !important;
+      font-weight: 700 !important;
+    }
+    .markdown-canvas h1 { color: #FFFFFF !important; font-weight: 800 !important; }
+    .markdown-canvas h2 { color: #F8FAFC !important; font-weight: 700 !important; border-color: rgba(255, 255, 255, 0.15) !important; }
+    .markdown-canvas h3 { color: #E0E7FF !important; font-weight: 600 !important; }
+    .markdown-canvas h4 { color: #C7D2FE !important; font-weight: 600 !important; }
+    .markdown-canvas li { margin-bottom: 0.35rem; }
+    .markdown-canvas blockquote {
+      border-left: 3px solid #6366F1 !important;
+      background: rgba(99, 102, 241, 0.12) !important;
+      color: #E2E8F0 !important;
+    }
+    .markdown-canvas table th {
+      background-color: rgba(99, 102, 241, 0.2) !important;
+      color: #FFFFFF !important;
+      font-weight: 700 !important;
+      border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    }
+    .markdown-canvas table td {
+      color: #F1F5F9 !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    }
+
+    /* 苹果亮色主题文字对比度保障 */
+    body.theme-apple .text-slate-400 { color: #48484A !important; }
+    body.theme-apple .text-slate-500 { color: #636366 !important; }
+    body.theme-apple .text-slate-600 { color: #48484A !important; }
+    body.theme-apple input::placeholder,
+    body.theme-apple textarea::placeholder {
+      color: #636366 !important;
+    }
+    body.theme-apple .markdown-canvas p,
+    body.theme-apple .markdown-canvas ul,
+    body.theme-apple .markdown-canvas ol {
+      color: #1D1D1F !important;
+    }
+
   </style>
 </head>
-<body class="h-screen w-screen overflow-hidden flex flex-col font-sans select-none antialiased">
+<body class="h-screen w-screen overflow-hidden flex flex-col font-sans antialiased">
 
   <!-- 1. 全局极简航行顶栏 (Global Flight Control Header) -->
   <header class="h-14 bg-[#070A12]/80 border-b border-white/[0.08] px-5 flex items-center justify-between shrink-0 backdrop-blur-2xl z-30 transition-colors duration-200">
@@ -476,7 +611,7 @@
       <div class="flex items-baseline gap-2">
         <span class="font-extrabold text-sm tracking-wider text-white">ULOO</span>
         <span class="text-[10px] font-mono tracking-widest text-slate-400 uppercase">Synergy Studio</span>
-        <span class="font-mono text-[9px] bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 px-2 py-0.5 rounded-full ml-1 font-bold">v0.2.4 · 团队岗位矩阵配置版</span>
+        <span class="font-mono text-[9px] bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 px-2 py-0.5 rounded-full ml-1 font-bold">v0.2.6 · 岗位自定义申明与MCP外部工具资产接入版</span>
       </div>
     </div>
 
@@ -493,6 +628,10 @@
       <button onclick="switchStudioMode('cortex')" id="mode-btn-cortex" class="px-4 py-1.5 rounded-full transition-all text-slate-400 hover:text-white flex items-center gap-2">
         <i class="fa-solid fa-brain text-[11px]"></i>
         <span>长期经验记忆库</span>
+      </button>
+      <button onclick="switchStudioMode('tools')" id="mode-btn-tools" class="px-4 py-1.5 rounded-full transition-all text-slate-400 hover:text-white flex items-center gap-2">
+        <i class="fa-solid fa-screwdriver-wrench text-[11px]"></i>
+        <span>工具与MCP中心</span>
       </button>
     </div>
 
@@ -539,21 +678,40 @@
         </div>
 
         <!-- Prompt Textarea Input -->
-        <div class="relative studio-panel rounded-2xl p-3 border border-white/[0.1] focus-within:border-indigo-500/50 focus-within:shadow-[0_0_20px_rgba(99,102,241,0.2)] transition-all">
-          <textarea id="prompt-input" rows="3" placeholder="向智能体团队下达目标（如：调研华为智能驾驶出海竞品，调取沙箱验证数据并输出完整研报）..." class="w-full bg-transparent text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none resize-none leading-relaxed font-sans" onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); launchMissionFromBar(); }"></textarea>
+        <div id="prompt-drop-zone" class="relative studio-panel rounded-2xl p-3 border border-white/[0.1] focus-within:border-indigo-500/50 focus-within:shadow-[0_0_20px_rgba(99,102,241,0.2)] transition-all">
+          <textarea id="prompt-input" rows="3" placeholder="向智能体团队下达目标（如：分析附件研报核心数据，或调研华为智能驾驶出海竞品）..." class="w-full bg-transparent text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none resize-none leading-relaxed font-sans" onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); launchMissionFromBar(); }"></textarea>
+
+          <!-- Uploaded Attachment Badge / Status Strip -->
+          <div id="prompt-attachment-bar" class="hidden my-2 flex items-center justify-between p-2 rounded-xl bg-indigo-950/50 border border-indigo-500/30 text-xs text-indigo-200">
+            <div class="flex items-center gap-2 min-w-0 truncate">
+              <i class="fa-solid fa-file-pdf text-rose-400 text-sm shrink-0" id="prompt-attachment-icon"></i>
+              <div class="truncate flex items-center gap-1.5">
+                <span id="prompt-attachment-name" class="font-medium text-slate-200 truncate"></span>
+                <span id="prompt-attachment-size" class="text-[10px] text-slate-400 font-mono shrink-0"></span>
+              </div>
+            </div>
+            <button type="button" onclick="clearPromptAttachment()" class="text-slate-400 hover:text-rose-400 text-xs p-1 transition" title="移除此附件">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
 
           <!-- Prompt Controls Strip -->
           <div class="pt-2 flex items-center justify-between gap-2 border-t border-white/[0.05]">
             <!-- Team Selector Dropdown & Post Config Shortcut -->
             <div class="flex items-center gap-1.5 min-w-0">
               <i class="fa-solid fa-users-gear text-indigo-400 text-xs shrink-0"></i>
-              <select id="prompt-team-select" class="bg-black/50 border border-white/[0.08] text-slate-200 text-[11px] rounded-lg px-2 py-1 outline-none font-medium truncate max-w-[160px]">
+              <select id="prompt-team-select" class="bg-black/50 border border-white/[0.08] text-slate-200 text-[11px] rounded-lg px-2 py-1 outline-none font-medium truncate max-w-[130px]">
                 <option value="" disabled selected>选择协同团队...</option>
               </select>
               <button type="button" onclick="switchStudioMode('swarm')" class="px-2 py-1 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 hover:text-white hover:bg-indigo-600/30 text-[10px] font-medium flex items-center gap-1 transition shrink-0" title="打开团队岗位配置界面">
                 <i class="fa-solid fa-sliders text-[9px]"></i>
                 <span>配置岗位</span>
               </button>
+              <button type="button" onclick="triggerFileUpload()" id="btn-prompt-upload" class="px-2 py-1 rounded-lg bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-slate-300 hover:text-white text-[10px] font-medium flex items-center gap-1 transition shrink-0" title="上传 PDF 或数据文档供智能体解析">
+                <i class="fa-solid fa-paperclip text-[10px] text-indigo-400"></i>
+                <span>附件</span>
+              </button>
+              <input type="file" id="prompt-file-input" class="hidden" accept=".pdf,.txt,.csv,.md,.json,.docx" onchange="handlePromptFileSelected(this)" />
             </div>
 
             <!-- Launch Button -->
@@ -818,13 +976,41 @@
             </button>
           </div>
 
-          <!-- 实时推演动态雷达条 (LIVE Activity Bar，置顶常驻) -->
-          <div id="live-activity-bar" class="hidden flex items-center justify-between p-3.5 rounded-xl bg-indigo-950/70 border border-indigo-500/40 text-indigo-200 text-xs shadow-[0_0_20px_rgba(99,102,241,0.2)] mb-3">
-            <div class="flex items-center gap-2.5">
-              <i class="fa-solid fa-spinner animate-spin text-indigo-400 text-sm"></i>
-              <span id="live-activity-text" class="font-medium">已建立实时通信通道，等待智能体执行步骤...</span>
+          <!-- 实时推演驾驶舱 (LIVE Execution Cockpit & Real-Time Output) -->
+          <div id="live-activity-bar" class="hidden rounded-2xl bg-[#090D18]/95 border border-indigo-500/40 text-indigo-200 text-xs shadow-[0_0_30px_rgba(99,102,241,0.2)] mb-4 p-4 space-y-3 transition-all duration-300">
+            <!-- 顶部状态指示行 -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="relative flex h-3 w-3 shrink-0">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-3 w-3 bg-cyan-500"></span>
+                </span>
+                <span id="live-active-agent" class="font-bold text-white text-xs bg-indigo-500/20 border border-indigo-500/30 px-2.5 py-0.5 rounded-full">主控协调员</span>
+                <span id="live-activity-text" class="text-slate-300 font-medium truncate max-w-[420px]">已建立实时通道，正在调度智能体流水线...</span>
+              </div>
+              <div class="flex items-center gap-2.5">
+                <span class="px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-mono text-[10.5px] flex items-center gap-1.5">
+                  <i class="fa-regular fa-clock"></i> 已耗时 <span id="live-active-timer" class="font-bold">00:00</span>
+                </span>
+                <span class="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-indigo-500/25 border border-indigo-500/40 text-indigo-300 font-bold animate-pulse">LIVE 正在执行</span>
+              </div>
             </div>
-            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 animate-pulse">LIVE 实时动态</span>
+
+            <!-- 当前任务目标提示 -->
+            <div id="live-active-task-box" class="hidden bg-black/40 border border-white/[0.06] rounded-xl p-2.5 text-[11px] text-slate-300 flex items-start gap-2">
+              <i class="fa-solid fa-bullseye text-indigo-400 text-xs shrink-0 mt-0.5"></i>
+              <div class="flex-1 min-w-0">
+                <div class="text-[9.5px] font-mono uppercase text-slate-500 font-bold mb-0.5">当前步骤指派目标</div>
+                <div id="live-active-task-desc" class="line-clamp-2 text-slate-200"></div>
+              </div>
+            </div>
+
+            <!-- 实时推演动向终端流 (Live Terminal Stream) -->
+            <div class="space-y-1.5 bg-black/60 rounded-xl p-3 border border-white/[0.06] font-mono text-[11px] max-h-36 overflow-y-auto" id="live-active-terminal">
+              <div class="text-slate-500 italic flex items-center gap-1.5">
+                <i class="fa-solid fa-terminal text-[9px] text-indigo-400"></i> 实时推演输出流已就绪，接收即时数据中...
+              </div>
+            </div>
           </div>
 
           <!-- 实时事件流日志卡片群 (按行打印积累，绝不覆盖) -->
@@ -871,6 +1057,54 @@
             </div>
             <div id="canvas-sources-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs max-h-72 overflow-y-auto pr-1">
               <!-- 动态信源卡片 -->
+            </div>
+          </div>
+
+          <!-- LLM-Wiki 演进沉淀区 (本轮协同自动萃取的词条与知识图谱事实) -->
+          <div id="canvas-wiki-memories-box" class="studio-panel rounded-2xl p-6 border border-white/[0.08] space-y-4">
+            <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
+              <div class="flex items-center gap-2.5">
+                <div class="size-6 rounded-lg bg-purple-500/15 border border-purple-500/30 text-purple-400 flex items-center justify-center text-xs">
+                  <i class="fa-solid fa-brain"></i>
+                </div>
+                <div>
+                  <h4 class="text-xs font-bold text-white">本轮推演自动沉淀的 LLM-Wiki 词条</h4>
+                  <div class="text-[10px] text-slate-400 font-mono">Auto-Distilled Entity & Fact Wiki Entries</div>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="canvas-wiki-count" class="text-[10px] font-mono text-purple-300 bg-purple-500/10 border border-purple-500/20 px-2.5 py-0.5 rounded-full">0 条记忆沉淀</span>
+                <button onclick="switchView('cortex')" class="text-[11px] text-purple-400 hover:text-purple-300 font-medium transition flex items-center gap-1">
+                  <span>全量记忆库</span>
+                  <i class="fa-solid fa-chevron-right text-[9px]"></i>
+                </button>
+              </div>
+            </div>
+            <div id="canvas-wiki-grid" class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <!-- 动态 Wiki 词条卡片 -->
+            </div>
+          </div>
+
+          <!-- 基于当前研报原地追问舱 (LLM-Wiki 连续推演交互流) -->
+          <div class="studio-panel rounded-2xl p-5 border border-indigo-500/30 bg-gradient-to-r from-[#0E1528] to-[#14122E] space-y-3.5 shadow-xl">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="size-7 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center text-xs shadow-[0_0_10px_rgba(99,102,241,0.3)]">
+                  <i class="fa-solid fa-comments"></i>
+                </div>
+                <div>
+                  <h4 class="text-xs font-bold text-white">基于当前成果报告原地深入追问 (LLM-Wiki 连续推演)</h4>
+                  <p class="text-[10px] text-slate-400">自动承接本份研报事实、引申未决议题并调度多智能体再次深入协同</p>
+                </div>
+              </div>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">上下文自动继承</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <input type="text" id="canvas-deliverable-followup-input" placeholder="输入追问指示（例如：针对结论第二条细化测算 / 对比海外同类落地案例）..." class="flex-1 text-xs px-4 py-2.5 rounded-xl border border-white/[0.12] bg-black/60 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20" onkeydown="if(event.key==='Enter') submitDeliverableFollowup()" />
+              <button onclick="submitDeliverableFollowup()" id="btn-deliverable-followup" class="studio-launch-btn px-4 py-2.5 rounded-xl text-white text-xs font-bold shadow-lg transition flex items-center gap-1.5 shrink-0">
+                <i class="fa-solid fa-paper-plane text-xs"></i>
+                <span>追问推演</span>
+              </button>
             </div>
           </div>
 
@@ -930,9 +1164,13 @@
         </div>
 
         <div class="flex items-center gap-2 shrink-0">
-          <button onclick="addNewRolePost()" class="studio-pill-btn px-3 py-1.5 rounded-xl text-indigo-300 hover:text-white text-xs flex items-center gap-1.5 font-medium transition">
+          <button onclick="openPostEditModal(-1)" class="studio-launch-btn px-3 py-1.5 rounded-xl text-white text-xs flex items-center gap-1.5 font-medium transition shadow-sm" title="自定义申明新岗位、设定提示词准则并挂载外部工具">
             <i class="fa-solid fa-plus text-[10px]"></i>
-            <span>新增业务岗位</span>
+            <span>自定义申明新岗位</span>
+          </button>
+          <button onclick="addNewRolePost()" class="studio-pill-btn px-3 py-1.5 rounded-xl text-indigo-300 hover:text-white text-xs flex items-center gap-1.5 font-medium transition" title="从 4 大核心智能体中快捷引入空闲专家岗位">
+            <i class="fa-solid fa-user-plus text-[10px]"></i>
+            <span>推荐快捷加岗</span>
           </button>
           <button onclick="resetMatrixToDefault()" class="studio-pill-btn px-3 py-1.5 rounded-xl text-slate-400 hover:text-slate-200 text-xs flex items-center gap-1.5 transition" title="一键装配 4 智能体标准全职流水线">
             <i class="fa-solid fa-wand-magic-sparkles text-[10px] text-amber-400"></i>
@@ -957,17 +1195,46 @@
         </div>
       </div>
 
-      <!-- 4. 4 大核心智能体实体档案库 (Available Agents Roster) -->
+      <!-- 4. 系统全量智能体与专业岗位资产库 (Global Available Agents & Specialist Pool) -->
       <div class="studio-panel p-6 rounded-2xl space-y-4 border border-white/[0.08]">
-        <div class="flex items-center justify-between">
-          <h3 class="text-xs font-bold text-white uppercase tracking-wider font-mono flex items-center gap-2">
-            <i class="fa-solid fa-robot text-cyan-400"></i>
-            <span>4 大核心智能体专家池 (Available 4-Agent Specialist Pool)</span>
-          </h3>
-          <span class="text-[10px] text-slate-400 font-mono">各专家均支持挂载互联网检索与事实核验能力</span>
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <div class="size-8 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center font-bold text-sm">
+              <i class="fa-solid fa-users-viewfinder"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-xs font-bold text-white uppercase tracking-wider font-mono">
+                  系统全量专业岗位与智能体资产库 (Global Agents & Specialist Pool)
+                </h3>
+                <span id="agents-total-count-badge" class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-bold">全量加载中...</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-0.5">全量展示系统中已注册的所有专业岗位与专家智能体。支持按名称/职责模糊搜索与状态筛选，可一键将其引入编入当前团队流水线。</p>
+            </div>
+          </div>
+
+          <!-- 搜索与筛选工具栏 -->
+          <div class="flex items-center gap-2 flex-wrap w-full md:w-auto">
+            <div class="relative flex-1 md:w-52">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+              <input type="text" id="roster-search-input" oninput="filterAgentsRoster()" placeholder="搜索岗位/职责/Key..." class="w-full bg-black/40 border border-white/[0.1] rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 outline-none focus:border-indigo-500 transition">
+            </div>
+            <div class="flex items-center p-0.5 rounded-xl bg-black/40 border border-white/[0.08] text-[11px] font-mono">
+              <button type="button" onclick="setRosterFilter('all')" id="roster-filter-all" class="px-2.5 py-1 rounded-lg text-white bg-indigo-600 font-bold transition">全部</button>
+              <button type="button" onclick="setRosterFilter('core')" id="roster-filter-core" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition">4大标杆</button>
+              <button type="button" onclick="setRosterFilter('assigned')" id="roster-filter-assigned" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition">已编入本队</button>
+              <button type="button" onclick="setRosterFilter('idle')" id="roster-filter-idle" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition">空闲待命</button>
+            </div>
+            <button type="button" onclick="openPostEditModal(-1)" class="studio-launch-btn px-3 py-1.5 rounded-xl text-white text-xs flex items-center gap-1.5 font-medium transition shadow-sm" title="自定义申明新岗位并注册进全量资产库">
+              <i class="fa-solid fa-plus text-[10px]"></i>
+              <span>申明新岗位</span>
+            </button>
+          </div>
         </div>
+
+        <!-- 全量岗位卡片网格容器 -->
         <div id="matrix-agents-roster" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <!-- 动态渲染 4 大智能体实体卡片 -->
+          <!-- 动态渲染全量智能体实体卡片 -->
         </div>
       </div>
 
@@ -985,8 +1252,8 @@
             <i class="fa-solid fa-brain"></i>
           </div>
           <div>
-            <h2 class="font-bold text-white text-sm">跨任务长期经验神经元 (Memory Cortex)</h2>
-            <p class="text-xs text-slate-400 mt-0.5">沉淀行业事实、客户偏好与标准规格，在每次新任务规划时自适应前置语义召回注入。</p>
+            <h2 class="font-bold text-white text-sm">LLM-Wiki 演进型长期记忆库 (Memory Cortex)</h2>
+            <p class="text-xs text-slate-400 mt-0.5">任务执行完毕自动萃取事实与实体沉淀为 Wiki 词条，在后续协同与多轮追问中自适应前置语义召回注入。</p>
           </div>
         </div>
         <button onclick="openNewMemoryModal()" class="studio-launch-btn px-4 py-2 rounded-xl text-white text-xs font-semibold flex items-center gap-1.5 transition">
@@ -1009,6 +1276,191 @@
 
     </div>
   </section>
+
+  <!-- 5. 主场景 4: 工具与 MCP 外部能力资产中心 (Tools & MCP Studio View) -->
+  <section id="view-tools" class="flex-1 overflow-y-auto p-8 space-y-6 studio-grid hidden">
+    <div class="max-w-6xl mx-auto space-y-6">
+      
+      <!-- 1. 顶部控制栏: 标题 + 接入 MCP 按钮 + 刷新 -->
+      <div class="studio-panel p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border border-white/[0.08] shadow-2xl">
+        <div class="flex items-center gap-3.5">
+          <div class="size-11 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center font-bold text-lg shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+            <i class="fa-solid fa-screwdriver-wrench"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-base font-bold text-white">工具与 MCP 外部能力资产中心</h2>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-semibold">Model Context Protocol</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">集中纳管智能体可调用的外部能力资产。支持标准 MCP 协议动态服务探测与工具一键入库，并提供内置沙箱与自定义能力管理。</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2.5 flex-wrap">
+          <button onclick="openMcpModal()" class="studio-launch-btn px-4 py-2 rounded-xl text-white text-xs font-semibold flex items-center gap-2 shadow-lg active:scale-95 transition">
+            <i class="fa-solid fa-plug text-xs"></i>
+            <span>+ 接入外部 MCP 工具</span>
+          </button>
+          <button onclick="openCustomSearchModal()" class="studio-pill-btn px-3 py-2 rounded-xl text-slate-300 hover:text-white text-xs font-medium flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-magnifying-glass text-[11px] text-indigo-400"></i>
+            <span>+ 自定义搜索工具</span>
+          </button>
+          <button onclick="fetchToolsViewData()" class="size-8 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] text-slate-400 hover:text-white flex items-center justify-center transition" title="刷新工具列表">
+            <i class="fa-solid fa-rotate-right text-xs"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. 四大能力资产遥测卡片 (Tools Telemetry HUD) -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div class="studio-panel p-4 rounded-2xl border border-white/[0.08] space-y-1">
+          <div class="text-[11px] text-slate-400 font-mono flex items-center justify-between">
+            <span>全域可用工具</span>
+            <i class="fa-solid fa-cubes text-cyan-400"></i>
+          </div>
+          <div id="tools-kpi-total" class="text-xl font-extrabold text-white font-mono">0</div>
+          <div class="text-[10px] text-slate-500">含系统沙箱与已接入外部服务</div>
+        </div>
+
+        <div class="studio-panel p-4 rounded-2xl border border-white/[0.08] space-y-1">
+          <div class="text-[11px] text-slate-400 font-mono flex items-center justify-between">
+            <span>MCP 协议工具</span>
+            <i class="fa-solid fa-plug text-indigo-400"></i>
+          </div>
+          <div id="tools-kpi-mcp" class="text-xl font-extrabold text-indigo-300 font-mono">0</div>
+          <div class="text-[10px] text-slate-500">遵循标准 MCP 规范动态注入</div>
+        </div>
+
+        <div class="studio-panel p-4 rounded-2xl border border-white/[0.08] space-y-1">
+          <div class="text-[11px] text-slate-400 font-mono flex items-center justify-between">
+            <span>原生隔离沙箱</span>
+            <i class="fa-solid fa-microchip text-emerald-400"></i>
+          </div>
+          <div id="tools-kpi-builtin" class="text-xl font-extrabold text-emerald-300 font-mono">2</div>
+          <div class="text-[10px] text-slate-500">网络多源检索 + Python 执行沙箱</div>
+        </div>
+
+        <div class="studio-panel p-4 rounded-2xl border border-white/[0.08] space-y-1">
+          <div class="text-[11px] text-slate-400 font-mono flex items-center justify-between">
+            <span>岗位绑定覆盖率</span>
+            <i class="fa-solid fa-shield-halved text-amber-400"></i>
+          </div>
+          <div id="tools-kpi-binding" class="text-xl font-extrabold text-amber-300 font-mono">100%</div>
+          <div class="text-[10px] text-slate-500">智能体团队岗位赋能覆盖率</div>
+        </div>
+      </div>
+
+      <!-- 3. MCP 快速连接与协议介绍横幅 -->
+      <div class="studio-panel p-5 rounded-2xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/20 via-indigo-950/15 to-transparent flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="space-y-1">
+          <div class="flex items-center gap-2">
+            <span class="size-2 rounded-full bg-cyan-400 animate-ping"></span>
+            <span class="font-bold text-white text-xs">Model Context Protocol (MCP) 动态服务接入支持</span>
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed max-w-3xl">
+            ULOO 原生支持 Anthropic 主导的标准 MCP 协议。只需提供您的 MCP Server 端点（如 SSE 远端服务或本地 Stdio 命令行进程），系统将自动发现并解析该服务暴露的全部工具与参数规范，一键注册为团队智能体可用工具。
+          </p>
+        </div>
+        <button onclick="openMcpModal()" class="studio-pill-btn px-4 py-2 rounded-xl text-cyan-300 hover:text-white border border-cyan-500/30 text-xs font-semibold flex items-center gap-1.5 shrink-0 transition">
+          <i class="fa-solid fa-satellite-dish text-xs"></i>
+          <span>一键探测并接入 MCP Server</span>
+        </button>
+      </div>
+
+      <!-- 4. 工具资产 Bento 列表 (Tools Grid) -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between text-xs px-1">
+          <span class="text-slate-300 flex items-center gap-2 font-mono uppercase tracking-wider text-[11px] font-bold">
+            <i class="fa-solid fa-toolbox text-cyan-400"></i>
+            <span>已注册工具资产清单 (Registered Tools Catalog)</span>
+          </span>
+          <span class="text-slate-400 text-[11px] font-mono">共 <span id="tools-catalog-count" class="text-cyan-300 font-bold">0</span> 个可用工具</span>
+        </div>
+
+        <div id="tools-catalog-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- 动态渲染工具卡片 -->
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- 步骤推演与信源详情抽屉/弹窗 -->
+  <div id="modal-step-detail" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden transition-all duration-300">
+    <div class="studio-panel bg-[#0B101E] rounded-2xl border border-white/[0.14] shadow-[0_24px_70px_rgba(0,0,0,0.6)] w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+      <!-- 头部 -->
+      <div class="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between shrink-0 bg-[#090D18]">
+        <div class="flex items-center gap-3">
+          <span id="step-modal-seq" class="px-2 py-0.5 rounded-md font-mono text-xs font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">#1</span>
+          <div>
+            <h3 id="step-modal-title" class="font-bold text-sm text-white flex items-center gap-2">
+              <i id="step-modal-icon" class="fa-solid fa-circle-check text-teal-400"></i>
+              <span id="step-modal-agent-name">阶段推演详情</span>
+            </h3>
+            <div id="step-modal-meta" class="flex items-center gap-3 text-[10.5px] text-slate-400 mt-0.5 font-mono">
+              <span id="step-modal-time">14:58:20</span>
+              <span>·</span>
+              <span id="step-modal-type">agent.completed</span>
+              <span>·</span>
+              <span id="step-modal-chars" class="text-teal-300 font-bold">产出 2,599 字</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btn-copy-step-content" onclick="copyStepModalContent()" class="px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 text-xs font-medium flex items-center gap-1.5 transition">
+            <i class="fa-regular fa-copy"></i>
+            <span id="copy-step-btn-text">复制正文</span>
+          </button>
+          <button onclick="closeStepDetailModal()" class="w-8 h-8 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] text-slate-400 hover:text-white flex items-center justify-center transition">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab 切换栏 -->
+      <div class="flex items-center gap-6 px-6 border-b border-white/[0.06] text-xs font-semibold shrink-0 bg-[#0A0E1A]">
+        <button id="step-modal-tab-output" onclick="switchStepModalTab('output')" class="py-2.5 border-b-2 border-teal-400 text-white flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-file-lines text-teal-400 text-[11px]"></i> <span id="step-modal-tab-output-label">推演成果与执行详情</span>
+        </button>
+        <button id="step-modal-tab-task" onclick="switchStepModalTab('task')" class="py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-bullseye text-indigo-400 text-[11px]"></i> 派发任务与上下文
+        </button>
+        <button id="step-modal-tab-sources" onclick="switchStepModalTab('sources')" class="py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-satellite-dish text-cyan-400 text-[11px]"></i> 工具动作与信源穿透 <span id="step-modal-sources-badge" class="ml-1 px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] hidden font-mono">0</span>
+        </button>
+        <button id="step-modal-tab-raw" onclick="switchStepModalTab('raw')" class="py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5 transition font-mono">
+          <i class="fa-solid fa-code text-amber-400 text-[11px]"></i> 协议元数据
+        </button>
+      </div>
+
+      <!-- 内容主体 -->
+      <div class="p-6 overflow-y-auto flex-1 min-h-0 space-y-4">
+        <!-- 结论成果 Tab -->
+        <div id="step-modal-pane-output" class="space-y-3">
+          <div id="step-modal-markdown" class="markdown-canvas text-slate-200 text-xs leading-relaxed overflow-x-auto"></div>
+          <div id="step-modal-empty-output" class="hidden text-slate-500 text-xs italic py-8 text-center">本步骤已执行完毕，无附加独立文本正文。</div>
+        </div>
+
+        <!-- 任务目标 Tab -->
+        <div id="step-modal-pane-task" class="hidden space-y-3">
+          <div class="p-4 rounded-xl bg-black/50 border border-white/[0.08] text-xs text-slate-200 whitespace-pre-wrap leading-relaxed font-sans" id="step-modal-task-text"></div>
+        </div>
+
+        <!-- 信源穿透 Tab -->
+        <div id="step-modal-pane-sources" class="hidden space-y-3">
+          <div id="step-modal-sources-list" class="space-y-2"></div>
+          <div id="step-modal-empty-sources" class="text-slate-500 text-xs italic py-8 text-center">本步骤未直接触发外部网络工具检索</div>
+        </div>
+
+        <!-- 原始元数据 Tab -->
+        <div id="step-modal-pane-raw" class="hidden space-y-3">
+          <pre id="step-modal-json" class="p-4 rounded-xl bg-black/60 border border-white/[0.08] text-[11px] font-mono text-emerald-400/90 overflow-x-auto whitespace-pre-wrap max-h-[60vh] select-all"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <!-- 录入记忆模态弹窗 -->
   <div id="modal-memory" class="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
@@ -1046,6 +1498,314 @@
     </div>
   </div>
 
+  <!-- 岗位自定义申明与工具编排模态弹窗 (Post Custom Declaration & Tool Modal) -->
+  <div id="modal-post-edit" class="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+    <div class="studio-panel bg-[#0B0F19] rounded-2xl border border-white/[0.12] shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      
+      <!-- 弹窗顶栏 -->
+      <div class="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
+        <div class="flex items-center gap-3">
+          <div class="size-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center text-base">
+            <i class="fa-solid fa-user-gear"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 id="modal-post-edit-header-title" class="font-bold text-sm text-white">岗位自定义申明与工具编排</h3>
+              <span id="modal-post-idx-badge" class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">岗位 #1</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-0.5">定制该岗位的专属执行指令、边界约束与外部接入工具，保证任务推演准确可用</p>
+          </div>
+        </div>
+        <button onclick="closePostEditModal()" class="size-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.05] transition">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <!-- 弹窗滚动表单主体 -->
+      <div class="p-6 overflow-y-auto space-y-5 text-xs">
+        
+        <!-- 1. 基础岗位信息 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <label class="block font-semibold text-slate-300 flex items-center gap-1.5">
+              <span>岗位名称 *</span>
+              <span class="text-[10px] text-slate-500 font-normal">(用于任务拆解与推演步骤标识)</span>
+            </label>
+            <input type="text" id="modal-post-field-title" placeholder="如：新能源汽车安全合规调研专员" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-white/[0.1] bg-black/40 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30" />
+          </div>
+
+          <div class="space-y-1.5">
+            <label class="block font-semibold text-slate-300 flex items-center gap-1.5">
+              <span>角色定位与职责描述 *</span>
+            </label>
+            <input type="text" id="modal-post-field-duty" placeholder="如：负责调取国家标准、比对车企通告与刹车系统材料强度" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-white/[0.1] bg-black/40 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30" />
+          </div>
+        </div>
+
+        <!-- 2. 智能体实体策略模式 (Entity Mode Switcher) -->
+        <div class="studio-panel p-3.5 rounded-xl border border-white/[0.08] bg-black/30 space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="font-semibold text-slate-300 flex items-center gap-1.5">
+              <i class="fa-solid fa-microchip text-indigo-400"></i>
+              <span>智能体实体持久化策略</span>
+            </label>
+            <span class="text-[10px] text-slate-500 font-mono">Backend: /api/v1/agents</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <label class="flex items-center gap-2.5 p-2.5 rounded-lg border border-indigo-500/40 bg-indigo-500/10 cursor-pointer transition" id="label-agent-mode-update">
+              <input type="radio" name="post-agent-save-mode" id="radio-mode-update" value="update" checked onchange="onPostAgentModeChanged()" class="text-indigo-500 focus:ring-0" />
+              <div class="min-w-0">
+                <div class="font-semibold text-indigo-200">更新当前绑定智能体</div>
+                <div id="modal-post-bound-agent-desc" class="text-[10px] text-slate-400 truncate mt-0.5">直接修改原智能体指令与工具</div>
+              </div>
+            </label>
+            <label class="flex items-center gap-2.5 p-2.5 rounded-lg border border-white/[0.08] bg-white/[0.02] cursor-pointer hover:border-white/[0.2] transition" id="label-agent-mode-new">
+              <input type="radio" name="post-agent-save-mode" id="radio-mode-new" value="new" onchange="onPostAgentModeChanged()" class="text-indigo-500 focus:ring-0" />
+              <div class="min-w-0">
+                <div class="font-semibold text-slate-200">创建新独立智能体实体</div>
+                <div class="text-[10px] text-slate-400 truncate mt-0.5">生成全新 Key，隔离专属指令与能力</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- 3. 工具接入与权限勾选 (Tool Integrations) -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="font-semibold text-slate-300 flex items-center gap-1.5">
+              <i class="fa-solid fa-screwdriver-wrench text-cyan-400"></i>
+              <span>外部工具接入与挂载权限 (Tool Access)</span>
+            </label>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="openMcpModal()" class="text-[10px] px-2.5 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 hover:text-white hover:bg-cyan-600/30 transition flex items-center gap-1">
+                <i class="fa-solid fa-plug text-[9px]"></i>
+                <span>+ 接入外部 MCP 工具</span>
+              </button>
+              <span class="text-[10px] text-cyan-400 font-mono">模型将在推演时按需自主调用</span>
+            </div>
+          </div>
+
+          <div id="modal-post-tools-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <!-- 动态渲染可用工具卡片 -->
+          </div>
+        </div>
+
+        <!-- 4. 自定义工作指令与提示词申明 (System Instructions) -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="font-semibold text-slate-300 flex items-center gap-1.5">
+              <i class="fa-solid fa-scroll text-amber-400"></i>
+              <span>岗位自定义工作指令与审查申明 (System Instructions)</span>
+            </label>
+            <span class="text-[10px] text-slate-500 font-mono">支持每行一条指令</span>
+          </div>
+
+          <!-- 快速注入指令常用快捷标签 -->
+          <div class="flex items-center gap-1.5 flex-wrap">
+            <span class="text-[10px] text-slate-500">快捷预设:</span>
+            <button type="button" onclick="appendPostInstruction('所有观点和数据结论必须标明权威信源 URL 或机构公报出处。')" class="text-[10px] px-2 py-0.5 rounded-md bg-white/[0.05] hover:bg-indigo-500/20 text-slate-300 hover:text-indigo-200 border border-white/[0.08] transition">+ 必须标注信源URL</button>
+            <button type="button" onclick="appendPostInstruction('严禁推测或编造未证实数据，遇到存疑信息主动指出争议点。')" class="text-[10px] px-2 py-0.5 rounded-md bg-white/[0.05] hover:bg-amber-500/20 text-slate-300 hover:text-amber-200 border border-white/[0.08] transition">+ 严防幻觉造假</button>
+            <button type="button" onclick="appendPostInstruction('涉及定量对比时，须优先调用 Python 代码解释器进行数值核算。')" class="text-[10px] px-2 py-0.5 rounded-md bg-white/[0.05] hover:bg-emerald-500/20 text-slate-300 hover:text-emerald-200 border border-white/[0.08] transition">+ 强制定量代码核算</button>
+            <button type="button" onclick="appendPostInstruction('采用结构化 Markdown 形式输出：包含背景事实、核心论证、多维争议与明确结论。')" class="text-[10px] px-2 py-0.5 rounded-md bg-white/[0.05] hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-200 border border-white/[0.08] transition">+ 结构化专业报告</button>
+          </div>
+
+          <textarea id="modal-post-field-instructions" rows="5" placeholder="声明该岗位的专项工作原则（每行一条）：&#10;1. 优先调用联网搜索工具检索一手质检或车企权威回应&#10;2. 区分网络爆料与司法鉴定事实，给出确凿结论&#10;3. 采用严谨客观态度撰写分析摘要..." class="w-full text-xs p-3.5 rounded-xl border border-white/[0.1] bg-black/40 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 font-mono leading-relaxed"></textarea>
+        </div>
+
+      </div>
+
+      <!-- 弹窗底栏 -->
+      <div class="px-6 py-4 border-t border-white/[0.08] bg-white/[0.02] flex items-center justify-between">
+        <span class="text-[10px] text-slate-500 flex items-center gap-1 font-mono">
+          <i class="fa-solid fa-shield-check text-emerald-400"></i>
+          <span>修改将立即同步保存至数据库与执行引擎 (保证可用)</span>
+        </span>
+        <div class="flex items-center gap-2.5">
+          <button type="button" onclick="closePostEditModal()" class="studio-pill-btn px-4 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white">取消</button>
+          <button type="button" onclick="savePostEditModal()" id="btn-save-post-edit" class="studio-launch-btn px-5 py-2 rounded-xl text-xs font-bold text-white shadow-lg flex items-center gap-1.5 active:scale-95 transition">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span>保存并生效</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 接入外部 MCP 工具模态弹窗 (Connect & Discover MCP Tools Modal) -->
+  <div id="modal-mcp-tool" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+    <div class="studio-panel bg-[#090D18] rounded-2xl border border-white/[0.12] shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      
+      <!-- 弹窗顶栏 -->
+      <div class="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.02]">
+        <div class="flex items-center gap-3">
+          <div class="size-10 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 flex items-center justify-center text-base shadow-[0_0_12px_rgba(6,182,212,0.3)]">
+            <i class="fa-solid fa-plug"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="font-bold text-sm text-white">接入外部 MCP 服务与工具</h3>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">MCP Protocol</span>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-0.5">连接符合 Model Context Protocol 规范的服务端点，探测并导入工具</p>
+          </div>
+        </div>
+        <button onclick="closeMcpModal()" class="size-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/[0.05] transition">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+      </div>
+
+      <!-- 弹窗主体滚动区域 -->
+      <div class="p-6 overflow-y-auto space-y-5 text-xs">
+        
+        <!-- 步骤 1: MCP 通信协议选择与端点配置 -->
+        <div class="studio-panel p-4 rounded-xl border border-white/[0.08] bg-black/40 space-y-3.5">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-200 flex items-center gap-2 text-xs">
+              <span class="size-5 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-[10px] font-mono">1</span>
+              <span>配置 MCP 服务通信协议 (Transport)</span>
+            </span>
+            <span class="text-[10px] text-slate-500 font-mono">API: /tools/mcp/discover</span>
+          </div>
+
+          <!-- Transport 切换单选 -->
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <label class="flex items-center gap-2.5 p-2.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 cursor-pointer transition" id="label-mcp-transport-sse">
+              <input type="radio" name="mcp-transport" value="sse" checked onchange="onMcpTransportChanged()" class="text-cyan-500 focus:ring-0" />
+              <div class="min-w-0">
+                <div class="font-semibold text-cyan-200">SSE (HTTP / Server-Sent Events)</div>
+                <div class="text-[10px] text-slate-400 truncate mt-0.5">推荐：用于微服务、容器化或远程 API 网关</div>
+              </div>
+            </label>
+            <label class="flex items-center gap-2.5 p-2.5 rounded-lg border border-white/[0.08] bg-white/[0.02] cursor-pointer hover:border-white/[0.2] transition" id="label-mcp-transport-stdio">
+              <input type="radio" name="mcp-transport" value="stdio" onchange="onMcpTransportChanged()" class="text-cyan-500 focus:ring-0" />
+              <div class="min-w-0">
+                <div class="font-semibold text-slate-200">Stdio (本地命令行进程)</div>
+                <div class="text-[10px] text-slate-400 truncate mt-0.5">用于本地 CLI 工具 (如 npx / python 执行)</div>
+              </div>
+            </label>
+          </div>
+
+          <!-- SSE 表单字段 -->
+          <div id="mcp-fields-sse" class="space-y-3 pt-1">
+            <div class="space-y-1.5">
+              <label class="block font-semibold text-slate-300 flex items-center justify-between">
+                <span>MCP 服务端点 URL (Endpoint URL) *</span>
+                <span class="text-[10px] text-slate-500 font-normal">支持 http:// 或 https://</span>
+              </label>
+              <input type="text" id="mcp-endpoint-url" placeholder="如：http://127.0.0.1:8000/sse 或 https://mcp.company.internal/sse" class="w-full text-xs px-3.5 py-2.5 rounded-xl border border-white/[0.1] bg-black/50 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30 font-mono" />
+            </div>
+
+            <div class="space-y-1.5">
+              <label class="block font-semibold text-slate-300 flex items-center justify-between">
+                <span>自定义请求头 (Headers JSON，可选)</span>
+                <span class="text-[10px] text-slate-500 font-normal">如鉴权 Token</span>
+              </label>
+              <input type="text" id="mcp-headers-json" placeholder='{"Authorization": "Bearer your-token-here"}' class="w-full text-xs px-3.5 py-2 rounded-xl border border-white/[0.1] bg-black/50 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/60 font-mono text-[11px]" />
+            </div>
+          </div>
+
+          <!-- Stdio 表单字段 (默认隐藏) -->
+          <div id="mcp-fields-stdio" class="space-y-3 pt-1 hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div class="space-y-1.5">
+                <label class="block font-semibold text-slate-300">启动命令 (Command) *</label>
+                <input type="text" id="mcp-stdio-command" placeholder="如: npx 或 python" class="w-full text-xs px-3.5 py-2 rounded-xl border border-white/[0.1] bg-black/50 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/60 font-mono" />
+              </div>
+              <div class="space-y-1.5">
+                <label class="block font-semibold text-slate-300">启动参数 (Args以空格分隔)</label>
+                <input type="text" id="mcp-stdio-args" placeholder="如: -y @modelcontextprotocol/server-everything" class="w-full text-xs px-3.5 py-2 rounded-xl border border-white/[0.1] bg-black/50 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500/60 font-mono" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 探测发现按钮 -->
+          <div class="flex items-center justify-between pt-2 border-t border-white/[0.06]">
+            <span class="text-[10px] text-slate-400 flex items-center gap-1 font-mono">
+              <i class="fa-solid fa-circle-info text-cyan-400"></i>
+              <span>连接后将自动拉取服务端暴露的 list_tools 规范</span>
+            </span>
+            <button type="button" onclick="discoverMcpTools()" id="btn-discover-mcp" class="studio-launch-btn px-4 py-2 rounded-xl text-white text-xs font-semibold flex items-center gap-1.5 shadow-md active:scale-95 transition">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <span>探测并发现工具</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 步骤 2: 探测发现的工具清单与一键入库 -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-200 flex items-center gap-2 text-xs">
+              <span class="size-5 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[10px] font-mono">2</span>
+              <span>发现的 MCP 工具清单 (Discovered Tools)</span>
+            </span>
+            <span id="mcp-discovered-badge" class="text-[10px] font-mono text-slate-500">尚未探测</span>
+          </div>
+
+          <!-- 探测结果容器 -->
+          <div id="mcp-discovered-container" class="space-y-2.5">
+            <div class="studio-panel border-dashed border-white/[0.1] p-8 text-center text-slate-500 text-xs">
+              <i class="fa-solid fa-satellite text-2xl mb-2 text-slate-600 block"></i>
+              请在上方输入 MCP Server 端点，点击【探测并发现工具】获取服务能力
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 弹窗底栏 -->
+      <div class="px-6 py-4 border-t border-white/[0.08] bg-white/[0.02] flex items-center justify-between">
+        <span class="text-[10px] text-slate-500 flex items-center gap-1 font-mono">
+          <i class="fa-solid fa-shield-check text-emerald-400"></i>
+          <span>入库工具将直接出现在【岗位编排】中供随时分配</span>
+        </span>
+        <button type="button" onclick="closeMcpModal()" class="studio-pill-btn px-4 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white">关闭</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 自定义搜索工具弹窗 -->
+  <div id="modal-custom-search-tool" class="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+    <div class="studio-panel bg-[#0B0F19] rounded-2xl border border-white/[0.12] shadow-2xl w-full max-w-md overflow-hidden">
+      <div class="px-6 py-4 border-b border-white/[0.08] flex items-center justify-between">
+        <h3 class="font-bold text-sm text-white flex items-center gap-2">
+          <i class="fa-solid fa-magnifying-glass text-indigo-400"></i> 新建垂直检索工具 (Builtin Search)
+        </h3>
+        <button onclick="closeCustomSearchModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form onsubmit="handleCreateCustomSearchTool(event)" class="p-6 space-y-4 text-xs">
+        <div class="space-y-1.5">
+          <label class="block font-semibold text-slate-300">工具唯一标识 (Key) *</label>
+          <input type="text" id="custom-search-key" placeholder="如: gov-auto-search" required pattern="^[A-Za-z][A-Za-z0-9._-]*$" class="w-full px-3.5 py-2.5 rounded-xl border border-white/[0.1] bg-black/50 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500 font-mono" />
+        </div>
+        <div class="space-y-1.5">
+          <label class="block font-semibold text-slate-300">工具显示名称 *</label>
+          <input type="text" id="custom-search-name" placeholder="如: 国家质检法规专项搜索" required class="w-full px-3.5 py-2.5 rounded-xl border border-white/[0.1] bg-black/50 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500" />
+        </div>
+        <div class="space-y-1.5">
+          <label class="block font-semibold text-slate-300">功能描述</label>
+          <input type="text" id="custom-search-desc" placeholder="定向检索国家质量监督与召回公告" class="w-full px-3.5 py-2.5 rounded-xl border border-white/[0.1] bg-black/50 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500" />
+        </div>
+        <div class="space-y-1.5">
+          <label class="block font-semibold text-slate-300">自动前置关键词 (Query Prefix)</label>
+          <input type="text" id="custom-search-prefix" placeholder="如: site:samr.gov.cn 或 汽车缺陷召回" class="w-full px-3.5 py-2.5 rounded-xl border border-white/[0.1] bg-black/50 text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-indigo-500" />
+        </div>
+        <div class="space-y-1.5">
+          <label class="block font-semibold text-slate-300">最大返回结果条数 (1~8)</label>
+          <input type="number" id="custom-search-max" value="5" min="1" max="8" class="w-full px-3.5 py-2.5 rounded-xl border border-white/[0.1] bg-black/50 text-slate-100 focus:outline-none focus:border-indigo-500" />
+        </div>
+        <div class="pt-3 border-t border-white/[0.08] flex items-center justify-end gap-2.5">
+          <button type="button" onclick="closeCustomSearchModal()" class="studio-pill-btn px-4 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white">取消</button>
+          <button type="submit" id="btn-save-custom-search" class="studio-launch-btn px-5 py-2 rounded-xl text-xs font-bold text-white shadow-sm">
+            <span>保存并入库</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
   <!-- 核心逻辑与 API 交互 (保持 100% 后端接口兼容) -->
   <script>
     const API_BASE = '/api/v1';
@@ -1081,6 +1841,23 @@
       return `<a href="${linkHref}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-300 underline font-semibold transition px-1 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20" title="${linkTitle || linkHref}">${linkText} <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i></a>`;
     };
     marked.setOptions({ renderer: customRenderer, gfm: true, breaks: true });
+
+    // 通用 HTML 转义函数，防御 XSS 并确保动态模板安全渲染
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // 全局同步团队下拉选择框 (协同指挥舱 prompt-team-select 与 团队配置 matrix-team-selector)
+    function populateTeamSelector() {
+      loadTeamsToSelect();
+      renderMatrixTeamSelector();
+    }
 
     const STATUS_MAP = {
       draft: { text: '草稿', color: 'bg-slate-500/10 text-slate-400 border-slate-500/20', dot: 'bg-slate-400' },
@@ -1162,14 +1939,14 @@
     }
 
     function renderStudioModeButtons() {
-      ['studio', 'swarm', 'cortex'].forEach(m => {
+      ['studio', 'swarm', 'cortex', 'tools'].forEach(m => {
         const btn = document.getElementById(`mode-btn-${m}`);
         if (!btn) return;
         if (m === currentMode) {
           if (currentTheme === 'apple') {
-            btn.className = "px-4 py-1.5 rounded-full transition-all text-white bg-[#0071E3] shadow-sm flex items-center gap-2";
+            btn.className = "px-4 py-1.5 rounded-full transition-all text-white bg-[#0071E3] shadow-sm flex items-center gap-2 font-bold";
           } else {
-            btn.className = "px-4 py-1.5 rounded-full transition-all text-white bg-indigo-600 shadow-[0_0_12px_rgba(99,102,241,0.4)] flex items-center gap-2";
+            btn.className = "px-4 py-1.5 rounded-full transition-all text-white bg-indigo-600 shadow-[0_0_12px_rgba(99,102,241,0.4)] flex items-center gap-2 font-bold";
           }
         } else {
           if (currentTheme === 'apple') {
@@ -1181,10 +1958,10 @@
       });
     }
 
-    // 顶栏主场景切换 (Studio / Swarm / Cortex)
+    // 顶栏主场景切换 (Studio / Swarm / Cortex / Tools)
     function switchStudioMode(mode) {
       currentMode = mode;
-      ['studio', 'swarm', 'cortex'].forEach(m => {
+      ['studio', 'swarm', 'cortex', 'tools'].forEach(m => {
         const view = document.getElementById(`view-${m}`);
         if (view) {
           if (m === mode) view.classList.remove('hidden');
@@ -1196,6 +1973,7 @@
       if (mode === 'studio') fetchTasks();
       if (mode === 'swarm') fetchSwarmData();
       if (mode === 'cortex') fetchCortexMemories();
+      if (mode === 'tools') fetchToolsViewData();
     }
 
     // 画布子 Tab 切换 (车轨沙盘 vs 实时推演 vs 最终成果报告)
@@ -1248,7 +2026,7 @@
     async function loadTeamsToSelect() {
       try {
         if (!cachedTeams.length) {
-          const data = await apiRequest('/teams?limit=50');
+          const data = await apiRequest('/teams?limit=100');
           cachedTeams = data.items || [];
         }
         // 优先将具备搜索与核验的互联网调研团队置顶并设为默认
@@ -1266,15 +2044,108 @@
       }
     }
 
+    // 全局当前附带文件对象
+    let currentAttachedFile = null;
+
+    function triggerFileUpload() {
+      const input = document.getElementById('prompt-file-input');
+      if (input) input.click();
+    }
+
+    function clearPromptAttachment() {
+      currentAttachedFile = null;
+      const bar = document.getElementById('prompt-attachment-bar');
+      if (bar) bar.classList.add('hidden');
+      const input = document.getElementById('prompt-file-input');
+      if (input) input.value = '';
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes || bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    async function handlePromptFileSelected(inputEl) {
+      const file = inputEl.files?.[0];
+      if (!file) return;
+      await uploadAndAttachFile(file);
+    }
+
+    async function uploadAndAttachFile(file) {
+      const btn = document.getElementById('btn-prompt-upload');
+      const origHtml = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin text-[10px] text-indigo-400"></i> <span>上传中...</span>`;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const uploadHeaders = { ...HEADERS };
+        delete uploadHeaders['Content-Type'];
+
+        const res = await fetch(`${API_BASE}/files/upload`, {
+          method: 'POST',
+          headers: uploadHeaders,
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ message: res.statusText }));
+          throw new Error(err.message || '上传失败');
+        }
+
+        const data = await res.json();
+        currentAttachedFile = data;
+
+        const bar = document.getElementById('prompt-attachment-bar');
+        const nameEl = document.getElementById('prompt-attachment-name');
+        const sizeEl = document.getElementById('prompt-attachment-size');
+        const iconEl = document.getElementById('prompt-attachment-icon');
+
+        if (nameEl) nameEl.innerText = data.file_name;
+        if (sizeEl) sizeEl.innerText = `(${formatBytes(data.file_size)})`;
+        if (iconEl) {
+          iconEl.className = data.file_name.toLowerCase().endsWith('.pdf')
+            ? 'fa-solid fa-file-pdf text-rose-400 text-sm shrink-0'
+            : 'fa-solid fa-file-lines text-indigo-400 text-sm shrink-0';
+        }
+        if (bar) bar.classList.remove('hidden');
+
+        // 若输入框为空，智能填入解析提示词
+        const promptInput = document.getElementById('prompt-input');
+        if (promptInput && !promptInput.value.trim()) {
+          promptInput.value = `请解析附件《${data.file_name}》，提取核心内容与关键表格并生成分析报告。`;
+        }
+      } catch (err) {
+        alert('附件上传失败: ' + err.message);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = origHtml;
+        }
+      }
+    }
+
     // 从指令舱直接发起协同任务 (免弹窗)
     async function launchMissionFromBar() {
       const input = document.getElementById('prompt-input');
-      const query = input.value.trim();
-      if (!query) {
-        alert('请输入协同目标指令');
+      const rawQuery = input.value.trim();
+      if (!rawQuery && !currentAttachedFile) {
+        alert('请输入协同目标指令或上传要分析的附件文档');
         input.focus();
         return;
       }
+
+      const queryText = rawQuery || `请解析附件《${currentAttachedFile.file_name}》并生成分析报告。`;
+      const query = currentAttachedFile
+        ? `${queryText}\n\n【用户上传附件文档】: ${currentAttachedFile.file_path} (文件名: ${currentAttachedFile.file_name}，请优先调用 pdf-parser 工具解析并基于其内容回答)`
+        : queryText;
 
       const teamSelect = document.getElementById('prompt-team-select');
       const teamId = teamSelect.value || (cachedTeams[0]?.id);
@@ -1288,7 +2159,7 @@
       btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>启动中</span>`;
 
       try {
-        const title = query.length > 25 ? query.substring(0, 25) + '...' : query;
+        const title = rawQuery.length > 25 ? rawQuery.substring(0, 25) + '...' : (rawQuery || `解析: ${currentAttachedFile.file_name}`);
         // 1. 创建任务
         const task = await apiRequest('/tasks', {
           method: 'POST',
@@ -1302,6 +2173,7 @@
         });
 
         input.value = '';
+        clearPromptAttachment();
         await fetchTasks();
         selectMission(task.id);
       } catch (err) {
@@ -1380,10 +2252,10 @@
               <span class="font-mono text-[10px] text-slate-500">${timeStr}</span>
             </div>
             <h4 class="font-bold text-xs text-white group-hover:text-indigo-300 line-clamp-1 transition-colors">${task.title}</h4>
-            <p class="text-[11px] text-slate-400 line-clamp-1 mt-1">${task.query}</p>
-            <div class="pt-2 mt-2 border-t border-white/[0.05] flex items-center justify-between text-[10px] text-slate-500 font-mono">
-              <span><i class="fa-solid fa-layer-group text-indigo-400 mr-1"></i>${stepCount} 步骤</span>
-              <span class="text-indigo-400 flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">展开画布 <i class="fa-solid fa-angle-right text-[8px]"></i></span>
+            <p class="text-xs text-slate-300 line-clamp-1 mt-1 font-normal leading-normal">${task.query}</p>
+            <div class="pt-2 mt-2 border-t border-white/[0.08] flex items-center justify-between text-xs text-slate-300 font-mono">
+              <span><i class="fa-solid fa-layer-group text-indigo-400 mr-1"></i>${stepCount} 步协同</span>
+              <span class="text-indigo-300 font-semibold flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">查阅 <i class="fa-solid fa-angle-right text-[10px]"></i></span>
             </div>
           </div>
         `;
@@ -1586,7 +2458,12 @@
           if (agentDetails[activeAgentName]) agentDetails[activeAgentName].status = 'running';
         } else if (e.event_type === 'agent.completed') {
           const compName = e.payload?.name || e.payload?.agent || activeAgentName;
-          if (agentDetails[compName]) agentDetails[compName].status = 'completed';
+          if (agentDetails[compName]) {
+            agentDetails[compName].status = 'completed';
+            if (e.payload?.output) {
+              agentDetails[compName].output = e.payload.output;
+            }
+          }
         } else if (e.event_type === 'tool.calling') {
           const q = e.payload?.query || e.payload?.tool;
           if (q && agentDetails[activeAgentName]) {
@@ -1621,6 +2498,15 @@
       distinctAgents.forEach((agentKey, idx) => {
         const ad = agentDetails[agentKey];
         const stCode = `S${idx + 2}`;
+        let stationDetail = `智能体正在根据协同上下文与提示词推进推演...`;
+        if (ad.output) {
+          const outStr = typeof ad.output === 'string' ? ad.output : (ad.output.content || JSON.stringify(ad.output));
+          if (outStr && outStr.trim()) {
+            stationDetail = outStr.length > 200 ? outStr.substring(0, 200) + '...' : outStr;
+          }
+        } else if (ad.queries.length > 0) {
+          stationDetail = `本站已发生 ${ad.queries.length} 次真实工具调用，最近：“${ad.queries[ad.queries.length - 1].substring(0, 36)}...”`;
+        }
         stations.push({
           id: `st-agent-${idx}`,
           type: 'agent',
@@ -1631,9 +2517,8 @@
           queries: ad.queries,
           toolCount: ad.toolCount,
           rawName: agentKey,
-          detail: ad.queries.length > 0
-            ? `本站已发生 ${ad.queries.length} 次真实工具调用，最近：“${ad.queries[ad.queries.length - 1].substring(0, 36)}...”`
-            : `智能体正在根据协同上下文与提示词推进推演...`
+          output: ad.output,
+          detail: stationDetail
         });
 
         // 如果不是最后一个智能体，插入一个道岔换乘点
@@ -1862,11 +2747,11 @@
           innerHtml = `<circle cx="${st.x}" cy="${st.y}" r="3.5" fill="#475569" />`;
         }
 
-        // 文本颜色
-        const titleColor = isCurrent ? '#FFFFFF' : (isPast ? '#E2E8F0' : '#64748B');
-        const subColor = isCurrent ? '#38BDF8' : (isPast ? '#10B981' : '#475569');
+        // 文本颜色 (UI/UX Pro Max 高对比度易读优化)
+        const titleColor = isCurrent ? '#FFFFFF' : (isPast ? '#F8FAFC' : '#E2E8F0');
+        const subColor = isCurrent ? '#38BDF8' : (isPast ? '#34D399' : '#94A3B8');
         const statusText = isCurrent ? (meta.isRunning ? '● 作业中' : '● 本站停靠') : (isPast ? '✓ 已通车' : '○ 进路待到');
-        const statusColor = isCurrent ? '#F59E0B' : (isPast ? '#10B981' : '#64748B');
+        const statusColor = isCurrent ? '#FBBF24' : (isPast ? '#34D399' : '#CBD5E1');
 
         return `
           <!-- 站点 ${idx + 1}: ${st.name} -->
@@ -1880,10 +2765,10 @@
             <circle cx="${st.x}" cy="${st.y}" r="14" fill="#070B16" stroke="${ringStroke}" stroke-width="${ringWidth}" ${ringPulseClass} />
             ${innerHtml}
 
-            <!-- 站名牌与作业指标 (清晰横向展示) -->
-            <text x="${st.x}" y="100" text-anchor="middle" fill="${titleColor}" font-size="11" font-weight="bold">${st.name}</text>
-            <text x="${st.x}" y="116" text-anchor="middle" fill="${subColor}" font-size="9" font-family="monospace">${st.sub}</text>
-            <text x="${st.x}" y="130" text-anchor="middle" fill="${statusColor}" font-size="8.5">${statusText}</text>
+            <!-- 站名牌与作业指标 (清晰横向展示 - 字号提拔放大，杜绝模糊) -->
+            <text x="${st.x}" y="100" text-anchor="middle" fill="${titleColor}" font-size="12.5" font-weight="bold">${st.name}</text>
+            <text x="${st.x}" y="117" text-anchor="middle" fill="${subColor}" font-size="11" font-weight="600" font-family="monospace">${st.sub}</text>
+            <text x="${st.x}" y="133" text-anchor="middle" fill="${statusColor}" font-size="10.5" font-weight="bold">${statusText}</text>
           </g>
         `;
       }).join('');
@@ -1920,7 +2805,7 @@
             <!-- 高铁流线型动车胶囊 -->
             <rect x="-35" y="-13" width="70" height="26" rx="13" fill="${trainColor}" filter="url(#rail-glow)" />
             <path d="M 16 -7 L 27 -7 C 30 -7, 32 -4, 32 0 C 32 4, 30 7, 27 7 L 16 7 Z" fill="#0A0F1D" opacity="0.65" />
-            <text x="-5" y="4" text-anchor="middle" fill="#0A0F1D" font-size="9.5" font-weight="900" font-family="monospace">${trainTitle}</text>
+            <text x="-5" y="4.5" text-anchor="middle" fill="#0A0F1D" font-size="11" font-weight="900" font-family="monospace">${trainTitle}</text>
           </g>
         </svg>
       `;
@@ -1980,8 +2865,31 @@
           `;
         }
 
+        let outputBoxHtml = '';
+        if (st.output) {
+          const rawContent = typeof st.output === 'string' ? st.output : (st.output.content || '');
+          if (rawContent && rawContent.trim()) {
+            const cleanContent = escapeHtml(rawContent.length > 300 ? rawContent.substring(0, 300) + '...' : rawContent);
+            outputBoxHtml = `
+              <div class="mt-2.5 p-3 rounded-xl bg-black/50 border border-teal-500/20 text-slate-300 text-[11px] leading-relaxed">
+                <div class="text-[10px] text-teal-400 font-bold mb-1.5 flex items-center justify-between">
+                  <span class="flex items-center gap-1.5"><i class="fa-solid fa-file-lines text-teal-400"></i> 本站阶段推演产出</span>
+                  <span class="text-[9.5px] font-mono text-slate-500">${rawContent.length} 字</span>
+                </div>
+                <div class="whitespace-pre-wrap text-slate-200 text-[11px] font-sans leading-relaxed">${cleanContent}</div>
+              </div>
+            `;
+          }
+        }
+
+        const inspectBtnHtml = (st.output || (st.queries && st.queries.length > 0) || st.type === 'agent') ? `
+          <button onclick="event.stopPropagation(); inspectStationDetail(${idx})" class="mt-2 w-full py-1.5 px-3 rounded-xl bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/25 text-teal-300 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition">
+            <i class="fa-solid fa-expand text-[10px]"></i> 查看本站推演详情与完整产出
+          </button>
+        ` : '';
+
         return `
-          <div class="rail-station-card studio-panel p-4 rounded-2xl border ${borderClass} space-y-2.5 transition-all">
+          <div onclick="inspectStationDetail(${idx})" class="rail-station-card studio-panel p-4 rounded-2xl border ${borderClass} space-y-2.5 transition-all cursor-pointer hover:border-teal-500/40">
             <div class="flex items-center justify-between">
               <span class="font-bold text-slate-200 flex items-center gap-2 text-xs">
                 ${iconHtml}
@@ -1989,10 +2897,12 @@
               </span>
               ${badgeHtml}
             </div>
-            <p class="text-slate-400 text-[11px] leading-relaxed">
+            <p class="text-slate-200 text-xs leading-relaxed">
               ${st.detail}
             </p>
+            ${outputBoxHtml}
             ${liveQueriesHtml}
+            ${inspectBtnHtml}
           </div>
         `;
       }).join('');
@@ -2077,12 +2987,112 @@
         } else {
           sourcesGrid.innerHTML = `<div class="col-span-full text-slate-500 text-xs py-2 italic">正文中已包含数据来源，您可直接点击正文中的跳转卡片。</div>`;
         }
+
+        // 渲染本轮自动萃取的 LLM-Wiki 实体记忆
+        renderRunWikiMemories(latestSuccessRun);
       } else {
         readyDot.classList.add('hidden');
         markdownContainer.innerHTML = `<span class="text-slate-500 italic text-xs">任务尚未生成成果，智能体团队协同执行完毕后将在此处呈现。</span>`;
         sourcesCount.innerText = `0 个真实信源`;
         sourcesGrid.innerHTML = `<div class="col-span-full text-slate-500 text-xs py-2">暂无可用来源</div>`;
         window._currentDeliverableText = '';
+        const wikiGrid = document.getElementById('canvas-wiki-grid');
+        const wikiCount = document.getElementById('canvas-wiki-count');
+        if (wikiGrid) wikiGrid.innerHTML = `<div class="col-span-full text-slate-500 text-xs py-2 italic">暂无沉淀词条</div>`;
+        if (wikiCount) wikiCount.innerText = `0 条记忆沉淀`;
+      }
+    }
+
+    // 渲染指定 Run 自动提炼的 LLM-Wiki 实体条目
+    async function renderRunWikiMemories(run) {
+      const wikiGrid = document.getElementById('canvas-wiki-grid');
+      const wikiCount = document.getElementById('canvas-wiki-count');
+      if (!wikiGrid || !wikiCount) return;
+
+      let items = [];
+      if (run && run.events) {
+        const memEvent = run.events.find(e => e.event_type === 'memory.consolidated');
+        if (memEvent && memEvent.payload && memEvent.payload.items) {
+          items = memEvent.payload.items;
+        }
+      }
+
+      if (items.length === 0 && run && run.id) {
+        try {
+          const res = await apiRequest('/memories?limit=50');
+          if (res && res.items) {
+            items = res.items.filter(m => m.source_run_id === run.id);
+          }
+        } catch (e) {
+          console.warn('获取 Wiki 记忆失败', e);
+        }
+      }
+
+      wikiCount.innerText = `${items.length} 条记忆沉淀`;
+      if (items.length > 0) {
+        wikiGrid.innerHTML = items.map(m => `
+          <div class="interactive-card p-3 rounded-xl border border-purple-500/20 bg-purple-950/20 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                <i class="fa-solid fa-wand-magic-sparkles text-[9px] mr-1"></i>${(m.category || 'wiki').toUpperCase()}
+              </span>
+              <span class="text-[9.5px] font-mono text-purple-400/80">LLM-Wiki 沉淀</span>
+            </div>
+            <p class="text-xs text-slate-200 leading-relaxed font-sans">${escapeHtml(m.content)}</p>
+            <div class="flex flex-wrap gap-1 pt-1">
+              ${(m.keywords || []).map(kw => `<span class="text-[9.5px] bg-white/[0.04] border border-white/[0.08] text-slate-400 px-1.5 py-0.5 rounded font-mono">#${escapeHtml(kw)}</span>`).join('')}
+            </div>
+          </div>
+        `).join('');
+      } else {
+        wikiGrid.innerHTML = `<div class="col-span-full text-slate-500 text-xs py-2 italic">本次协同任务执行中或未萃取到特定实体记忆</div>`;
+      }
+    }
+
+    // 基于研报的原地多轮深入追问
+    async function submitDeliverableFollowup() {
+      const input = document.getElementById('canvas-deliverable-followup-input');
+      const query = input ? input.value.trim() : '';
+      if (!query) return;
+
+      const btn = document.getElementById('btn-deliverable-followup');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>追问启动中...</span>`;
+      }
+
+      try {
+        let deliverableSnippet = (window._currentDeliverableText || '').trim();
+        if (deliverableSnippet.length > 2500) {
+          deliverableSnippet = deliverableSnippet.substring(0, 2500) + '...\n(以上为前序成果核心摘要)';
+        }
+
+        const fullPrompt = `【基于前序成果的深入追问与连续推演】\n前序研报参考：\n"""\n${deliverableSnippet}\n"""\n\n用户具体深入追问：\n${query}`;
+        const teamSelect = document.getElementById('prompt-team-select');
+        const teamId = (currentTask && currentTask.team_id) || teamSelect?.value || (cachedTeams[0]?.id);
+        const title = query.length > 22 ? `追问: ${query.substring(0, 22)}...` : `追问: ${query}`;
+
+        const task = await apiRequest('/tasks', {
+          method: 'POST',
+          body: JSON.stringify({ title, query: fullPrompt, team_id: teamId })
+        });
+
+        await apiRequest(`/tasks/${task.id}/execute`, {
+          method: 'POST',
+          body: JSON.stringify({})
+        });
+
+        input.value = '';
+        switchCanvasTab('rail');
+        await fetchTasks();
+        selectMission(task.id);
+      } catch (err) {
+        alert('发起追问异常: ' + err.message);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = `<i class="fa-solid fa-paper-plane text-xs"></i><span>追问推演</span>`;
+        }
       }
     }
 
@@ -2095,6 +3105,7 @@
 
       if (completionBar) completionBar.classList.add('hidden');
       if (activityBar) activityBar.classList.add('hidden');
+      stopLiveTimer();
 
       if (latestRun && latestRun.events && latestRun.events.length) {
         // 按时间/序号顺序从前往后按行排列 (Line-by-line)
@@ -2104,10 +3115,16 @@
         if (latestRun.status === 'succeeded' || currentTask?.status === 'succeeded') {
           if (completionBar) completionBar.classList.remove('hidden');
         } else if (latestRun.status === 'running' || currentTask?.status === 'running') {
-          if (activityBar) activityBar.classList.remove('hidden');
+          if (activityBar) {
+            activityBar.classList.remove('hidden');
+            startLiveTimer();
+          }
         }
       } else if (latestRun && (latestRun.status === 'running' || currentTask?.status === 'running')) {
-        if (activityBar) activityBar.classList.remove('hidden');
+        if (activityBar) {
+          activityBar.classList.remove('hidden');
+          startLiveTimer();
+        }
         container.innerHTML = `
           <div id="canvas-events-empty" class="text-slate-500 text-xs py-10 text-center flex items-center justify-center gap-2">
             <i class="fa-solid fa-spinner animate-spin text-indigo-400"></i>
@@ -2139,24 +3156,73 @@
         title = '任务派发';
         desc = ev.payload?.message || `协调员向【${ev.payload?.name || '专家成员'}】派发任务: ${ev.payload?.task || ''}`;
       } else if (type === 'tool.calling') {
-        badgeClass = 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 animate-pulse font-semibold';
-        icon = 'fa-solid fa-satellite-dish';
-        title = '联网检索';
-        desc = ev.payload?.message || `正在联网检索关键词: ${ev.payload?.query || ''}`;
+        const isPdf = ev.payload?.tool_name === 'pdf-parser' || ev.source_id === 'pdf-parser';
+        const isCode = ev.payload?.tool_name === 'code-interpreter' || ev.source_id === 'code-interpreter';
+        if (isPdf) {
+          badgeClass = 'bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse font-semibold';
+          icon = 'fa-solid fa-file-pdf';
+          title = 'PDF解析';
+        } else if (isCode) {
+          badgeClass = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse font-semibold';
+          icon = 'fa-solid fa-code';
+          title = '代码沙箱';
+        } else {
+          badgeClass = 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 animate-pulse font-semibold';
+          icon = 'fa-solid fa-satellite-dish';
+          title = '联网检索';
+        }
+        desc = ev.payload?.message || `正在调用工具: ${ev.payload?.query || ''}`;
       } else if (type === 'tool.summary') {
-        badgeClass = 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold';
-        icon = 'fa-solid fa-square-check';
-        title = '信源获取';
-        const q = ev.payload?.query ? `【${ev.payload.query}】` : '';
-        const count = ev.payload?.count !== undefined ? `检索到 ${ev.payload.count} 条真实信源` : '检索完成';
-        const dur = ev.payload?.elapsed ? ` · 耗时 ${ev.payload.elapsed}s` : '';
-        const statusText = ev.payload?.status && ev.payload.status !== 'ok' ? ` (${ev.payload.status})` : '';
-        desc = `${q} ${count}${dur}${statusText}`;
+        const isPdf = ev.payload?.tool_name === 'pdf-parser' || ev.source_id === 'pdf-parser';
+        const isCode = ev.payload?.tool_name === 'code-interpreter' || ev.source_id === 'code-interpreter';
+        if (isPdf) {
+          badgeClass = 'bg-rose-500/15 text-rose-300 border border-rose-500/30 font-semibold';
+          icon = 'fa-solid fa-file-lines';
+          title = '文档已解析';
+          desc = ev.payload?.result_preview || 'PDF文档内容已成功提取';
+        } else if (isCode) {
+          badgeClass = 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold';
+          icon = 'fa-solid fa-square-check';
+          title = '计算完成';
+          desc = ev.payload?.result_preview || '代码执行完毕';
+        } else {
+          badgeClass = 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold';
+          icon = 'fa-solid fa-square-check';
+          title = '信源获取';
+          const q = ev.payload?.query ? `【${ev.payload.query}】` : '';
+          const count = ev.payload?.count !== undefined ? `检索到 ${ev.payload.count} 条真实信源` : '检索完成';
+          const dur = ev.payload?.elapsed ? ` · 耗时 ${ev.payload.elapsed}s` : '';
+          const statusText = ev.payload?.status && ev.payload.status !== 'ok' ? ` (${ev.payload.status})` : '';
+          desc = `${q} ${count}${dur}${statusText}`;
+        }
       } else if (type === 'agent.completed') {
         badgeClass = 'bg-teal-500/20 text-teal-300 border border-teal-500/30 font-bold';
         icon = 'fa-solid fa-circle-check';
         title = '阶段推演就绪';
-        desc = ev.payload?.message || `成员『${ev.payload?.name || '专家'}』完成阶段推演，成果交还协调员`;
+        const memberName = ev.payload?.name || '专家成员';
+        let outputSnippet = '';
+        const rawContent = ev.payload?.output?.content || (typeof ev.payload?.output === 'string' ? ev.payload.output : '');
+        if (rawContent && rawContent.trim()) {
+          const previewText = rawContent.length > 260 ? rawContent.substring(0, 260) + '...' : rawContent;
+          outputSnippet = `
+            <div class="mt-2 p-2.5 rounded-lg bg-teal-950/30 border border-teal-500/20 text-slate-300 text-[11px] leading-relaxed">
+              <div class="text-[10px] text-teal-400 font-bold mb-1 flex items-center justify-between">
+                <span class="flex items-center gap-1.5"><i class="fa-solid fa-file-lines"></i> 【${escapeHtml(memberName)}】推演结论要点：</span>
+                <span class="text-[9.5px] font-mono text-slate-500">${rawContent.length} 字</span>
+              </div>
+              <div class="whitespace-pre-wrap font-sans text-slate-200">${escapeHtml(previewText)}</div>
+            </div>
+          `;
+        }
+        desc = `<span>成员『${escapeHtml(memberName)}』完成阶段推演，成果交还协调员</span>${outputSnippet}`;
+      } else if (type === 'memory.consolidated') {
+        badgeClass = 'bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold';
+        icon = 'fa-solid fa-wand-magic-sparkles';
+        title = 'LLM-Wiki 萃取';
+        const count = ev.payload?.count || (ev.payload?.items || []).length || 0;
+        const items = ev.payload?.items || [];
+        const itemsHtml = items.map(m => `<span class="inline-block bg-purple-950/40 border border-purple-500/20 text-purple-200 px-2 py-0.5 rounded text-[10px] mr-1 mt-1">#${escapeHtml(m.keywords ? m.keywords.join(', ') : m.category)}: ${escapeHtml(m.content.length > 60 ? m.content.substring(0, 60) + '...' : m.content)}</span>`).join('');
+        desc = `<span>${escapeHtml(ev.message || `已提炼萃取 ${count} 条 LLM-Wiki 实体记忆并沉淀入库`)}</span>${itemsHtml ? `<div class="mt-1">${itemsHtml}</div>` : ''}`;
       } else if (type === 'run.step_started') {
         badgeClass = 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30';
         icon = 'fa-solid fa-forward-step';
@@ -2200,15 +3266,19 @@
         desc = JSON.stringify(ev.payload || {});
       }
 
-      const cardId = `live-evt-${ev.id || ev.sequence || Math.random().toString(36).substring(2)}`;
+      const refVal = ev.id || ev.sequence || seqNum || '';
+      const cardId = `live-evt-${refVal || Math.random().toString(36).substring(2)}`;
       return `
-        <div id="${cardId}" class="flex items-start gap-3 text-xs p-3 rounded-xl bg-[#090D18]/90 border border-white/[0.06] transition hover:border-indigo-500/30 font-sans">
+        <div id="${cardId}" onclick="inspectEventByRef('${refVal}')" class="group flex items-start gap-3 text-xs p-3.5 rounded-xl bg-[#090D18]/90 border border-white/[0.06] transition hover:border-indigo-500/40 hover:bg-[#0C1222] cursor-pointer font-sans shadow-sm">
           ${seqBadge}
           <span class="font-mono text-[10px] text-slate-400 shrink-0 mt-0.5">${time}</span>
           <span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold flex items-center gap-1.5 shrink-0 ${badgeClass}">
             <i class="${icon} text-[9px]"></i> ${title}
           </span>
           <div class="text-slate-200 flex-1 text-[11px] leading-relaxed break-words">${desc}</div>
+          <button onclick="event.stopPropagation(); inspectEventByRef('${refVal}')" class="shrink-0 px-2 py-1 rounded-lg bg-white/[0.04] group-hover:bg-indigo-500/20 group-hover:border-indigo-500/30 border border-transparent text-slate-400 group-hover:text-indigo-300 text-[10px] font-medium flex items-center gap-1 transition">
+            <span>详情</span> <i class="fa-solid fa-chevron-right text-[8px]"></i>
+          </button>
         </div>
       `;
     }
@@ -2219,6 +3289,9 @@
       closeLiveStream();
 
       currentStreamingRunId = runId;
+      if (!currentRuns || currentRuns.length === 0 || currentRuns[0]?.id !== runId) {
+        currentRuns = [{ id: runId, task_id: taskId, status: 'running', events: [] }];
+      }
       const indicator = document.getElementById('canvas-streaming-pill');
       if (indicator) indicator.classList.remove('hidden');
 
@@ -2279,28 +3352,66 @@
         activityBar.classList.remove('hidden');
       }
 
-      // 3. 实时更新顶部推演雷达状态条文本
+      // 3. 实时更新顶部推演雷达状态条与实时驾驶舱终端
       const activityText = document.getElementById('live-activity-text');
-      if (activityText) {
-        if (type === 'tool.calling') {
-          activityText.innerHTML = `正在联网检索: <span class="text-cyan-300 font-mono">${ev.payload?.query || ''}</span>`;
-        } else if (type === 'tool.summary') {
-          activityText.innerHTML = `信源采集就绪: <span class="text-emerald-300 font-mono">${ev.payload?.query || ''}</span> (${ev.payload?.count || 0}条信源，耗时 ${ev.payload?.elapsed || 0}s)`;
-        } else if (type === 'agent.started') {
-          activityText.innerHTML = `协调员已派发任务给: <span class="text-indigo-300 font-bold">${ev.payload?.name || '专家成员'}</span>`;
-        } else if (type === 'agent.completed') {
-          activityText.innerHTML = `<span class="text-teal-300 font-bold">${ev.payload?.name || '专家成员'}</span> 阶段推演完成，交还主控...`;
+      const activeAgent = document.getElementById('live-active-agent');
+      const taskBox = document.getElementById('live-active-task-box');
+      const taskDesc = document.getElementById('live-active-task-desc');
+
+      if (type === 'run.started') {
+        startLiveTimer();
+        if (activityText) activityText.innerHTML = '主控协调员已就绪，正在派发第一阶段任务...';
+        appendLiveTerminalLog('rocket', '协同启动', '主控协调员已载入方案，开启多智能体协同流水线', 'text-indigo-300');
+      } else if (type === 'tool.calling') {
+        startLiveTimer();
+        const q = ev.payload?.query || '';
+        if (activityText) activityText.innerHTML = `正在联网穿透: <span class="text-cyan-300 font-mono">${escapeHtml(q)}</span>`;
+        appendLiveTerminalLog('satellite-dish', '联网检索', `正在穿透搜索: "${escapeHtml(q)}"`, 'text-cyan-300 animate-pulse');
+      } else if (type === 'tool.summary') {
+        startLiveTimer();
+        const count = ev.payload?.count || 0;
+        const dur = ev.payload?.elapsed || 0;
+        if (activityText) activityText.innerHTML = `信源采集就绪: <span class="text-emerald-300 font-bold">${count} 条信源</span> (耗时 ${dur}s)`;
+        appendLiveTerminalLog('square-check', '信源就绪', `成功捕获 ${count} 条真实官方/商业信源 (耗时 ${dur}s)`, 'text-emerald-300');
+      } else if (type === 'agent.started') {
+        startLiveTimer();
+        const name = ev.payload?.name || '专家成员';
+        const task = ev.payload?.task || '';
+        if (activeAgent) activeAgent.innerText = `【${name}】`;
+        if (activityText) activityText.innerText = '正在推进分配阶段推演...';
+        if (taskBox && taskDesc && task) {
+          taskDesc.innerText = task;
+          taskBox.classList.remove('hidden');
         }
+        appendLiveTerminalLog('user-astronaut', '任务派发', `协调员向【${name}】指派阶段任务: ${task.substring(0, 90)}...`, 'text-indigo-300');
+      } else if (type === 'agent.completed') {
+        startLiveTimer();
+        const name = ev.payload?.name || '专家成员';
+        const chars = ev.payload?.char_count || ev.payload?.output?.content?.length || (typeof ev.payload?.output === 'string' ? ev.payload.output.length : 0);
+        if (activityText) activityText.innerHTML = `<span class="text-teal-300 font-bold">【${escapeHtml(name)}】</span>阶段推演完成 (产出 ${chars} 字)`;
+        appendLiveTerminalLog('circle-check', '阶段闭环', `【${escapeHtml(name)}】完成阶段推演，产出 <strong>${chars}</strong> 字成果 <button onclick="inspectEventByRef('${ev.id || ev.sequence}')" class="ml-2 px-2 py-0.5 rounded bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 text-[10px] font-bold">查看详情 ➔</button>`, 'text-teal-300 bg-teal-950/40 border border-teal-500/20 p-1.5 rounded-lg');
+      } else if (['run.completed', 'terminal'].includes(type)) {
+        stopLiveTimer();
+        if (activityText) activityText.innerHTML = '全线协同推演完成，成果研报已就绪';
+        appendLiveTerminalLog('check-double', '全线交付', '多智能体团队协同执行完毕，已生成结构化最终研报', 'text-emerald-300 font-bold');
+      } else if (['run.failed', 'run.cancelled'].includes(type)) {
+        stopLiveTimer();
+        if (activityText) activityText.innerHTML = '推演任务已中断';
+        appendLiveTerminalLog('xmark', '推演中断', ev.payload?.error || ev.payload?.reason || '推演执行失败', 'text-rose-400 font-bold');
       }
 
-      // 3.5 实时驱动车轨沙盘巡航
-      if (currentRuns && currentRuns[0]) {
-        if (!currentRuns[0].events) currentRuns[0].events = [];
-        if (!currentRuns[0].events.some(e => (e.id && e.id === ev.id) || (e.sequence && e.sequence === ev.sequence))) {
-          currentRuns[0].events.push(ev);
-        }
-        renderCanvasRailTrack(currentRuns[0]);
+      // 3.5 实时维护事件流与驱动车轨沙盘巡航
+      if (!currentRuns || !currentRuns[0]) {
+        currentRuns = [{ id: ev.run_id || currentStreamingRunId, task_id: taskId, status: 'running', events: [] }];
       }
+      if (!currentRuns[0].events) currentRuns[0].events = [];
+      const existingIdx = currentRuns[0].events.findIndex(e => (e.id && e.id === ev.id) || (e.sequence && e.sequence === ev.sequence));
+      if (existingIdx !== -1) {
+        currentRuns[0].events[existingIdx] = ev;
+      } else {
+        currentRuns[0].events.push(ev);
+      }
+      renderCanvasRailTrack(currentRuns[0]);
 
       // 4. 按行打印并追加到事件流中，累积展示所有历史步骤，绝不覆盖
       if (container) {
@@ -2466,11 +3577,40 @@
       return results;
     }
 
+    function copyTextToClipboard(text, successMsg = '内容已成功复制到剪贴板！') {
+      if (!text) return alert('当前没有可复制的内容');
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text).then(() => {
+          alert(successMsg);
+        }).catch(() => {
+          fallbackCopyText(text, successMsg);
+        });
+      } else {
+        fallbackCopyText(text, successMsg);
+      }
+    }
+
+    function fallbackCopyText(text, successMsg) {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        alert(successMsg);
+      } catch (err) {
+        alert('复制失败，请直接划选页面文字按 Ctrl+C 进行复制');
+      }
+      document.body.removeChild(textArea);
+    }
+
     function copyDeliverable() {
       if (!window._currentDeliverableText) return alert('当前没有可复制的报告内容');
-      navigator.clipboard.writeText(window._currentDeliverableText).then(() => {
-        alert('调研成果已复制到剪贴板！');
-      });
+      copyTextToClipboard(window._currentDeliverableText, '调研成果已成功复制到剪贴板！');
     }
 
     function downloadDeliverable() {
@@ -2490,6 +3630,9 @@
     // ==========================================
     let currentMatrixTeamId = null;
     let currentMatrixPosts = []; // [{ id, title, duty, agentId, isLeader }]
+    let cachedTools = [];
+    let currentEditingPostIdx = -1; // -1: 新增自定义岗位, >=0: 编辑指定序号岗位
+    let currentEditingAgentId = null;
 
     // 4 大核心智能体标杆定义
     const CORE_AGENTS_DEFINITION = [
@@ -2529,12 +3672,41 @@
 
     async function fetchSwarmData() {
       try {
-        const [teamsData, agentsData] = await Promise.all([
-          apiRequest('/teams?limit=50'),
-          apiRequest('/agents?limit=50')
+        const [teamsData, agentsData, toolsData] = await Promise.all([
+          apiRequest('/teams?limit=100'),
+          apiRequest('/agents?limit=100'),
+          apiRequest('/tools').catch(() => [])
         ]);
         cachedTeams = teamsData.items || [];
         cachedAgents = agentsData.items || [];
+        const rawTools = Array.isArray(toolsData) ? toolsData : (toolsData?.items || []);
+
+        // 规范化工具库，确保 web-search 与 code-interpreter 始终开箱可用
+        cachedTools = [...rawTools];
+        if (!cachedTools.some(t => t.key === 'web-search')) {
+          cachedTools.unshift({
+            key: 'web-search',
+            name: '互联网多源检索 (Web Search)',
+            description: '搜狗新闻/必应/DDGS多渠道实时网络搜索，自动过滤营销垃圾并获取权威信源',
+            config: { tool_type: 'builtin' }
+          });
+        }
+        if (!cachedTools.some(t => t.key === 'code-interpreter')) {
+          cachedTools.push({
+            key: 'code-interpreter',
+            name: 'Python代码解释器 (Code Interpreter)',
+            description: '在隔离沙箱中执行 Python 计算、统计公式与复杂逻辑推演，避免大模型心算误差',
+            config: { tool_type: 'code_interpreter' }
+          });
+        }
+        if (!cachedTools.some(t => t.key === 'pdf-parser')) {
+          cachedTools.push({
+            key: 'pdf-parser',
+            name: 'PDF文档解析器 (PDF Parser)',
+            description: '基于 PyMuPDF 与 pdfplumber 解析 PDF，提取大纲、分页文本、关键字定位与结构化表格',
+            config: { tool_type: 'pdf_parser' }
+          });
+        }
 
         // 默认选中互联网调研团队（或第一个团队）
         if (!currentMatrixTeamId && cachedTeams.length > 0) {
@@ -2555,7 +3727,7 @@
       if (!select) return;
       select.innerHTML = cachedTeams.map(t => `
         <option value="${t.id}" ${t.id === currentMatrixTeamId ? 'selected' : ''}>
-          ${t.name} (${t.mode})
+          ${escapeHtml(t.name)} (${escapeHtml(t.mode)})
         </option>
       `).join('');
     }
@@ -2572,7 +3744,6 @@
       const team = cachedTeams.find(t => t.id === teamId);
       if (!team) return;
 
-      // 更新团队头部说明卡片
       const nameEl = document.getElementById('matrix-team-name');
       const keyEl = document.getElementById('matrix-team-key');
       const modeEl = document.getElementById('matrix-team-mode-badge');
@@ -2582,15 +3753,14 @@
       if (modeEl) modeEl.innerText = `模式: ${team.mode}`;
       if (descEl) descEl.innerText = team.description || '多智能体协同流水线编排团队';
 
-      // 构建岗位列表
       const memberIds = team.member_agent_ids || [];
       const leaderId = team.leader_agent_id || memberIds[0];
 
       currentMatrixPosts = memberIds.map((aid, idx) => {
         const ag = cachedAgents.find(a => a.id === aid);
         const coreDef = CORE_AGENTS_DEFINITION.find(c => c.id === aid);
-        const title = coreDef?.presetTitle || ag?.name || `协同业务岗位 ${idx + 1}`;
-        const duty = coreDef?.presetDuty || ag?.role || '负责该阶段专项子任务推进与推演成果交付';
+        const title = ag?.name || coreDef?.presetTitle || `协同业务岗位 ${idx + 1}`;
+        const duty = ag?.role || coreDef?.presetDuty || '负责该阶段专项子任务推进与推演成果交付';
         return {
           id: `post-${idx + 1}`,
           title: title,
@@ -2612,7 +3782,7 @@
       if (!currentMatrixPosts || currentMatrixPosts.length === 0) {
         container.innerHTML = `
           <div class="studio-panel border-dashed border-white/[0.1] p-12 text-center text-slate-500 text-xs">
-            当前团队尚未编制岗位，点击右上角【新增业务岗位】或【一键装配 4 岗位推荐】
+            当前团队尚未编制岗位，点击右上角【自定义申明新岗位】或【一键装配 4 岗位推荐】
           </div>
         `;
         return;
@@ -2620,15 +3790,33 @@
 
       container.innerHTML = currentMatrixPosts.map((post, idx) => {
         const currentAgent = cachedAgents.find(a => a.id === post.agentId);
-        const toolBadge = (currentAgent?.tool_refs && currentAgent.tool_refs.length > 0)
-          ? `<span class="px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 font-mono text-[10px]"><i class="fa-solid fa-satellite-dish text-[9px] mr-1"></i>具备联网检索能力</span>`
-          : `<span class="px-2 py-0.5 rounded bg-slate-500/10 border border-slate-500/20 text-slate-400 font-mono text-[10px]">基础模型直接推理</span>`;
+        const tools = currentAgent?.tool_refs || [];
+        const toolBadges = tools.length > 0 ? tools.map(t => {
+          if (t === 'web-search') {
+            return `<span class="px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 font-mono text-[10px] flex items-center gap-1 shrink-0"><i class="fa-solid fa-satellite-dish text-[9px]"></i>联网搜索</span>`;
+          }
+          if (t === 'code-interpreter') {
+            return `<span class="px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 font-mono text-[10px] flex items-center gap-1 shrink-0"><i class="fa-solid fa-code text-[9px]"></i>代码解释器</span>`;
+          }
+          if (t === 'pdf-parser') {
+            return `<span class="px-2 py-0.5 rounded bg-rose-500/10 border border-rose-500/20 text-rose-300 font-mono text-[10px] flex items-center gap-1 shrink-0"><i class="fa-solid fa-file-pdf text-[9px]"></i>PDF文档解析</span>`;
+          }
+          if (t.startsWith('mcp-') || t.startsWith('mcp_')) {
+            return `<span class="px-2 py-0.5 rounded bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-mono text-[10px] flex items-center gap-1 shrink-0"><i class="fa-solid fa-plug text-[9px]"></i>${escapeHtml(t)}</span>`;
+          }
+          return `<span class="px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-purple-300 font-mono text-[10px] flex items-center gap-1 shrink-0"><i class="fa-solid fa-screwdriver-wrench text-[9px]"></i>${escapeHtml(t)}</span>`;
+        }).join(' ') : `<span class="px-2 py-0.5 rounded bg-slate-500/10 border border-slate-500/20 text-slate-400 font-mono text-[10px]">纯模型直接推理 (未挂工具)</span>`;
 
-        // 构造智能体选择器选项
+        const instrCount = currentAgent?.instructions?.length || 0;
+        const instrTooltip = (currentAgent?.instructions || []).join(' \n');
+        const instrBadge = instrCount > 0
+          ? `<span class="text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded text-[10px] font-mono flex items-center gap-1 shrink-0 cursor-help" title="${escapeHtml(instrTooltip)}"><i class="fa-solid fa-scroll text-[9px]"></i>已申明 ${instrCount} 条工作准则</span>`
+          : `<span class="text-slate-500 text-[10px] font-mono">未申明专属指令</span>`;
+
         const agentOptionsHtml = cachedAgents.map(ag => {
           const isCore = CORE_AGENTS_DEFINITION.some(c => c.id === ag.id);
           const star = isCore ? '★ ' : '';
-          return `<option value="${ag.id}" ${ag.id === post.agentId ? 'selected' : ''}>${star}${ag.name} (${ag.role ? ag.role.substring(0, 16) + '...' : '智能体'})</option>`;
+          return `<option value="${ag.id}" ${ag.id === post.agentId ? 'selected' : ''}>${star}${escapeHtml(ag.name)} (${ag.role ? escapeHtml(ag.role.substring(0, 16)) + '...' : '智能体'})</option>`;
         }).join('');
 
         return `
@@ -2641,23 +3829,27 @@
                 </div>
                 <div class="flex-1 min-w-0 space-y-1">
                   <div class="flex items-center gap-2 flex-wrap">
-                    <input type="text" value="${post.title}" onchange="onPostTitleChanged(${idx}, this.value)" class="font-bold text-white text-xs bg-black/40 border border-white/[0.1] rounded-lg px-2.5 py-1 focus:border-indigo-500 outline-none w-52" placeholder="岗位名称" />
+                    <input type="text" value="${escapeHtml(post.title)}" onchange="onPostTitleChanged(${idx}, this.value)" class="font-bold text-white text-xs bg-black/40 border border-white/[0.1] rounded-lg px-2.5 py-1 focus:border-indigo-500 outline-none w-52" placeholder="岗位名称" />
                     ${post.isLeader ? '<span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold flex items-center gap-1 shrink-0"><i class="fa-solid fa-crown text-[9px]"></i>主控领队 (Leader)</span>' : ''}
                   </div>
-                  <input type="text" value="${post.duty}" onchange="onPostDutyChanged(${idx}, this.value)" class="text-[11px] text-slate-400 bg-transparent border-b border-transparent hover:border-white/[0.1] focus:border-indigo-500/40 outline-none w-full max-w-xl truncate leading-normal" placeholder="岗位职责描述..." />
+                  <input type="text" value="${escapeHtml(post.duty)}" onchange="onPostDutyChanged(${idx}, this.value)" class="text-[11px] text-slate-400 bg-transparent border-b border-transparent hover:border-white/[0.1] focus:border-indigo-500/40 outline-none w-full max-w-xl truncate leading-normal" placeholder="岗位职责描述..." />
                 </div>
               </div>
 
-              <!-- 岗位委派智能体下拉 -->
-              <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end shrink-0">
+              <!-- 岗位委派智能体下拉与核心动作 -->
+              <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end shrink-0 flex-wrap">
                 <div class="flex items-center gap-2">
                   <span class="text-xs text-slate-400 shrink-0 font-medium font-sans">委派智能体:</span>
-                  <select onchange="onPostAgentChanged(${idx}, this.value)" class="bg-[#0E1526] border border-indigo-500/30 text-indigo-200 text-xs rounded-xl px-3 py-1.5 outline-none font-semibold focus:ring-2 focus:ring-indigo-500/40 transition cursor-pointer max-w-[220px] truncate">
+                  <select onchange="onPostAgentChanged(${idx}, this.value)" class="bg-[#0E1526] border border-indigo-500/30 text-indigo-200 text-xs rounded-xl px-3 py-1.5 outline-none font-semibold focus:ring-2 focus:ring-indigo-500/40 transition cursor-pointer max-w-[200px] truncate">
                     ${agentOptionsHtml}
                   </select>
                 </div>
 
                 <div class="flex items-center gap-1.5 shrink-0">
+                  <button type="button" onclick="openPostEditModal(${idx})" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/25 hover:text-white transition flex items-center gap-1.5 shadow-sm" title="自定义该岗位的工作指令、提示词申明与工具接入">
+                    <i class="fa-solid fa-user-pen text-[10px]"></i>
+                    <span>自定义申明与工具</span>
+                  </button>
                   <button type="button" onclick="setPostAsLeader(${idx})" class="px-2.5 py-1.5 rounded-xl text-xs font-medium ${post.isLeader ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'text-slate-400 hover:text-amber-300 hover:bg-white/[0.05]'} transition flex items-center gap-1" title="设为此团队主控领队">
                     <i class="fa-solid fa-crown text-[10px]"></i>
                     <span class="text-[10px]">设为领队</span>
@@ -2669,12 +3861,13 @@
               </div>
             </div>
 
-            <!-- 岗位挂载能力条 -->
+            <!-- 岗位挂载能力与指令申明条 -->
             <div class="pt-2 border-t border-white/[0.04] flex items-center justify-between text-[11px] flex-wrap gap-2">
-              <div class="flex items-center gap-2">
-                <span class="text-slate-500 font-mono text-[10px]">智能体能力:</span>
-                ${toolBadge}
-                <span class="px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-purple-300 font-mono text-[10px]">${currentAgent?.model_ref || 'DeepSeek-V3.1'}</span>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-slate-500 font-mono text-[10px]">已接入工具:</span>
+                ${toolBadges}
+                <span class="px-2 py-0.5 rounded bg-purple-500/10 border border-purple-500/20 text-purple-300 font-mono text-[10px]">${escapeHtml(currentAgent?.model_ref || 'DeepSeek-V3.1')}</span>
+                ${instrBadge}
               </div>
               <span class="text-emerald-400 text-[10px] flex items-center gap-1 font-mono">
                 <span class="size-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 岗位状态: 正常履职中
@@ -2688,14 +3881,14 @@
     function onPostAgentChanged(idx, agentId) {
       if (currentMatrixPosts[idx]) {
         currentMatrixPosts[idx].agentId = agentId;
-        const coreDef = CORE_AGENTS_DEFINITION.find(c => c.id === agentId);
         const ag = cachedAgents.find(a => a.id === agentId);
-        if (coreDef) {
-          currentMatrixPosts[idx].title = coreDef.presetTitle;
-          currentMatrixPosts[idx].duty = coreDef.presetDuty;
-        } else if (ag) {
+        const coreDef = CORE_AGENTS_DEFINITION.find(c => c.id === agentId);
+        if (ag) {
           currentMatrixPosts[idx].title = ag.name;
           currentMatrixPosts[idx].duty = ag.role || '负责该阶段专项子任务推进';
+        } else if (coreDef) {
+          currentMatrixPosts[idx].title = coreDef.presetTitle;
+          currentMatrixPosts[idx].duty = coreDef.presetDuty;
         }
         renderMatrixPosts();
         renderCoreAgentsRoster();
@@ -2718,18 +3911,32 @@
     }
 
     function addNewRolePost() {
-      // 找出当前未分配或任一核心智能体
       const assignedIds = new Set(currentMatrixPosts.map(p => p.agentId));
-      const unassigned = CORE_AGENTS_DEFINITION.find(c => !assignedIds.has(c.id)) || CORE_AGENTS_DEFINITION[0];
-      const nextIdx = currentMatrixPosts.length + 1;
-
-      currentMatrixPosts.push({
-        id: `post-${nextIdx}`,
-        title: unassigned.presetTitle,
-        duty: unassigned.presetDuty,
-        agentId: unassigned.id,
-        isLeader: currentMatrixPosts.length === 0
-      });
+      let candidate = CORE_AGENTS_DEFINITION.find(c => !assignedIds.has(c.id));
+      if (candidate) {
+        const ag = cachedAgents.find(a => a.id === candidate.id);
+        currentMatrixPosts.push({
+          id: `post-${currentMatrixPosts.length + 1}`,
+          title: ag?.name || candidate.presetTitle,
+          duty: ag?.role || candidate.presetDuty,
+          agentId: candidate.id,
+          isLeader: currentMatrixPosts.length === 0
+        });
+      } else {
+        const otherAg = cachedAgents.find(a => !assignedIds.has(a.id));
+        if (otherAg) {
+          currentMatrixPosts.push({
+            id: `post-${currentMatrixPosts.length + 1}`,
+            title: otherAg.name,
+            duty: otherAg.role || '负责专项协同任务',
+            agentId: otherAg.id,
+            isLeader: false
+          });
+        } else {
+          openPostEditModal(-1);
+          return;
+        }
+      }
       renderMatrixPosts();
       renderCoreAgentsRoster();
     }
@@ -2749,52 +3956,133 @@
     }
 
     function resetMatrixToDefault() {
-      // 一键装配 4 智能体标准全职矩阵
-      currentMatrixPosts = CORE_AGENTS_DEFINITION.map((core, i) => ({
-        id: `post-${i + 1}`,
-        title: core.presetTitle,
-        duty: core.presetDuty,
-        agentId: core.id,
-        isLeader: i === 0
-      }));
+      currentMatrixPosts = CORE_AGENTS_DEFINITION.map((core, i) => {
+        const ag = cachedAgents.find(a => a.id === core.id);
+        return {
+          id: `post-${i + 1}`,
+          title: ag?.name || core.presetTitle,
+          duty: ag?.role || core.presetDuty,
+          agentId: core.id,
+          isLeader: i === 0
+        };
+      });
       renderMatrixPosts();
+      renderCoreAgentsRoster();
+    }
+
+    let currentRosterFilter = 'all'; // 'all' | 'core' | 'assigned' | 'idle'
+    let currentRosterSearch = '';
+
+    function setRosterFilter(filter) {
+      currentRosterFilter = filter;
+      ['all', 'core', 'assigned', 'idle'].forEach(f => {
+        const btn = document.getElementById(`roster-filter-${f}`);
+        if (btn) {
+          if (f === filter) {
+            btn.className = 'px-2.5 py-1 rounded-lg text-white bg-indigo-600 font-bold transition';
+          } else {
+            btn.className = 'px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition';
+          }
+        }
+      });
+      renderCoreAgentsRoster();
+    }
+
+    function filterAgentsRoster() {
+      const input = document.getElementById('roster-search-input');
+      currentRosterSearch = (input?.value || '').toLowerCase().trim();
       renderCoreAgentsRoster();
     }
 
     function renderCoreAgentsRoster() {
       const container = document.getElementById('matrix-agents-roster');
+      const countBadge = document.getElementById('agents-total-count-badge');
+      if (countBadge) countBadge.innerText = `全量 ${cachedAgents.length} 个`;
       if (!container) return;
 
-      container.innerHTML = CORE_AGENTS_DEFINITION.map(core => {
-        const ag = cachedAgents.find(a => a.id === core.id);
-        const assignedPost = currentMatrixPosts.find(p => p.agentId === core.id);
+      if (!cachedAgents || cachedAgents.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full studio-panel border-dashed border-white/[0.1] p-8 text-center text-slate-500 text-xs">
+            暂未获取到智能体列表，正在同步加载中...
+          </div>
+        `;
+        return;
+      }
+
+      // Filter agents
+      let list = [...cachedAgents];
+      if (currentRosterFilter === 'core') {
+        list = list.filter(a => CORE_AGENTS_DEFINITION.some(c => c.id === a.id));
+      } else if (currentRosterFilter === 'assigned') {
+        const assignedIds = new Set(currentMatrixPosts.map(p => p.agentId));
+        list = list.filter(a => assignedIds.has(a.id));
+      } else if (currentRosterFilter === 'idle') {
+        const assignedIds = new Set(currentMatrixPosts.map(p => p.agentId));
+        list = list.filter(a => !assignedIds.has(a.id));
+      }
+
+      if (currentRosterSearch) {
+        list = list.filter(a => {
+          const name = (a.name || '').toLowerCase();
+          const role = (a.role || '').toLowerCase();
+          const key = (a.key || '').toLowerCase();
+          return name.includes(currentRosterSearch) || role.includes(currentRosterSearch) || key.includes(currentRosterSearch);
+        });
+      }
+
+      if (list.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full studio-panel border-dashed border-white/[0.1] p-8 text-center text-slate-500 text-xs">
+            未找到符合筛选条件的岗位或智能体
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = list.map(ag => {
+        const coreDef = CORE_AGENTS_DEFINITION.find(c => c.id === ag.id);
+        const assignedPost = currentMatrixPosts.find(p => p.agentId === ag.id);
         const isAssigned = !!assignedPost;
+        const tools = ag.tool_refs || [];
+        const toolStr = tools.length > 0 ? tools.join(', ') : '纯模型直接推理';
+        const tag = coreDef ? coreDef.tag : (ag.key || '专业岗位');
+        const badgeColor = coreDef ? coreDef.badgeColor : 'border-indigo-500/20 text-indigo-300 bg-indigo-500/10';
+        const icon = coreDef ? coreDef.icon : 'fa-solid fa-user-tie';
 
         return `
-          <div class="interactive-card p-4 rounded-2xl space-y-3 flex flex-col justify-between border ${isAssigned ? 'border-indigo-500/50 bg-indigo-950/20' : 'border-white/[0.08]'}">
+          <div class="interactive-card p-4 rounded-2xl space-y-3 flex flex-col justify-between border ${isAssigned ? 'border-indigo-500/50 bg-indigo-950/20 shadow-[0_0_15px_rgba(99,102,241,0.15)]' : 'border-white/[0.08] hover:border-white/[0.2]'}">
             <div class="space-y-2">
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-white flex items-center gap-1.5">
-                  <i class="${core.icon} text-indigo-400 text-[11px]"></i>
-                  <span>${ag?.name || core.presetTitle}</span>
+              <div class="flex items-center justify-between gap-1">
+                <span class="text-xs font-bold text-white flex items-center gap-1.5 truncate">
+                  <i class="${icon} text-indigo-400 text-[11px] shrink-0"></i>
+                  <span class="truncate" title="${escapeHtml(ag.name)}">${escapeHtml(ag.name)}</span>
                 </span>
-                <span class="text-[9px] px-2 py-0.5 rounded-full font-mono ${core.badgeColor}">${core.tag}</span>
+                <span class="text-[9px] px-2 py-0.5 rounded-full font-mono shrink-0 ${badgeColor}">${escapeHtml(tag)}</span>
               </div>
-              <p class="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">${core.presetDuty}</p>
+              <p class="text-[11px] text-slate-400 line-clamp-2 leading-relaxed h-[34px]" title="${escapeHtml(ag.role || '无角色描述')}">
+                ${escapeHtml(ag.role || '负责该专业方向专项业务推演与成果交付')}
+              </p>
             </div>
 
             <div class="space-y-2 pt-2 border-t border-white/[0.05]">
               <div class="flex items-center justify-between text-[10px] font-mono">
-                <span class="text-slate-500">网络工具:</span>
-                <span class="text-cyan-300 font-semibold"><i class="fa-solid fa-check text-[9px] mr-1"></i>web-search</span>
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-[10px] font-mono ${isAssigned ? 'text-emerald-400 font-bold' : 'text-slate-500'}">
-                  ${isAssigned ? `<i class="fa-solid fa-circle-check text-[9px] mr-1"></i>已委派: ${assignedPost.title.substring(0, 8)}` : '空闲未委派'}
+                <span class="text-slate-500">接入工具:</span>
+                <span class="text-cyan-300 font-semibold truncate max-w-[130px]" title="${escapeHtml(toolStr)}">
+                  ${tools.length > 0 ? `<i class="fa-solid fa-screwdriver-wrench text-[9px] mr-1"></i>${escapeHtml(toolStr)}` : '<span class="text-slate-500">纯推理</span>'}
                 </span>
-                <button type="button" onclick="quickAssignAgentToTeam('${core.id}')" class="text-[10px] px-2 py-1 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 hover:text-white hover:bg-indigo-600 transition">
-                  ${isAssigned ? '重设岗位' : '+ 委派此智能体'}
-                </button>
+              </div>
+              <div class="flex items-center justify-between gap-1.5">
+                <span class="text-[10px] font-mono ${isAssigned ? 'text-emerald-400 font-bold' : 'text-slate-500'} truncate">
+                  ${isAssigned ? `<i class="fa-solid fa-circle-check text-[9px] mr-1"></i>已在队: ${escapeHtml(assignedPost.title.substring(0, 7))}` : '空闲待命'}
+                </span>
+                <div class="flex items-center gap-1 shrink-0">
+                  <button type="button" onclick="openAgentDirectEditModal('${ag.id}')" class="text-[10px] px-2 py-1 rounded-lg bg-white/[0.05] border border-white/[0.1] text-slate-300 hover:text-white hover:bg-white/[0.1] transition" title="配置指令与工具">
+                    <i class="fa-solid fa-gear"></i>
+                  </button>
+                  <button type="button" onclick="quickAssignAgentToTeam('${ag.id}')" class="text-[10px] px-2.5 py-1 rounded-lg ${isAssigned ? 'bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-600/30' : 'bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 hover:text-white hover:bg-indigo-600'} transition">
+                    ${isAssigned ? '已在队' : '+ 引入'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -2804,41 +4092,385 @@
 
     function quickAssignAgentToTeam(agentId) {
       const coreDef = CORE_AGENTS_DEFINITION.find(c => c.id === agentId);
-      if (!coreDef) return;
+      const ag = cachedAgents.find(a => a.id === agentId);
+      if (!ag && !coreDef) return;
       const existing = currentMatrixPosts.find(p => p.agentId === agentId);
       if (existing) {
-        alert(`智能体【${coreDef.presetTitle}】当前已委派给岗位【${existing.title}】`);
+        alert(`智能体【${ag?.name || coreDef?.presetTitle}】当前已在当前团队的岗位【${existing.title}】中！`);
         return;
       }
       currentMatrixPosts.push({
         id: `post-${currentMatrixPosts.length + 1}`,
-        title: coreDef.presetTitle,
-        duty: coreDef.presetDuty,
-        agentId: coreDef.id,
+        title: ag?.name || coreDef?.presetTitle || '新业务岗位',
+        duty: ag?.role || coreDef?.presetDuty || '负责专项业务推演与成果交付',
+        agentId: agentId,
         isLeader: currentMatrixPosts.length === 0
       });
       renderMatrixPosts();
       renderCoreAgentsRoster();
     }
 
-    async function saveTeamMatrixConfig() {
-      const team = cachedTeams.find(t => t.id === currentMatrixTeamId);
+    // ==========================================
+    // 岗位自定义申明与工具编排模态框交互逻辑
+    // ==========================================
+    function openPostEditModal(postIdx) {
+      currentEditingPostIdx = postIdx;
+      currentEditingAgentId = null;
+
+      const headerTitle = document.getElementById('modal-post-edit-header-title');
+      const idxBadge = document.getElementById('modal-post-idx-badge');
+      const titleInput = document.getElementById('modal-post-field-title');
+      const dutyInput = document.getElementById('modal-post-field-duty');
+      const instArea = document.getElementById('modal-post-field-instructions');
+      const agentDesc = document.getElementById('modal-post-bound-agent-desc');
+      const radioUpdate = document.getElementById('radio-mode-update');
+      const radioNew = document.getElementById('radio-mode-new');
+      const updateLabel = document.getElementById('label-agent-mode-update');
+
+      let currentAgent = null;
+      let initialTools = ['web-search'];
+      let initialInstructions = [];
+
+      if (postIdx === -1) {
+        if (headerTitle) headerTitle.innerText = '新建自定义业务岗位与工具编排';
+        if (idxBadge) idxBadge.innerText = '✨ 新增岗位';
+        if (titleInput) titleInput.value = '';
+        if (dutyInput) dutyInput.value = '';
+        if (instArea) instArea.value = '1. 针对本岗位核心职责展开细分拆解与事实搜集\n2. 遇到疑难点明确标注出处与判定依据';
+        if (agentDesc) agentDesc.innerText = '将新建专属智能体实体绑定至此岗位';
+        if (radioNew) radioNew.checked = true;
+        if (radioUpdate) radioUpdate.disabled = true;
+        if (updateLabel) updateLabel.classList.add('opacity-40', 'cursor-not-allowed');
+      } else {
+        const post = currentMatrixPosts[postIdx];
+        if (!post) return;
+        currentAgent = cachedAgents.find(a => a.id === post.agentId);
+        currentEditingAgentId = post.agentId;
+
+        if (headerTitle) headerTitle.innerText = '岗位自定义申明与工具编排';
+        if (idxBadge) idxBadge.innerText = `岗位 #${postIdx + 1}`;
+        if (titleInput) titleInput.value = post.title || currentAgent?.name || '';
+        if (dutyInput) dutyInput.value = post.duty || currentAgent?.role || '';
+        
+        initialInstructions = (currentAgent?.instructions && currentAgent.instructions.length > 0)
+          ? currentAgent.instructions
+          : [
+            '所有观点和数据结论必须标明权威信源 URL 或机构公报出处。',
+            '严禁主观推测或编造未证实数据，遇到存疑信息主动指出争议点。'
+          ];
+        if (instArea) instArea.value = initialInstructions.join('\n');
+
+        initialTools = currentAgent?.tool_refs || ['web-search'];
+        if (agentDesc) agentDesc.innerText = `当前智能体: ${currentAgent ? currentAgent.name : '未知'} (${currentAgent?.key || '--'})`;
+        if (radioUpdate) {
+          radioUpdate.checked = true;
+          radioUpdate.disabled = false;
+        }
+        if (updateLabel) updateLabel.classList.remove('opacity-40', 'cursor-not-allowed');
+      }
+
+      onPostAgentModeChanged();
+      renderModalToolsList(initialTools);
+
+      const modal = document.getElementById('modal-post-edit');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function openAgentDirectEditModal(agentId) {
+      const postIdx = currentMatrixPosts.findIndex(p => p.agentId === agentId);
+      if (postIdx !== -1) {
+        openPostEditModal(postIdx);
+      } else {
+        const ag = cachedAgents.find(a => a.id === agentId);
+        if (!ag) return;
+        currentEditingPostIdx = -2;
+        currentEditingAgentId = agentId;
+
+        const headerTitle = document.getElementById('modal-post-edit-header-title');
+        const idxBadge = document.getElementById('modal-post-idx-badge');
+        const titleInput = document.getElementById('modal-post-field-title');
+        const dutyInput = document.getElementById('modal-post-field-duty');
+        const instArea = document.getElementById('modal-post-field-instructions');
+        const agentDesc = document.getElementById('modal-post-bound-agent-desc');
+        const radioUpdate = document.getElementById('radio-mode-update');
+        const updateLabel = document.getElementById('label-agent-mode-update');
+
+        if (headerTitle) headerTitle.innerText = `编辑智能体专家实体 [${ag.name}]`;
+        if (idxBadge) idxBadge.innerText = ag.key || 'Core Agent';
+        if (titleInput) titleInput.value = ag.name || '';
+        if (dutyInput) dutyInput.value = ag.role || '';
+        if (instArea) instArea.value = (ag.instructions || []).join('\n');
+        if (agentDesc) agentDesc.innerText = `直接修改智能体: ${ag.name} (版本 v${ag.version})`;
+        if (radioUpdate) {
+          radioUpdate.checked = true;
+          radioUpdate.disabled = false;
+        }
+        if (updateLabel) updateLabel.classList.remove('opacity-40', 'cursor-not-allowed');
+
+        onPostAgentModeChanged();
+        renderModalToolsList(ag.tool_refs || ['web-search']);
+
+        const modal = document.getElementById('modal-post-edit');
+        if (modal) modal.classList.remove('hidden');
+      }
+    }
+
+    function closePostEditModal() {
+      const modal = document.getElementById('modal-post-edit');
+      if (modal) modal.classList.add('hidden');
+      currentEditingPostIdx = -1;
+      currentEditingAgentId = null;
+    }
+
+    function onPostAgentModeChanged() {
+      const mode = document.querySelector('input[name="post-agent-save-mode"]:checked')?.value || 'update';
+      const labelUpdate = document.getElementById('label-agent-mode-update');
+      const labelNew = document.getElementById('label-agent-mode-new');
+      if (mode === 'update') {
+        if (labelUpdate) labelUpdate.className = 'flex items-center gap-2.5 p-2.5 rounded-lg border border-indigo-500/40 bg-indigo-500/10 cursor-pointer transition';
+        if (labelNew) labelNew.className = 'flex items-center gap-2.5 p-2.5 rounded-lg border border-white/[0.08] bg-white/[0.02] cursor-pointer hover:border-white/[0.2] transition';
+      } else {
+        if (labelUpdate) labelUpdate.className = 'flex items-center gap-2.5 p-2.5 rounded-lg border border-white/[0.08] bg-white/[0.02] cursor-pointer hover:border-white/[0.2] transition';
+        if (labelNew) labelNew.className = 'flex items-center gap-2.5 p-2.5 rounded-lg border border-indigo-500/40 bg-indigo-500/10 cursor-pointer transition';
+      }
+    }
+
+    function renderModalToolsList(selectedToolKeys = []) {
+      const container = document.getElementById('modal-post-tools-list');
+      if (!container) return;
+
+      const selectedSet = new Set(selectedToolKeys);
+
+      container.innerHTML = cachedTools.map(tool => {
+        const isChecked = selectedSet.has(tool.key);
+        let icon = 'fa-solid fa-screwdriver-wrench text-purple-400';
+        let badge = 'TOOL';
+        if (tool.key === 'web-search') {
+          icon = 'fa-solid fa-globe text-cyan-400';
+          badge = '内置搜索';
+        } else if (tool.key === 'code-interpreter') {
+          icon = 'fa-solid fa-code text-emerald-400';
+          badge = 'Python沙箱';
+        } else if (tool.key === 'pdf-parser') {
+          icon = 'fa-solid fa-file-pdf text-rose-400';
+          badge = 'PDF文档';
+        } else if (tool.key.startsWith('mcp-') || tool.key.startsWith('mcp_') || tool.config?.tool_type?.startsWith('mcp')) {
+          icon = 'fa-solid fa-plug text-indigo-400';
+          badge = 'MCP协议';
+        }
+
+        return `
+          <label class="studio-panel p-3 rounded-xl border ${isChecked ? 'border-indigo-500/50 bg-indigo-950/30' : 'border-white/[0.08] bg-black/40'} flex items-start gap-3 cursor-pointer hover:border-indigo-500/30 transition">
+            <input type="checkbox" name="modal-tool-item" value="${escapeHtml(tool.key)}" ${isChecked ? 'checked' : ''} onchange="this.closest('label').classList.toggle('border-indigo-500/50', this.checked); this.closest('label').classList.toggle('bg-indigo-950/30', this.checked);" class="mt-1 rounded bg-black/50 border-white/[0.2] text-indigo-500 focus:ring-0 focus:ring-offset-0" />
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <i class="${icon} text-xs"></i>
+                <span class="font-bold text-white text-xs">${escapeHtml(tool.name || tool.key)}</span>
+                <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-white/[0.06] text-slate-400">${badge}</span>
+              </div>
+              <p class="text-[10px] text-slate-400 mt-1 leading-normal line-clamp-2">${escapeHtml(tool.description || '为智能体提供外部计算或检索支持')}</p>
+              <span class="inline-block mt-1 text-[9px] font-mono text-slate-500 px-1.5 py-0.2 rounded bg-white/[0.04]">ref: ${escapeHtml(tool.key)}</span>
+            </div>
+          </label>
+        `;
+      }).join('');
+    }
+
+    function appendPostInstruction(text) {
+      const area = document.getElementById('modal-post-field-instructions');
+      if (!area) return;
+      const current = area.value.trim();
+      if (!current) {
+        area.value = text;
+      } else {
+        area.value = current + '\n' + text;
+      }
+      area.focus();
+    }
+
+    async function savePostEditModal() {
+      const title = document.getElementById('modal-post-field-title')?.value.trim();
+      const duty = document.getElementById('modal-post-field-duty')?.value.trim();
+      const instructionsText = document.getElementById('modal-post-field-instructions')?.value.trim() || '';
+      const mode = document.querySelector('input[name="post-agent-save-mode"]:checked')?.value || 'update';
+
+      if (!title) return alert('请输入岗位名称');
+      if (!duty) return alert('请输入角色定位与职责描述');
+
+      const instructions = instructionsText.split('\n').map(l => l.trim()).filter(Boolean);
+      const selectedTools = Array.from(document.querySelectorAll('input[name="modal-tool-item"]:checked')).map(cb => cb.value);
+
+      const btn = document.getElementById('btn-save-post-edit');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>正在保存并同步...</span>`;
+
+      try {
+        let targetAgent = null;
+
+        if (mode === 'update' && currentEditingAgentId) {
+          const agent = cachedAgents.find(a => a.id === currentEditingAgentId);
+          if (!agent) throw new Error('未找到当前指派的智能体实体');
+
+          // Ensure fresh agent version to avoid 409
+          try {
+            const freshAg = await apiRequest(`/agents/${agent.id}`);
+            agent.version = freshAg.version;
+          } catch (_) {}
+
+          const updateBody = {
+            name: title,
+            role: duty,
+            instructions: instructions,
+            tool_refs: selectedTools,
+            expected_version: Math.max(1, agent.version || 1)
+          };
+
+          const updated = await apiRequest(`/agents/${agent.id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(updateBody)
+          });
+
+          const agIdx = cachedAgents.findIndex(a => a.id === agent.id);
+          if (agIdx !== -1) cachedAgents[agIdx] = updated;
+          targetAgent = updated;
+
+        } else {
+          const cleanKey = `agent-${Math.random().toString(36).substring(2, 8)}-${Date.now().toString(36)}`;
+          const createBody = {
+            key: cleanKey,
+            name: title,
+            role: duty,
+            model_ref: 'deepseek:DeepSeek-V3.1',
+            instructions: instructions,
+            tool_refs: selectedTools,
+            enabled: true
+          };
+
+          const created = await apiRequest('/agents', {
+            method: 'POST',
+            body: JSON.stringify(createBody)
+          });
+
+          cachedAgents.push(created);
+          targetAgent = created;
+        }
+
+        if (currentEditingPostIdx >= 0) {
+          currentMatrixPosts[currentEditingPostIdx].title = title;
+          currentMatrixPosts[currentEditingPostIdx].duty = duty;
+          currentMatrixPosts[currentEditingPostIdx].agentId = targetAgent.id;
+        } else if (currentEditingPostIdx === -1) {
+          currentMatrixPosts.push({
+            id: `post-${currentMatrixPosts.length + 1}`,
+            title: title,
+            duty: duty,
+            agentId: targetAgent.id,
+            isLeader: currentMatrixPosts.length === 0
+          });
+        }
+
+        closePostEditModal();
+
+        // Automatically persist the updated team matrix so the user doesn't lose changes
+        await saveTeamMatrixConfig(true);
+
+        renderMatrixPosts();
+        renderCoreAgentsRoster();
+
+        alert(`✅ 岗位自定义申明已成功保存并同步！\n\n岗位：${title}\n接入工具：${selectedTools.join(', ') || '无'}\n工作准则数：${instructions.length} 条\n\n已自动更新并持久化至当前团队协同编制！`);
+
+      } catch (err) {
+        alert('保存岗位自定义申明失败: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    async function saveTeamMatrixConfig(silent = false) {
+      let team = cachedTeams.find(t => t.id === currentMatrixTeamId);
       if (!team) return;
 
       if (!currentMatrixPosts || currentMatrixPosts.length === 0) {
-        alert('请至少配置 1 个岗位');
+        if (!silent) alert('请至少配置 1 个岗位');
         return;
       }
 
       const btn = document.getElementById('btn-save-matrix');
-      const originalText = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>正在保存...</span>`;
+      const originalText = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>正在保存...</span>`;
+      }
 
       try {
-        const memberIds = currentMatrixPosts.map(p => p.agentId);
+        // 1. Persist any inline title/duty edits directly to the agent entities
+        for (const post of currentMatrixPosts) {
+          const ag = cachedAgents.find(a => a.id === post.agentId);
+          if (ag) {
+            const titleChanged = post.title && post.title.trim() && post.title.trim() !== ag.name;
+            const dutyChanged = post.duty && post.duty.trim() && post.duty.trim() !== ag.role;
+            if (titleChanged || dutyChanged) {
+              try {
+                // Fetch fresh version
+                const freshAg = await apiRequest(`/agents/${ag.id}`).catch(() => ag);
+                const patchAgentRes = await apiRequest(`/agents/${ag.id}`, {
+                  method: 'PATCH',
+                  body: JSON.stringify({
+                    name: post.title.trim() || ag.name,
+                    role: post.duty.trim() || ag.role,
+                    expected_version: freshAg.version || 1
+                  })
+                });
+                ag.name = patchAgentRes.name;
+                ag.role = patchAgentRes.role;
+                ag.version = patchAgentRes.version;
+              } catch (e) {
+                console.warn('Syncing post title to agent notice:', e);
+              }
+            }
+          }
+        }
+
+        // 2. Collect member IDs & deduplicate if user accidentally picked the same agent
+        const seenIds = new Set();
+        const memberIds = [];
+        for (const p of currentMatrixPosts) {
+          if (!seenIds.has(p.agentId)) {
+            seenIds.add(p.agentId);
+            memberIds.push(p.agentId);
+          } else {
+            // Duplicate detected! Auto-clone this agent so each post has a unique agent entity
+            const agToClone = cachedAgents.find(a => a.id === p.agentId);
+            const cloneKey = `agent-post-${Math.random().toString(36).substring(2, 7)}-${Date.now().toString(36)}`;
+            const cloned = await apiRequest('/agents', {
+              method: 'POST',
+              body: JSON.stringify({
+                key: cloneKey,
+                name: p.title || (agToClone?.name ? `${agToClone.name} (分身)` : '业务专员'),
+                role: p.duty || agToClone?.role || '专项协同职责',
+                model_ref: agToClone?.model_ref || 'deepseek:DeepSeek-V3.1',
+                instructions: agToClone?.instructions || [],
+                tool_refs: agToClone?.tool_refs || ['web-search'],
+                enabled: true
+              })
+            });
+            cachedAgents.push(cloned);
+            p.agentId = cloned.id;
+            seenIds.add(cloned.id);
+            memberIds.push(cloned.id);
+          }
+        }
+
         const leaderPost = currentMatrixPosts.find(p => p.isLeader);
         const leaderId = leaderPost ? leaderPost.agentId : memberIds[0];
+
+        // 3. Re-fetch current team version to guarantee no 409 version conflict
+        try {
+          const freshTeam = await apiRequest(`/teams/${team.id}`);
+          team.version = freshTeam.version;
+        } catch (_) {}
 
         const patchBody = {
           member_agent_ids: memberIds,
@@ -2851,7 +4483,6 @@
           body: JSON.stringify(patchBody)
         });
 
-        // 更新本地缓存
         team.version = updated.version;
         team.member_agent_ids = updated.member_agent_ids;
         team.leader_agent_id = updated.leader_agent_id;
@@ -2859,18 +4490,515 @@
         const idx = cachedTeams.findIndex(t => t.id === team.id);
         if (idx !== -1) cachedTeams[idx] = updated;
 
-        // 重新同步指挥舱团队选择器
         populateTeamSelector();
+        renderMatrixPosts();
+        renderCoreAgentsRoster();
 
-        alert(`✅ 岗位编排配置已保存！\n\n已成功为团队【${team.name}】指派 ${memberIds.length} 个智能体岗位：\n` +
-          currentMatrixPosts.map((p, i) => `  ${i + 1}. ${p.title} (${p.isLeader ? '主控领队' : '协同成员'})`).join('\n') +
-          `\n\n下次在协同指挥舱发起任务时，流水线将严格按照此岗位架构展开！`
-        );
+        if (!silent) {
+          alert(`✅ 团队岗位编排已实时保存并生效！\n\n已成功为团队【${team.name}】装配 ${currentMatrixPosts.length} 个岗位：\n` +
+            currentMatrixPosts.map((p, i) => `  ${i + 1}. ${p.title} (${p.isLeader ? '主控领队' : '协同成员'})`).join('\n') +
+            `\n\n所有岗位的自定义申明、角色职责与外部工具挂载已全量同步到执行引擎！`
+          );
+        }
       } catch (err) {
-        alert('保存岗位编排失败: ' + err.message);
+        if (!silent) alert('保存岗位编排失败: ' + err.message);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      }
+    }
+
+    // ==========================================
+    // 工具与 MCP 资产中心 (Tools & MCP Studio)
+    // ==========================================
+    async function fetchToolsViewData() {
+      const container = document.getElementById('tools-catalog-container');
+      if (container) {
+        container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500 text-xs"><i class="fa-solid fa-spinner animate-spin mr-2"></i>正在连接工作空间工具资产库...</div>`;
+      }
+
+      try {
+        const [toolsData, agentsData] = await Promise.all([
+          apiRequest('/tools').catch(() => []),
+          apiRequest('/agents?limit=100').catch(() => ({ items: [] }))
+        ]);
+
+        const rawTools = Array.isArray(toolsData) ? toolsData : (toolsData?.items || []);
+        cachedAgents = agentsData.items || cachedAgents;
+
+        // 规范化工具库
+        cachedTools = [...rawTools];
+        if (!cachedTools.some(t => t.key === 'web-search')) {
+          cachedTools.unshift({
+            key: 'web-search',
+            name: '互联网多源检索 (Web Search)',
+            description: '搜狗新闻/必应/DDGS多渠道实时网络搜索，自动过滤营销垃圾并获取一手权威信源',
+            config: { tool_type: 'builtin' },
+            enabled: true,
+            is_builtin: true
+          });
+        }
+        if (!cachedTools.some(t => t.key === 'code-interpreter')) {
+          cachedTools.push({
+            key: 'code-interpreter',
+            name: 'Python代码解释器 (Code Interpreter)',
+            description: '在安全隔离沙箱中执行 Python 计算、统计公式与复杂逻辑推演，避免心算误差',
+            config: { tool_type: 'code_interpreter' },
+            enabled: true,
+            is_builtin: true
+          });
+        }
+        if (!cachedTools.some(t => t.key === 'pdf-parser')) {
+          cachedTools.push({
+            key: 'pdf-parser',
+            name: 'PDF文档解析器 (PDF Parser)',
+            description: '基于 PyMuPDF 与 pdfplumber 解析 PDF，提取大纲、分页文本、关键字定位与结构化表格',
+            config: { tool_type: 'pdf_parser' },
+            enabled: true,
+            is_builtin: true
+          });
+        }
+
+        renderToolsCatalog(cachedTools, cachedAgents);
+      } catch (err) {
+        if (container) {
+          container.innerHTML = `<div class="col-span-full text-center py-12 text-rose-400 text-xs">加载工具资产失败: ${escapeHtml(err.message)}</div>`;
+        }
+      }
+    }
+
+    function renderToolsCatalog(tools, agents) {
+      const container = document.getElementById('tools-catalog-container');
+      const countEl = document.getElementById('tools-catalog-count');
+      const kpiTotal = document.getElementById('tools-kpi-total');
+      const kpiMcp = document.getElementById('tools-kpi-mcp');
+      const kpiBuiltin = document.getElementById('tools-kpi-builtin');
+      const kpiBinding = document.getElementById('tools-kpi-binding');
+
+      if (countEl) countEl.innerText = tools.length;
+      if (kpiTotal) kpiTotal.innerText = tools.length;
+
+      const mcpCount = tools.filter(t => t.key.startsWith('mcp-') || t.key.startsWith('mcp_') || t.config?.tool_type?.startsWith('mcp')).length;
+      if (kpiMcp) kpiMcp.innerText = mcpCount;
+
+      const builtinCount = tools.filter(t => t.config?.tool_type === 'builtin' || t.config?.tool_type === 'code_interpreter' || t.config?.tool_type === 'pdf_parser' || t.key === 'web-search' || t.key === 'code-interpreter' || t.key === 'pdf-parser').length;
+      if (kpiBuiltin) kpiBuiltin.innerText = builtinCount;
+
+      const agentsWithTools = agents.filter(a => a.tool_refs && a.tool_refs.length > 0).length;
+      const coverageRate = agents.length > 0 ? Math.round((agentsWithTools / agents.length) * 100) : 100;
+      if (kpiBinding) kpiBinding.innerText = `${coverageRate}%`;
+
+      if (!container) return;
+
+      if (!tools || tools.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full studio-panel rounded-2xl border-dashed border-white/[0.1] p-16 text-center text-slate-500 text-xs">
+            <i class="fa-solid fa-toolbox text-3xl mb-2 block text-slate-600"></i>
+            当前工作空间暂无注册工具，点击右上角【+ 接入外部 MCP 工具】
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = tools.map(tool => {
+        const isBuiltin = tool.key === 'web-search' || tool.key === 'code-interpreter' || tool.key === 'pdf-parser';
+        const isMcp = tool.key.startsWith('mcp-') || tool.key.startsWith('mcp_') || tool.config?.tool_type?.startsWith('mcp');
+        const isDify = tool.config?.tool_type === 'dify';
+
+        let badgeType = '内置引擎';
+        let badgeColor = 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
+        let icon = 'fa-solid fa-microchip text-emerald-400';
+
+        if (isMcp) {
+          badgeType = (tool.config?.tool_type === 'mcp_stdio') ? 'MCP (Stdio)' : 'MCP (SSE)';
+          badgeColor = 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30';
+          icon = 'fa-solid fa-plug text-cyan-400';
+        } else if (isDify) {
+          badgeType = 'Dify生态';
+          badgeColor = 'bg-purple-500/15 text-purple-300 border-purple-500/30';
+          icon = 'fa-solid fa-diagram-project text-purple-400';
+        } else if (tool.config?.adapter === 'web-search') {
+          badgeType = '垂直检索';
+          badgeColor = 'bg-blue-500/15 text-blue-300 border-blue-500/30';
+          icon = 'fa-solid fa-magnifying-glass text-blue-400';
+        }
+
+        // 查验当前被哪些智能体绑定
+        const boundAgents = agents.filter(a => a.tool_refs && a.tool_refs.includes(tool.key));
+        const boundSummary = boundAgents.length > 0
+          ? boundAgents.map(a => escapeHtml(a.name)).join(', ')
+          : '暂未分配至岗位';
+
+        return `
+          <div class="studio-panel p-5 rounded-2xl space-y-4 flex flex-col justify-between border border-white/[0.08] hover:border-cyan-500/30 transition-all">
+            <div class="space-y-2.5">
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <div class="size-9 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center shrink-0">
+                    <i class="${icon} text-sm"></i>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="font-bold text-white text-xs truncate" title="${escapeHtml(tool.name || tool.key)}">${escapeHtml(tool.name || tool.key)}</div>
+                    <div class="text-[10px] font-mono text-slate-500 truncate mt-0.5">key: ${escapeHtml(tool.key)}</div>
+                  </div>
+                </div>
+                <span class="text-[9px] font-mono font-semibold px-2 py-0.5 rounded-full border ${badgeColor} shrink-0">${badgeType}</span>
+              </div>
+
+              <p class="text-xs text-slate-300 leading-relaxed line-clamp-2">${escapeHtml(tool.description || '为模型提供结构化外部执行或检索能力')}</p>
+            </div>
+
+            <div class="space-y-3 pt-3 border-t border-white/[0.06]">
+              <!-- 绑定智能体状态 -->
+              <div class="flex items-center justify-between text-[10px] font-mono">
+                <span class="text-slate-500">已授权智能体:</span>
+                <span class="${boundAgents.length > 0 ? 'text-indigo-300 font-semibold' : 'text-slate-500'} truncate max-w-[150px]" title="${boundSummary}">${boundSummary}</span>
+              </div>
+
+              <!-- 操作按钮 -->
+              <div class="flex items-center justify-between pt-1">
+                <span class="text-[10px] font-mono ${tool.enabled !== false ? 'text-emerald-400' : 'text-slate-500'} flex items-center gap-1">
+                  <span class="size-1.5 rounded-full ${tool.enabled !== false ? 'bg-emerald-400 shadow-[0_0_6px_#34d399]' : 'bg-slate-600'}"></span>
+                  <span>${tool.enabled !== false ? '可用就绪' : '已停用'}</span>
+                </span>
+
+                <div class="flex items-center gap-1.5">
+                  ${!isBuiltin ? `
+                    <button type="button" onclick="deleteTool('${escapeHtml(tool.key)}')" class="px-2.5 py-1 rounded-lg text-xs text-rose-400 hover:bg-rose-500/10 border border-rose-500/20 transition flex items-center gap-1" title="删除此工具">
+                      <i class="fa-solid fa-trash-can text-[10px]"></i>
+                      <span class="text-[10px]">删除</span>
+                    </button>
+                  ` : `
+                    <span class="text-[10px] text-slate-600 font-mono px-2 py-0.5 bg-white/[0.02] rounded">系统核心</span>
+                  `}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ==========================================
+    // MCP 服务探测与工具接入弹窗交互
+    // ==========================================
+    let discoveredMcpToolsList = [];
+
+    function openMcpModal() {
+      const modal = document.getElementById('modal-mcp-tool');
+      if (modal) modal.classList.remove('hidden');
+      discoveredMcpToolsList = [];
+      const badge = document.getElementById('mcp-discovered-badge');
+      if (badge) badge.innerText = '尚未探测';
+      const container = document.getElementById('mcp-discovered-container');
+      if (container) {
+        container.innerHTML = `
+          <div class="studio-panel border-dashed border-white/[0.1] p-8 text-center text-slate-500 text-xs">
+            <i class="fa-solid fa-satellite text-2xl mb-2 text-slate-600 block"></i>
+            请在上方输入 MCP Server 端点，点击【探测并发现工具】获取服务能力
+          </div>`;
+      }
+    }
+
+    function closeMcpModal() {
+      const modal = document.getElementById('modal-mcp-tool');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function onMcpTransportChanged() {
+      const transport = document.querySelector('input[name="mcp-transport"]:checked')?.value || 'sse';
+      const labelSse = document.getElementById('label-mcp-transport-sse');
+      const labelStdio = document.getElementById('label-mcp-transport-stdio');
+      const fieldsSse = document.getElementById('mcp-fields-sse');
+      const fieldsStdio = document.getElementById('mcp-fields-stdio');
+
+      if (transport === 'sse') {
+        if (labelSse) labelSse.className = 'flex items-center gap-2.5 p-2.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 cursor-pointer transition';
+        if (labelStdio) labelStdio.className = 'flex items-center gap-2.5 p-2.5 rounded-lg border border-white/[0.08] bg-white/[0.02] cursor-pointer hover:border-white/[0.2] transition';
+        if (fieldsSse) fieldsSse.classList.remove('hidden');
+        if (fieldsStdio) fieldsStdio.classList.add('hidden');
+      } else {
+        if (labelSse) labelSse.className = 'flex items-center gap-2.5 p-2.5 rounded-lg border border-white/[0.08] bg-white/[0.02] cursor-pointer hover:border-white/[0.2] transition';
+        if (labelStdio) labelStdio.className = 'flex items-center gap-2.5 p-2.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 cursor-pointer transition';
+        if (fieldsSse) fieldsSse.classList.add('hidden');
+        if (fieldsStdio) fieldsStdio.classList.remove('hidden');
+      }
+    }
+
+    async function discoverMcpTools() {
+      const transport = document.querySelector('input[name="mcp-transport"]:checked')?.value || 'sse';
+      const endpointUrl = document.getElementById('mcp-endpoint-url')?.value.trim();
+      const headersRaw = document.getElementById('mcp-headers-json')?.value.trim();
+      const command = document.getElementById('mcp-stdio-command')?.value.trim();
+      const argsRaw = document.getElementById('mcp-stdio-args')?.value.trim();
+
+      let headers = {};
+      if (headersRaw) {
+        try {
+          headers = JSON.parse(headersRaw);
+        } catch (e) {
+          return alert('自定义请求头 JSON 格式不合规，请检查');
+        }
+      }
+
+      let args = [];
+      if (argsRaw) {
+        args = argsRaw.split(/\s+/).filter(Boolean);
+      }
+
+      if (transport === 'sse' && !endpointUrl) {
+        return alert('请输入 MCP SSE 终端 URL (如: http://127.0.0.1:8000/sse)');
+      }
+      if (transport === 'stdio' && !command) {
+        return alert('请输入本地启动命令 (如: npx 或 python)');
+      }
+
+      const btn = document.getElementById('btn-discover-mcp');
+      const origText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>正在探测 MCP Server...</span>`;
+
+      const container = document.getElementById('mcp-discovered-container');
+      const badge = document.getElementById('mcp-discovered-badge');
+
+      try {
+        const body = {
+          transport: transport,
+          endpoint_url: endpointUrl,
+          headers: headers,
+          command: command,
+          args: args
+        };
+
+        const res = await apiRequest('/tools/mcp/discover', {
+          method: 'POST',
+          body: JSON.stringify(body)
+        });
+
+        discoveredMcpToolsList = res.tools || [];
+
+        if (badge) badge.innerText = `探测成功 · 发现 ${discoveredMcpToolsList.length} 个工具`;
+
+        if (discoveredMcpToolsList.length === 0) {
+          container.innerHTML = `
+            <div class="studio-panel border-dashed border-white/[0.1] p-8 text-center text-amber-400 text-xs">
+              <i class="fa-solid fa-triangle-exclamation text-2xl mb-2 block"></i>
+              成功连通 MCP 服务，但该服务未暴露任何 tool 定义。
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = discoveredMcpToolsList.map((tool, idx) => {
+          const autoKey = `mcp-${tool.name.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}`;
+          const schemaPreview = tool.input_schema ? JSON.stringify(tool.input_schema, null, 2) : '{}';
+
+          return `
+            <div class="studio-panel p-4 rounded-xl border border-white/[0.08] hover:border-cyan-500/40 space-y-3 bg-[#0B101D] transition">
+              <div class="flex items-start justify-between gap-3">
+                <div class="space-y-1 flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-white text-xs">${escapeHtml(tool.name)}</span>
+                    <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">MCP Tool</span>
+                  </div>
+                  <p class="text-[11px] text-slate-300 leading-normal line-clamp-2">${escapeHtml(tool.description || '无详细描述')}</p>
+                </div>
+              </div>
+
+              <!-- 入库配置字段 -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-white/[0.04]">
+                <div class="space-y-1">
+                  <label class="text-[10px] text-slate-400 font-mono">注册唯一键 (Tool Key):</label>
+                  <input type="text" id="reg-key-${idx}" value="${autoKey}" pattern="^[A-Za-z][A-Za-z0-9._-]*$" class="w-full text-xs px-2.5 py-1.5 rounded-lg border border-white/[0.1] bg-black/50 text-slate-200 font-mono" />
+                </div>
+                <div class="space-y-1">
+                  <label class="text-[10px] text-slate-400 font-mono">显示名称 (Display Name):</label>
+                  <input type="text" id="reg-name-${idx}" value="${escapeHtml(tool.name)}" class="w-full text-xs px-2.5 py-1.5 rounded-lg border border-white/[0.1] bg-black/50 text-slate-200" />
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between pt-1">
+                <details class="text-[10px] text-slate-500 font-mono">
+                  <summary class="cursor-pointer hover:text-cyan-300">查看 Input Schema</summary>
+                  <pre class="mt-1 p-2 bg-black/80 rounded border border-white/[0.06] text-[9px] max-h-32 overflow-auto">${escapeHtml(schemaPreview)}</pre>
+                </details>
+
+                <button type="button" onclick="registerMcpTool(${idx}, '${escapeHtml(transport)}', '${escapeHtml(endpointUrl)}', '${escapeHtml(headersRaw)}', '${escapeHtml(command)}', '${escapeHtml(argsRaw)}')" id="btn-reg-${idx}" class="studio-launch-btn px-3 py-1.5 rounded-lg text-white text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition">
+                  <i class="fa-solid fa-plus text-[10px]"></i>
+                  <span>一键注册入库</span>
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+      } catch (err) {
+        if (badge) badge.innerText = '探测失败';
+        container.innerHTML = `
+          <div class="studio-panel border border-rose-500/30 bg-rose-500/10 p-5 rounded-xl text-rose-300 text-xs space-y-1">
+            <div class="font-bold flex items-center gap-1.5"><i class="fa-solid fa-circle-exclamation"></i><span>MCP 探测失败:</span></div>
+            <div class="font-mono text-[11px] leading-relaxed">${escapeHtml(err.message)}</div>
+            <p class="text-[10px] text-slate-400 pt-1">请确保 MCP Server 已启动并在指定端口正常监听（如提供 SSE 接口或支持 stdio）。</p>
+          </div>`;
       } finally {
         btn.disabled = false;
-        btn.innerHTML = originalText;
+        btn.innerHTML = origText;
+      }
+    }
+
+    async function registerMcpTool(toolIdx, transport, endpointUrl, headersRaw, command, argsRaw) {
+      const tool = discoveredMcpToolsList[toolIdx];
+      if (!tool) return;
+
+      const keyInput = document.getElementById(`reg-key-${toolIdx}`);
+      const nameInput = document.getElementById(`reg-name-${toolIdx}`);
+      const btn = document.getElementById(`btn-reg-${toolIdx}`);
+
+      const key = keyInput?.value.trim();
+      const name = nameInput?.value.trim();
+
+      if (!key) return alert('请输入工具唯一键 (Key)');
+      if (!name) return alert('请输入工具显示名称');
+
+      let headers = {};
+      if (headersRaw) {
+        try { headers = JSON.parse(headersRaw); } catch (e) {}
+      }
+
+      let args = [];
+      if (argsRaw) {
+        args = argsRaw.split(/\s+/).filter(Boolean);
+      }
+
+      const origText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>入库中...</span>`;
+
+      try {
+        let toolConfig = {};
+        if (transport === 'sse') {
+          toolConfig = {
+            tool_type: 'mcp_sse',
+            endpoint_url: endpointUrl,
+            headers: headers,
+            tool_name: tool.name,
+            tool_schema: tool.input_schema || {},
+            tool_description: tool.description || ''
+          };
+        } else {
+          toolConfig = {
+            tool_type: 'mcp_stdio',
+            command: command,
+            args: args,
+            env: {},
+            tool_name: tool.name,
+            tool_schema: tool.input_schema || {},
+            tool_description: tool.description || ''
+          };
+        }
+
+        const payload = {
+          key: key,
+          name: name,
+          description: tool.description || `MCP tool from ${transport}`,
+          config: toolConfig,
+          enabled: true
+        };
+
+        const created = await apiRequest('/tools', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+
+        cachedTools.push(created);
+
+        btn.className = "px-3 py-1.5 rounded-lg text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5 cursor-default";
+        btn.innerHTML = `<i class="fa-solid fa-check text-[10px]"></i><span>已成功入库</span>`;
+
+        alert(`✅ MCP 工具【${name}】(key: ${key}) 已成功注册到系统！\n\n已自动同步至全域工具库，在【团队岗位配置】中编辑任意岗位时可立即勾选指派！`);
+
+        fetchToolsViewData();
+        fetchSwarmData();
+      } catch (err) {
+        alert('注册 MCP 工具失败: ' + err.message);
+        btn.disabled = false;
+        btn.innerHTML = origText;
+      }
+    }
+
+    async function deleteTool(key) {
+      if (key === 'web-search' || key === 'code-interpreter' || key === 'pdf-parser') {
+        return alert('系统核心内置工具受保护，无法删除');
+      }
+
+      if (!confirm(`确定要删除工具【${key}】吗？\n\n注意：如果有智能体岗位正在使用此工具，需要先在【岗位编排】中解除勾选。`)) {
+        return;
+      }
+
+      try {
+        await apiRequest(`/tools/${encodeURIComponent(key)}`, {
+          method: 'DELETE'
+        });
+
+        alert(`✅ 工具【${key}】已成功移除`);
+        fetchToolsViewData();
+        fetchSwarmData();
+      } catch (err) {
+        alert('删除工具失败: ' + err.message);
+      }
+    }
+
+    // 自定义搜索工具弹窗
+    function openCustomSearchModal() {
+      const modal = document.getElementById('modal-custom-search-tool');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeCustomSearchModal() {
+      const modal = document.getElementById('modal-custom-search-tool');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function handleCreateCustomSearchTool(e) {
+      e.preventDefault();
+      const key = document.getElementById('custom-search-key')?.value.trim();
+      const name = document.getElementById('custom-search-name')?.value.trim();
+      const desc = document.getElementById('custom-search-desc')?.value.trim() || '';
+      const prefix = document.getElementById('custom-search-prefix')?.value.trim() || '';
+      const maxResults = parseInt(document.getElementById('custom-search-max')?.value || '5', 10);
+
+      const btn = document.getElementById('btn-save-custom-search');
+      btn.disabled = true;
+
+      try {
+        const payload = {
+          key: key,
+          name: name,
+          description: desc,
+          config: {
+            tool_type: 'builtin',
+            adapter: 'web-search',
+            query_prefix: prefix,
+            max_results: maxResults
+          },
+          enabled: true
+        };
+
+        const created = await apiRequest('/tools', {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+
+        cachedTools.push(created);
+        closeCustomSearchModal();
+        alert(`✅ 垂直搜索工具【${name}】创建成功！`);
+
+        fetchToolsViewData();
+        fetchSwarmData();
+      } catch (err) {
+        alert('创建工具失败: ' + err.message);
+      } finally {
+        btn.disabled = false;
       }
     }
 
@@ -2892,21 +5020,29 @@
         container.innerHTML = `
           <div class="col-span-full studio-panel rounded-2xl border-dashed border-white/[0.1] p-16 text-center text-slate-500 text-xs">
             <i class="fa-solid fa-brain text-3xl mb-2 block text-slate-600"></i>
-            暂无沉淀记忆，点击右上角录入
+            暂无沉淀记忆，点击右上角录入或通过协同任务自动萃取
           </div>`;
         return;
       }
       container.innerHTML = items.map(mem => `
-        <div class="studio-panel p-5 rounded-2xl space-y-3 flex flex-col justify-between">
+        <div class="studio-panel p-5 rounded-2xl space-y-3 flex flex-col justify-between border border-white/[0.08] hover:border-white/[0.18] transition">
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full ${mem.category === 'fact' ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30' : mem.category === 'preference' ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30' : 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'}">${mem.category.toUpperCase()}</span>
-              <span class="text-[10px] font-mono text-slate-500">${new Date(mem.created_at).toLocaleDateString()}</span>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full ${mem.category === 'fact' ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30' : mem.category === 'preference' ? 'bg-purple-500/15 text-purple-300 border border-purple-500/30' : 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30'}">${(mem.category || 'fact').toUpperCase()}</span>
+                ${mem.source_run_id ? `<span class="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"><i class="fa-solid fa-wand-magic-sparkles text-[9px]"></i>LLM-Wiki 萃取</span>` : `<span class="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">✍️ 手动沉淀</span>`}
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-mono text-slate-500">${new Date(mem.created_at).toLocaleDateString()}</span>
+                <button onclick="deleteMemoryItem('${mem.id}')" class="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-rose-500/10 transition text-xs" title="删除该条记忆">
+                  <i class="fa-solid fa-trash-can"></i>
+                </button>
+              </div>
             </div>
-            <p class="text-xs text-slate-200 leading-relaxed font-sans">${mem.content}</p>
+            <p class="text-xs text-slate-200 leading-relaxed font-sans">${escapeHtml(mem.content)}</p>
           </div>
           <div class="pt-2.5 border-t border-white/[0.06] flex flex-wrap gap-1">
-            ${(mem.keywords || []).map(kw => `<span class="text-[10px] bg-white/[0.04] border border-white/[0.08] text-slate-400 px-1.5 py-0.5 rounded font-mono">#${kw}</span>`).join('')}
+            ${(mem.keywords || []).map(kw => `<span class="text-[10px] bg-white/[0.04] border border-white/[0.08] text-slate-400 px-1.5 py-0.5 rounded font-mono">#${escapeHtml(kw)}</span>`).join('')}
           </div>
         </div>
       `).join('');
@@ -2918,10 +5054,20 @@
       const container = document.getElementById('cortex-memories-container');
       container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500 text-xs">正在执行向量语义召回...</div>`;
       try {
-        const data = await apiRequest(`/memories/search?query=${encodeURIComponent(q)}&limit=10`);
+        const data = await apiRequest(`/memories?query=${encodeURIComponent(q)}&limit=10`);
         renderCortexList(data.items || []);
       } catch (err) {
         container.innerHTML = `<div class="col-span-full text-rose-400 text-xs text-center">检索异常: ${err.message}</div>`;
+      }
+    }
+
+    async function deleteMemoryItem(id) {
+      if (!confirm('确定要删除这条长期记忆吗？')) return;
+      try {
+        await apiRequest(`/memories/${id}`, { method: 'DELETE' });
+        fetchCortexMemories();
+      } catch (err) {
+        alert('删除失败: ' + err.message);
       }
     }
 
@@ -2956,11 +5102,554 @@
       }
     }
 
+    // ==========================================
+    // 步骤推演详情弹窗与实时输出驾驶舱控制
+    // ==========================================
+
+    let liveTimerInterval = null;
+    let liveTimerSeconds = 0;
+    let currentStepModalTab = 'output';
+    window._currentStepModalRawText = '';
+
+    function startLiveTimer() {
+      if (liveTimerInterval) return;
+      liveTimerSeconds = 0;
+      const timerEl = document.getElementById('live-active-timer');
+      if (timerEl) timerEl.innerText = '00:00';
+      liveTimerInterval = setInterval(() => {
+        liveTimerSeconds++;
+        const m = Math.floor(liveTimerSeconds / 60).toString().padStart(2, '0');
+        const s = (liveTimerSeconds % 60).toString().padStart(2, '0');
+        if (timerEl) timerEl.innerText = `${m}:${s}`;
+      }, 1000);
+    }
+
+    function stopLiveTimer() {
+      if (liveTimerInterval) {
+        clearInterval(liveTimerInterval);
+        liveTimerInterval = null;
+      }
+    }
+
+    function appendLiveTerminalLog(icon, tag, msg, colorClass = 'text-slate-300') {
+      const terminal = document.getElementById('live-active-terminal');
+      if (!terminal) return;
+      const time = new Date().toLocaleTimeString();
+      const html = `
+        <div class="flex items-start gap-2 ${colorClass} text-[11px] leading-relaxed">
+          <span class="text-slate-500 font-mono shrink-0">[${time}]</span>
+          <span class="shrink-0 flex items-center gap-1 font-bold"><i class="fa-solid fa-${icon} text-[9.5px]"></i> ${tag}:</span>
+          <div class="flex-1 break-words">${msg}</div>
+        </div>
+      `;
+      terminal.insertAdjacentHTML('beforeend', html);
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function switchStepModalTab(tab) {
+      currentStepModalTab = tab;
+      const tabs = ['output', 'task', 'sources', 'raw'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`step-modal-tab-${t}`);
+        const pane = document.getElementById(`step-modal-pane-${t}`);
+        if (!btn || !pane) return;
+        if (t === tab) {
+          btn.className = "py-2.5 border-b-2 border-teal-400 text-white flex items-center gap-1.5 transition font-semibold";
+          pane.classList.remove('hidden');
+        } else {
+          btn.className = "py-2.5 border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-1.5 transition";
+          pane.classList.add('hidden');
+        }
+      });
+    }
+
+    function openStepDetailModal({ seq, name, time, type, chars, outputContent, taskDescription, sources, rawJson }) {
+      const seqEl = document.getElementById('step-modal-seq');
+      if (seqEl) seqEl.innerText = seq ? `#${seq}` : '';
+      
+      const nameEl = document.getElementById('step-modal-agent-name');
+      if (nameEl) nameEl.innerText = name || '阶段推演详情';
+
+      const timeEl = document.getElementById('step-modal-time');
+      if (timeEl) timeEl.innerText = time || new Date().toLocaleTimeString();
+
+      const typeEl = document.getElementById('step-modal-type');
+      if (typeEl) typeEl.innerText = type || '';
+
+      const iconEl = document.getElementById('step-modal-icon');
+      if (iconEl) {
+        if (type === 'tool.calling') iconEl.className = 'fa-solid fa-satellite-dish text-cyan-400 animate-pulse';
+        else if (type === 'tool.summary') iconEl.className = 'fa-solid fa-square-check text-emerald-400';
+        else if (type === 'agent.started') iconEl.className = 'fa-solid fa-user-astronaut text-indigo-400';
+        else if (type === 'agent.completed') iconEl.className = 'fa-solid fa-circle-check text-teal-400';
+        else if (type === 'run.started') iconEl.className = 'fa-solid fa-rocket text-indigo-400';
+        else if (type === 'run.completed') iconEl.className = 'fa-solid fa-check-double text-emerald-400';
+        else if (type === 'run.review_started' || type === 'run.review_completed') iconEl.className = 'fa-solid fa-clipboard-check text-purple-400';
+        else if (type === 'run.failed' || type === 'run.cancelled') iconEl.className = 'fa-solid fa-triangle-exclamation text-rose-400';
+        else iconEl.className = 'fa-solid fa-circle-info text-blue-400';
+      }
+
+      // 动态调整 Tab 1 标签标题
+      const tabOutputLabel = document.getElementById('step-modal-tab-output-label');
+      if (tabOutputLabel) {
+        if (type === 'tool.calling' || type === 'tool.summary') {
+          tabOutputLabel.innerText = '检索透视与执行报告';
+        } else if (type === 'agent.started' || type === 'run.started') {
+          tabOutputLabel.innerText = '推演方案与派发目标';
+        } else if (type === 'agent.completed' || type === 'run.completed') {
+          tabOutputLabel.innerText = '获得结论与推演研报';
+        } else {
+          tabOutputLabel.innerText = '推演成果与执行详情';
+        }
+      }
+
+      window._currentStepModalRawText = outputContent || '';
+
+      // 1. 结论成果 Tab
+      const mdContainer = document.getElementById('step-modal-markdown');
+      const emptyOut = document.getElementById('step-modal-empty-output');
+      if (outputContent && outputContent.trim()) {
+        mdContainer.innerHTML = marked.parse(outputContent);
+        mdContainer.classList.remove('hidden');
+        emptyOut.classList.add('hidden');
+      } else {
+        mdContainer.innerHTML = '';
+        mdContainer.classList.add('hidden');
+        emptyOut.classList.remove('hidden');
+      }
+
+      // 2. 任务目标 Tab
+      const taskContainer = document.getElementById('step-modal-task-text');
+      if (taskContainer) {
+        taskContainer.innerText = taskDescription || '未指定或继承主任务全局上下文要求';
+      }
+
+      // 3. 信源穿透 Tab (容错支持对象、字符串与自动提取)
+      const sourcesContainer = document.getElementById('step-modal-sources-list');
+      const emptySources = document.getElementById('step-modal-empty-sources');
+      const rawSources = [];
+      if (Array.isArray(sources)) {
+        sources.forEach(s => {
+          if (!s) return;
+          if (typeof s === 'string') {
+            try {
+              const d = new URL(s).hostname;
+              rawSources.push({ title: s, url: s, domain: d });
+            } catch {
+              rawSources.push({ title: s, url: s, domain: '外部信源' });
+            }
+          } else if (typeof s === 'object') {
+            const u = s.url || s.link || s.href;
+            if (u) {
+              let d = s.domain;
+              if (!d) {
+                try { d = new URL(u).hostname; } catch { d = '外部信源'; }
+              }
+              rawSources.push({
+                title: s.title || s.name || s.snippet || u,
+                url: u,
+                domain: d
+              });
+            }
+          }
+        });
+      }
+      const extractedLinks = outputContent ? extractMarkdownLinks(outputContent) : [];
+      const combinedSources = [...rawSources, ...extractedLinks];
+      // 去重
+      const uniqueSources = [];
+      const seenUrls = new Set();
+      combinedSources.forEach(s => {
+        const u = s.url || s.link;
+        if (u && !seenUrls.has(u)) {
+          seenUrls.add(u);
+          uniqueSources.push(s);
+        }
+      });
+
+      // 徽章角标更新
+      const sourcesBadge = document.getElementById('step-modal-sources-badge');
+      if (sourcesBadge) {
+        if (uniqueSources.length > 0) {
+          sourcesBadge.innerText = uniqueSources.length;
+          sourcesBadge.classList.remove('hidden');
+        } else {
+          sourcesBadge.classList.add('hidden');
+        }
+      }
+
+      // 状态标签文字更新
+      const charEl = document.getElementById('step-modal-chars');
+      if (charEl) {
+        if (type === 'agent.completed' || type === 'run.completed') {
+          charEl.innerText = chars ? `产出 ${chars} 字` : '研报就绪';
+          charEl.className = 'text-teal-300 font-bold';
+          charEl.classList.remove('hidden');
+        } else if (type === 'tool.summary') {
+          charEl.innerText = `${uniqueSources.length || '多'} 条信源`;
+          charEl.className = 'text-emerald-300 font-bold';
+          charEl.classList.remove('hidden');
+        } else if (type === 'tool.calling') {
+          charEl.innerText = '外部检索穿透';
+          charEl.className = 'text-cyan-300 font-mono';
+          charEl.classList.remove('hidden');
+        } else if (type === 'agent.started') {
+          charEl.innerText = '阶段任务指派';
+          charEl.className = 'text-indigo-300 font-semibold';
+          charEl.classList.remove('hidden');
+        } else if (chars) {
+          charEl.innerText = `产出 ${chars} 字`;
+          charEl.className = 'text-teal-300 font-bold';
+          charEl.classList.remove('hidden');
+        } else {
+          charEl.classList.add('hidden');
+        }
+      }
+
+      if (uniqueSources.length > 0) {
+        sourcesContainer.innerHTML = uniqueSources.map(s => `
+          <a href="${s.url || s.link}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-3 rounded-xl bg-black/40 hover:bg-indigo-950/40 border border-white/[0.08] hover:border-indigo-500/40 transition group">
+            <div class="min-w-0 pr-3">
+              <div class="text-xs font-semibold text-slate-200 group-hover:text-indigo-300 truncate">${escapeHtml(s.title || s.name || s.url)}</div>
+              <div class="text-[10px] text-slate-500 font-mono truncate flex items-center gap-1.5 mt-0.5">
+                <i class="fa-solid fa-globe text-indigo-400 text-[9px]"></i>
+                <span>${escapeHtml(s.domain || s.url)}</span>
+              </div>
+            </div>
+            <i class="fa-solid fa-arrow-up-right-from-square text-indigo-400 group-hover:translate-x-0.5 text-xs transition shrink-0"></i>
+          </a>
+        `).join('');
+        sourcesContainer.classList.remove('hidden');
+        emptySources.classList.add('hidden');
+      } else {
+        sourcesContainer.innerHTML = '';
+        sourcesContainer.classList.add('hidden');
+        emptySources.classList.remove('hidden');
+      }
+
+      // 4. 原始元数据 Tab
+      const jsonEl = document.getElementById('step-modal-json');
+      if (jsonEl) {
+        jsonEl.innerText = rawJson || '{}';
+      }
+
+      // 智能切换到最有价值的 Tab（有正文优先展示正文结论）
+      if (outputContent && outputContent.trim()) {
+        switchStepModalTab('output');
+      } else if (taskDescription && taskDescription.trim()) {
+        switchStepModalTab('task');
+      } else if (uniqueSources.length > 0) {
+        switchStepModalTab('sources');
+      } else {
+        switchStepModalTab('raw');
+      }
+
+      const modal = document.getElementById('modal-step-detail');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeStepDetailModal() {
+      const modal = document.getElementById('modal-step-detail');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function copyStepModalContent() {
+      const text = window._currentStepModalRawText || '';
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        const textEl = document.getElementById('copy-step-btn-text');
+        if (textEl) {
+          const orig = textEl.innerText;
+          textEl.innerText = '已复制 ✓';
+          setTimeout(() => { textEl.innerText = orig; }, 2000);
+        }
+      }).catch(e => {
+        alert('已选中文本，请手动 Ctrl+C 复制');
+      });
+    }
+
+    // 按事件序列或 ID 查看详情
+    function inspectEventByRef(ref) {
+      if (!currentRuns || !currentRuns[0]) {
+        alert('正在同步推演执行数据，请稍后重试');
+        return;
+      }
+      const events = currentRuns[0].events || [];
+      const cleanRef = String(ref).replace(/^#/, '').trim();
+      const ev = events.find(e => String(e.id) === cleanRef || String(e.sequence) === cleanRef) ||
+                 events.find(e => e.sequence == cleanRef) ||
+                 (Number(cleanRef) > 0 && events[Number(cleanRef) - 1]);
+      if (!ev) {
+        alert('未检索到该步骤的详细元数据 (Seq: #' + cleanRef + ')');
+        return;
+      }
+
+      const p = ev.payload || {};
+      const type = ev.event_type || 'unknown';
+      let titleName = p.name || ev.source_id || '推演步骤';
+      let outContent = '';
+      let taskDesc = p.task || p.task_description || p.message || '';
+      let sources = [];
+
+      // 提取信源列表
+      if (Array.isArray(p.sources)) {
+        sources = [...p.sources];
+      }
+      if (p.query) {
+        sources.push({
+          title: `联网检索: "${p.query}"`,
+          url: `https://www.bing.com/search?q=${encodeURIComponent(p.query)}`,
+          domain: p.tool_name || 'bing.com'
+        });
+      }
+
+      // 根据事件类型生成详实的步骤报告与结论成果，绝不出现空屏
+      if (type === 'tool.calling') {
+        titleName = `联网检索动作发起 (${p.tool_name || ev.source_id || 'web-search'})`;
+        const q = p.query || p.tool_input || '未指定检索词';
+        const toolName = p.tool_name || ev.source_id || '联网检索工具 (web-search)';
+        outContent = `### 📡 外部工具动作调用发起 (Tool Calling)
+- **执行工具**：\`${toolName}\`
+- **检索关键词 (Query)**：\`"${q}"\`
+- **调用状态**：\`正在向外部互联网 / 知识引擎发起穿透检索\`
+- **调度说明**：${p.message || '协调员根据阶段推演目标注入检索查询'}
+
+#### 🔍 实时检索动作透视
+推演流水线当前正在调用外部信源引擎实时捕获该主题的权威商业数据与公开披露信息：
+> **"${q}"**
+
+#### 💡 查阅与穿透指引
+1. 您可以切换至上方 **【工具动作与信源穿透】** 标签页，直接在搜索引擎中查看原始真实网页。
+2. 检索返回后，请查阅随后的 **【信源获取 (tool.summary)】** 与 **【阶段推演就绪 (agent.completed)】** 步骤，获取深度分析提炼成果。`;
+
+      } else if (type === 'tool.summary') {
+        titleName = `信源检索捕获完成 (${p.tool_name || ev.source_id || 'web-search'})`;
+        const q = p.query || '未指定检索词';
+        const toolName = p.tool_name || ev.source_id || '联网检索';
+        const count = p.count !== undefined ? p.count : ((p.sources && p.sources.length) || 0);
+        const elapsed = p.elapsed !== undefined ? p.elapsed : 0;
+        const status = p.status || 'ok';
+        const preview = p.result_preview || p.message || '已成功获取信源并提供给推演专家';
+
+        outContent = `### 🌐 信源工具执行完成报告 (Tool Summary)
+- **使用工具**：\`${toolName}\`
+- **检索关键词**：\`"${q}"\`
+- **命中信源数**：\`${count} 条真实信源\`
+- **响应耗时**：\`${elapsed} 秒\`
+- **执行状态**：\`${status === 'ok' ? '成功 (200 OK)' : status}\`
+
+#### 📋 命中信源与摘要预览：
+\`\`\`
+${preview}
+\`\`\`
+
+> 💡 **信源穿透提示**：可直接在上方切换至 **【工具动作与信源穿透】** 标签页，一键点击直达所有采集到的外部真实网站。`;
+
+      } else if (type === 'agent.started') {
+        titleName = `协同任务派发 · ${p.name || '专家成员'}`;
+        const round = p.round || 1;
+        taskDesc = p.task || p.message || '根据推演大纲与流水线方案开展专业深度调研';
+        outContent = `### 🎯 协同推演任务指派就绪 (Task Dispatched)
+- **责任专家**：\`【${p.name || '专家成员'}】\`
+- **协同阶段**：\`第 ${round} 协作轮次\`
+- **委派指令目标**：
+> ${taskDesc}
+
+#### 📌 推演职能要求与工作流
+主控协调员已向 **【${p.name || '专家成员'}】** 成功下达调研与推演任务。该专家已就绪并载入推演大纲，正在调用专属工具链展开深度事实检索与推演。`;
+
+      } else if (type === 'agent.completed') {
+        titleName = `阶段推演就绪 · ${p.name || '专家成员'}`;
+        let rawOut = p.output;
+        if (typeof rawOut === 'object' && rawOut !== null) {
+          rawOut = rawOut.content || JSON.stringify(rawOut, null, 2);
+        }
+        outContent = typeof rawOut === 'string' ? rawOut : '';
+
+        // 如果当前事件的输出内容较短，尝试从同名智能体的其他完成事件中查找完整研报
+        if (!outContent || outContent.length < 50) {
+          const matchedEvs = events.filter(e => e.event_type === 'agent.completed' && (
+            (p.name && e.payload?.name === p.name) ||
+            (p.member_id && e.payload?.member_id === p.member_id)
+          ));
+          for (const me of matchedEvs) {
+            let mOut = me.payload?.output;
+            if (typeof mOut === 'object' && mOut !== null) {
+              mOut = mOut.content || JSON.stringify(mOut, null, 2);
+            }
+            if (typeof mOut === 'string' && mOut.length > (outContent ? outContent.length : 0)) {
+              outContent = mOut;
+            }
+          }
+        }
+
+        if (!outContent || !outContent.trim()) {
+          outContent = `### 📝 【${p.name || '专家成员'}】阶段推演闭环
+- **责任专家**：\`【${p.name || '专家成员'}】\`
+- **完成轮次**：\`第 ${p.round || 1} 轮推演\`
+- **状态**：阶段已就绪，成果已汇总至全局研报流水线中。`;
+        }
+
+      } else if (type === 'run.started') {
+        titleName = '协同推演流水线启动';
+        const teamName = p.team_name || 'ULOO Squad';
+        const taskTitle = currentTask?.title || currentTask?.query || '多智能体深度推演任务';
+        taskDesc = currentTask?.query || currentTask?.description || '多智能体深度研报与协同推演';
+        outContent = `### 🚀 协同推演流水线全面启动 (Run Started)
+- **智能体协同团队**：\`${teamName}\`
+- **协同架构**：\`Agno Coordinate 多智能体沙盘联动\`
+- **推演核心目标**：
+> **${taskTitle}**
+
+#### 📋 执行规划
+主控协调员已完成方案载入与上下文注入，各专业专家（调研、审计、分析、主编）已就绪，按流水线顺序逐步派发推演任务。`;
+
+      } else if (type === 'run.completed') {
+        titleName = '协同推演全线交付完成';
+        let deliverable = p.output ? (typeof p.output === 'string' ? p.output : (p.output.content || JSON.stringify(p.output, null, 2))) : '';
+        if (!deliverable && currentRuns[0]?.output) {
+          const ro = currentRuns[0].output;
+          deliverable = typeof ro === 'string' ? ro : (ro.content || JSON.stringify(ro, null, 2));
+        }
+        outContent = `### 🏆 多智能体协同推演全线交付完成 (Run Completed)
+- **交付结论状态**：\`全流程协同完毕，深度研报已生成\`
+- **研报总字数**：\`${deliverable ? deliverable.length : 0} 字\`
+
+---
+${deliverable || '推演已圆满完成，正在渲染研报成果。'}`;
+
+      } else if (type === 'run.review_started' || type === 'run.review_completed') {
+        titleName = '研报质量交叉复核';
+        outContent = `### 🔍 研报质量复核与信源审计 (Quality Review)
+- **审计阶段**：\`数据交叉检验与信源可靠性审计\`
+- **核心检验指标**：实体名称规范性、商业数据可溯源性、逻辑推演严密性
+- **当前状态**：${p.message || '审核员已完成交叉检验，推演结论准确合规'}`;
+
+      } else if (type === 'run.input_requested') {
+        titleName = '等待人工决策补充 (HITL)';
+        const question = p.question || p.reason || '需要操作员提供补充参数或决策指导';
+        outContent = `### ⏸️ 等待人工介入指导 (Human In The Loop)
+- **触发原因**：\`推演过程需要用户明确参数或决策指导\`
+- **系统提问**：
+> **${question}**
+
+请在推演驾驶舱下方输入框中提供输入，以便流水线继续推进。`;
+
+      } else if (type === 'run.failed' || type === 'run.cancelled') {
+        titleName = type === 'run.failed' ? '推演异常中断' : '推演已中止';
+        const reason = p.reason || p.error || '推演执行异常';
+        outContent = `### ⚠️ 推演异常中断 (Run Failed / Cancelled)
+- **中断原因**：\`${reason}\`
+- **详细信息**：${p.message || '无附加信息'}`;
+
+      } else {
+        // 其他未知或基础事件
+        if (p.output) {
+          outContent = typeof p.output === 'string' ? p.output : (p.output.content || JSON.stringify(p.output, null, 2));
+        } else {
+          outContent = `### ℹ️ 推演事件详情 (\`${type}\`)\n- **事件类型**：\`${type}\`\n- **时间**：\`${new Date(ev.created_at || Date.now()).toLocaleTimeString()}\`\n- **消息说明**：${p.message || '推演流水线状态变更'}`;
+        }
+      }
+
+      openStepDetailModal({
+        seq: ev.sequence,
+        name: titleName,
+        time: new Date(ev.created_at || Date.now()).toLocaleTimeString(),
+        type: ev.event_type,
+        chars: outContent ? outContent.length : (p.char_count || 0),
+        outputContent: outContent,
+        taskDescription: taskDesc,
+        sources: sources,
+        rawJson: JSON.stringify(ev, null, 2)
+      });
+    }
+
+    // 按沙盘站点索引查看详情
+    function inspectStationDetail(stationIdx) {
+      if (!currentRuns || !currentRuns[0]) return;
+      const meta = extractRailMetadata(currentTask, currentRuns[0]);
+      const st = meta.stations[stationIdx];
+      if (!st) return;
+
+      const events = currentRuns[0].events || [];
+      // 查找该站对应的 agent.completed 事件
+      const compEv = events.find(e => e.event_type === 'agent.completed' && (e.payload?.name === st.name || e.payload?.name === st.rawName || e.payload?.member_id === st.rawName));
+      // 查找对应的 agent.started 事件
+      const startEv = events.find(e => e.event_type === 'agent.started' && (e.payload?.name === st.name || e.payload?.name === st.rawName || e.payload?.member_id === st.rawName));
+
+      let outContent = '';
+      if (st.output) {
+        outContent = typeof st.output === 'string' ? st.output : (st.output.content || JSON.stringify(st.output, null, 2));
+      } else if (compEv && compEv.payload?.output) {
+        const out = compEv.payload.output;
+        outContent = typeof out === 'string' ? out : (out.content || JSON.stringify(out, null, 2));
+      } else if (st.type === 'terminus' && currentRuns[0].output) {
+        outContent = typeof currentRuns[0].output === 'string' ? currentRuns[0].output : (currentRuns[0].output.content || '');
+      }
+
+      if (!outContent || !outContent.trim()) {
+        if (st.status === 'active') {
+          outContent = `### ⏳ 【${st.name}】正在实时推演中\n- **岗位职责**：\`${st.detail || '专业领域研究'}\`\n- **当前状态**：\`智能体正在执行检索并生成分析报告...\`\n- **指派任务目标**：\n> ${startEv?.payload?.task || st.detail || '推进推演大纲'}\n\n请关注主界面推演终端的实时输出，完成后将自动呈现本站产出成果。`;
+        } else if (st.status === 'pending') {
+          outContent = `### ⏱️ 【${st.name}】等待流水线调度\n- **岗位职责**：\`${st.detail || '团队专家席位'}\`\n- **当前状态**：\`待前序阶段成果交付后即刻启动协同推演\`\n\n主控协调员将按流水线规划按序派发任务。`;
+        } else {
+          outContent = `### 📋 【${st.name}】阶段推演报告\n- **岗位职责**：\`${st.detail || '专业领域研究'}\`\n- **推演状态**：\`推演已完成\`\n\n成果已汇总至主控协调员全局研报中。`;
+        }
+      }
+
+      const sourcesList = (st.queries || []).map(q => ({
+        title: `真实检索关键词: "${q}"`,
+        url: `https://www.bing.com/search?q=${encodeURIComponent(q)}`,
+        domain: 'web_search'
+      }));
+
+      openStepDetailModal({
+        seq: st.code || (stationIdx + 1),
+        name: `${st.name} · 阶段推演详情`,
+        time: compEv ? new Date(compEv.created_at || Date.now()).toLocaleTimeString() : new Date().toLocaleTimeString(),
+        type: st.type,
+        chars: outContent ? outContent.length : 0,
+        outputContent: outContent,
+        taskDescription: startEv?.payload?.task || st.detail || '',
+        sources: sourcesList,
+        rawJson: JSON.stringify({ station: st, completedEvent: compEv, startEvent: startEv }, null, 2)
+      });
+    }
+
+    // 全局 Esc 快捷键关闭弹窗
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeStepDetailModal();
+      }
+    });
+
+    // 拖拽文件到指令舱直接上传支持
+    const dropZone = document.getElementById('prompt-drop-zone');
+    if (dropZone) {
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-indigo-500', 'bg-indigo-950/20');
+      });
+      dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-indigo-500', 'bg-indigo-950/20');
+      });
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-indigo-500', 'bg-indigo-950/20');
+        const file = e.dataTransfer?.files?.[0];
+        if (file) {
+          uploadAndAttachFile(file);
+        }
+      });
+    }
+
     // 初始启动执行 (读取持久化主题偏好，默认极客暗黑)
     const savedTheme = localStorage.getItem('uloo_theme') || 'cyber';
     setTheme(savedTheme);
     loadTeamsToSelect();
     fetchTasks();
+    fetchSwarmData();
   </script>
 </body>
 </html>

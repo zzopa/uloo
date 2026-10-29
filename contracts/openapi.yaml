@@ -318,6 +318,16 @@ components:
       - valid
       title: AgentValidateResponse
       type: object
+    Body_upload_file_api_v1_files_upload_post:
+      properties:
+        file:
+          contentMediaType: application/octet-stream
+          title: File
+          type: string
+      required:
+      - file
+      title: Body_upload_file_api_v1_files_upload_post
+      type: object
     CapabilitiesResponse:
       description: Capabilities currently available from this running Core version.
       properties:
@@ -436,6 +446,41 @@ components:
       - streaming
       - memory
       title: FeatureCapabilities
+      type: object
+    FileUploadResponse:
+      description: Metadata response for an uploaded file.
+      properties:
+        content_type:
+          default: application/octet-stream
+          description: MIME content type
+          title: Content Type
+          type: string
+        created_at:
+          description: ISO-8601 creation timestamp
+          title: Created At
+          type: string
+        file_name:
+          description: Original filename uploaded by the user
+          title: File Name
+          type: string
+        file_path:
+          description: Relative storage path used by tools and runtime
+          title: File Path
+          type: string
+        file_size:
+          description: File size in bytes
+          title: File Size
+          type: integer
+        status:
+          default: ok
+          title: Status
+          type: string
+      required:
+      - file_name
+      - file_path
+      - file_size
+      - created_at
+      title: FileUploadResponse
       type: object
     McpDiscoverRequest:
       additionalProperties: false
@@ -3121,6 +3166,275 @@ paths:
       summary: Get Capabilities
       tags:
       - capabilities
+  /api/v1/files/upload:
+    post:
+      description: Upload a document attachment (PDF, TXT, CSV, etc.) for agent analysis.
+      operationId: upload_file_api_v1_files_upload_post
+      parameters:
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_upload_file_api_v1_files_upload_post'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileUploadResponse'
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Upload File
+      tags:
+      - files
+  /api/v1/files/{file_name}:
+    get:
+      description: Download or view an uploaded attachment.
+      operationId: get_file_api_v1_files__file_name__get
+      parameters:
+      - in: path
+        name: file_name
+        required: true
+        schema:
+          title: File Name
+          type: string
+      - in: query
+        name: token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - in: query
+        name: workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Workspace
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      - in: header
+        name: x-uloo-workspace
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-Workspace
+      - in: header
+        name: X-ULOO-User-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-User-Id
+      - in: header
+        name: X-ULOO-App-Id
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Uloo-App-Id
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Unprocessable Entity
+        '500':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Internal Server Error
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Not Implemented
+        '502':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Bad Gateway
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Service Unavailable
+        '504':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Gateway Timeout
+      summary: Get File
+      tags:
+      - files
   /api/v1/health/live:
     get:
       description: Process is alive.

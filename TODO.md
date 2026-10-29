@@ -268,6 +268,8 @@ ULOO 是基于 Dify 的智能体协同工作平台。用户提交目标，团队
 ### [P1-2] 扩展工具标准与执行沙箱（MCP 与 Code Interpreter）
 - [x] 支持基于 Model Context Protocol (MCP) 标准的外挂工具服务无缝挂载（已具备 stdio 与 sse 双传输通道适配器及 30 项通过的单元测试）。
 - [x] 引入安全隔离的 Python 代码解释器沙箱，支持复杂数值统计、图表生成与文件分析（`runtime/code_interpreter.py` 及 7 项测试通过，支持 math/statistics/json 等标准计算库）。
+- [x] 引入基于 PyMuPDF + pdfplumber 的原生 PDF 文档解析内置工具（`runtime/pdf_parser.py` 及 9 项测试全通，支持元数据/TOC大纲、分页读取、关键词快速定位与高精度表格结构化 Markdown/JSON 转换，具备原生 SSE 流式打点与前端岗位一键绑定）。
+- [x] 开放原生附件上传端点 `POST /api/v1/files/upload` 与 `GET /api/v1/files/{file_name}`（`api/files.py` 及 3 项测试全通，支持 50MB 上限与 PDF/TXT/CSV/DOCX 等格式安全校验，流式落地 `storage/uploads/`）；同步升级前端问答与指令舱（支持文件选择器与拖拽上传、文件卡片即时展示与任务自动注入）。
 
 ### [P2-1] 跨任务长期事实与偏好记忆（Long-term Memory）
 - [x] 基于向量化与关键词沉淀任务产出的关键事实与用户交互偏好（`models/memory.py` 与 `runtime/memory.py`，支持 fact/preference/guideline 分类与 CRUD API）。

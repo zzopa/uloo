@@ -99,3 +99,40 @@ def test_format_memories_for_prompt():
     assert "### 长期经验与偏好记忆" in text
     assert "[行业事实] 板材单位通常区分" in text
     assert "[用户偏好] 结论中必须包含" in text
+
+
+@pytest.mark.asyncio
+async def test_distill_run_memories(db_session, monkeypatch):
+    """Verify that distill_run_memories extracts and persists memories from deliverable."""
+    import uuid
+    from unittest.mock import AsyncMock
+    from uloo.runtime.memory import distill_run_memories, DistilledMemoriesDraft, DistilledMemoryItem
+
+    mock_agent = AsyncMock()
+    mock_agent.arun.return_value = AsyncMock(
+        content=DistilledMemoriesDraft(
+            memories=[
+                DistilledMemoryItem(
+                    category="fact",
+                    content="武汉华信联创公司法定代表人为龚杰，专注于科技信息服务",
+                    keywords=["武汉华信联创", "龚杰", "法人"],
+                )
+            ]
+        )
+    )
+
+    monkeypatch.setattr("uloo.runtime.memory.Agent", lambda **kwargs: mock_agent)
+
+    wid = uuid.uuid4()
+    rid = uuid.uuid4()
+    saved = await distill_run_memories(
+        db_session,
+        wid,
+        rid,
+        query="查一下武汉华信联创龚杰",
+        deliverable_text="根据天眼查与全国企业信用信息公示系统，武汉华信联创公司法定代表人为龚杰，持有公司大比例股份并担任执行董事...",
+    )
+    assert len(saved) == 1
+    assert saved[0].source_run_id == rid
+    assert "龚杰" in saved[0].content
+    assert "武汉华信联创" in saved[0].keywords
