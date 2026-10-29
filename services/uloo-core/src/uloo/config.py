@@ -54,6 +54,12 @@ class Settings(BaseSettings):
     llm_api_key: SecretStr = SecretStr("")
     llm_model: str = ""
 
+    # Embedding Configuration (SiliconFlow / OpenAI-compatible for pgvector hybrid search)
+    embedding_base_url: str = ""
+    embedding_api_key: SecretStr = SecretStr("")
+    embedding_model: str = "BAAI/bge-m3"
+    embedding_timeout_seconds: float = 8.0
+
     model_providers: dict[str, str] = {}
     model_provider_api_keys: dict[str, SecretStr] = {}
     # Optional catalog of selectable model ids per provider, surfaced via capabilities

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import transaction_session
 from ..errors import ApiError
 from ..models.memory import MemoryItem
+from ..runtime.embeddings import get_text_embedding_async
 from ..runtime.memory import format_memories_for_prompt, recall_memories
 from ..schemas.memory import (
     MemoryCreate,
@@ -31,17 +32,49 @@ async def create_memory(
     db: AsyncSession = transaction_session,
 ):
     """Record a durable memory item (fact, preference, or guideline) in the workspace."""
+    clean_content = body.content.strip()
+    embedding_vec = await get_text_embedding_async(f"{body.category}: {clean_content}")
+
     item = MemoryItem(
         workspace_id=context.workspace_id,
         category=body.category,
-        content=body.content.strip(),
+        content=clean_content,
         keywords=body.keywords or [],
         source_run_id=body.source_run_id,
+        embedding=embedding_vec,
     )
     db.add(item)
     await db.commit()
     await db.refresh(item)
     return MemoryResponse.model_validate(item.to_dict())
+
+
+@router.post("/memories/backfill-embeddings")
+async def backfill_memory_embeddings(
+    context: RequestContext = Depends(require_service_context),
+    db: AsyncSession = transaction_session,
+):
+    """Backfill missing pgvector embeddings for memories in this workspace."""
+    rows = await db.scalars(
+        select(MemoryItem).where(
+            MemoryItem.workspace_id == context.workspace_id,
+            MemoryItem.embedding.is_(None),
+        )
+    )
+    items = list(rows)
+    updated_count = 0
+    for item in items:
+        vec = await get_text_embedding_async(f"{item.category}: {item.content}")
+        if vec:
+            item.embedding = vec
+            updated_count += 1
+    if updated_count > 0:
+        await db.commit()
+    return {
+        "total_scanned": len(items),
+        "updated": updated_count,
+        "message": f"Successfully backfilled embeddings for {updated_count}/{len(items)} memory items.",
+    }
 
 
 @router.get("/memories", response_model=MemoryListResponse)

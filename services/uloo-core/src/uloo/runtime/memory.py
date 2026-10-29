@@ -18,6 +18,7 @@ from sqlalchemy.pool import NullPool
 from ..config import settings
 from ..logging import get_logger
 from ..models.memory import MemoryItem
+from .embeddings import get_text_embedding, get_text_embedding_async, is_embedding_configured
 from .live_events import emit_live_event
 from .models import ModelRegistry
 
@@ -58,7 +59,7 @@ async def recall_memories(
     limit: int = 5,
     category: str | None = None,
 ) -> list[MemoryItem]:
-    """Retrieve relevant memories for a task query based on keyword overlap and text matching.
+    """Retrieve relevant memories for a task query based on hybrid pgvector semantic search and keyword overlap.
 
     Args:
         db: Active async database session.
@@ -80,19 +81,79 @@ async def recall_memories(
         return []
 
     tokens = _tokenize(query)
+
+    # 1. Check if semantic vector embedding is available
+    query_vec = await get_text_embedding_async(query)
+
+    # If embedding is available and vector items exist in database, execute RRF Hybrid Fusion
+    if query_vec is not None:
+        try:
+            vec_filters = list(filters)
+            vec_filters.append(MemoryItem.embedding.isnot(None))
+            vec_result = await db.execute(
+                select(MemoryItem, MemoryItem.embedding.cosine_distance(query_vec).label("distance"))
+                .where(*vec_filters)
+                .order_by("distance")
+                .limit(limit * 3)
+            )
+            vec_rows = vec_result.all()
+
+            # Rank items by keyword overlap
+            scored_kw: list[tuple[float, MemoryItem]] = []
+            if tokens:
+                for item in all_candidates:
+                    score = 0.0
+                    kw_list = getattr(item, "keywords", None) or []
+                    item_keywords = {str(k).lower().strip() for k in kw_list}
+                    overlap = len(tokens & item_keywords)
+                    score += overlap * 4.0
+
+                    content_lower = str(item.content or "").lower()
+                    for token in tokens:
+                        if len(token) >= 2 and token in content_lower:
+                            score += 1.0
+
+                    if score > 0:
+                        scored_kw.append((score, item))
+                scored_kw.sort(key=lambda x: x[0], reverse=True)
+
+            # RRF (Reciprocal Rank Fusion) Scoring
+            rrf_scores: dict[uuid.UUID, tuple[float, MemoryItem]] = {}
+            k_const = 60.0
+
+            # Add keyword ranks
+            for rank, (_, item) in enumerate(scored_kw[: limit * 3], 1):
+                score_kw = 1.0 / (k_const + rank)
+                rrf_scores[item.id] = (score_kw, item)
+
+            # Add vector semantic ranks (weight=1.2)
+            for rank, (item, _dist) in enumerate(vec_rows, 1):
+                score_vec = 1.2 / (k_const + rank)
+                if item.id in rrf_scores:
+                    prev_score, _ = rrf_scores[item.id]
+                    rrf_scores[item.id] = (prev_score + score_vec, item)
+                else:
+                    rrf_scores[item.id] = (score_vec, item)
+
+            if rrf_scores:
+                ranked = sorted(rrf_scores.values(), key=lambda x: x[0], reverse=True)
+                logger.info("recalled_memories_hybrid_success", count=min(limit, len(ranked)), mode="hybrid_rrf")
+                return [item for _, item in ranked[:limit]]
+        except Exception as exc:
+            logger.warning("hybrid_vector_recall_failed_fallback_to_keywords", error=str(exc))
+
+    # 2. Fallback to pure keyword overlap & N-gram search
     if not tokens:
         return all_candidates[:limit]
 
     scored: list[tuple[float, MemoryItem]] = []
     for item in all_candidates:
         score = 0.0
-        # 1. Direct keyword overlap
         kw_list = getattr(item, "keywords", None) or []
         item_keywords = {str(k).lower().strip() for k in kw_list}
         overlap = len(tokens & item_keywords)
         score += overlap * 4.0
 
-        # 2. Content substring match
         content_lower = str(item.content or "").lower()
         for token in tokens:
             if len(token) >= 2 and token in content_lower:
@@ -211,11 +272,13 @@ async def distill_run_memories(
                 continue
             cat = item.category if item.category in {"fact", "preference", "guideline"} else "fact"
             kw = [str(k).strip() for k in (item.keywords or []) if str(k).strip()]
+            vec = await get_text_embedding_async(text_val)
             mem_item = MemoryItem(
                 workspace_id=workspace_id,
                 category=cat,
                 content=text_val,
                 keywords=kw,
+                embedding=vec,
                 source_run_id=run_id,
             )
             db.add(mem_item)
@@ -320,7 +383,11 @@ def wiki_memory(
             factory = _get_tool_session_factory()
             async with factory() as session:
                 ws_uuid = await _resolve_workspace_uuid(workspace_id, session)
-                cat_filter = category.strip().lower() if category.strip().lower() in {"fact", "preference", "guideline"} else None
+                cat_filter = (
+                    category.strip().lower()
+                    if category.strip().lower() in {"fact", "preference", "guideline"}
+                    else None
+                )
                 return await recall_memories(session, ws_uuid, query=clean_query, limit=5, category=cat_filter)
 
         try:
@@ -408,11 +475,13 @@ def wiki_memory(
             factory = _get_tool_session_factory()
             async with factory() as session:
                 ws_uuid = await _resolve_workspace_uuid(workspace_id, session)
+                vec = await get_text_embedding_async(clean_content)
                 mem_item = MemoryItem(
                     workspace_id=ws_uuid,
                     category=cat,
                     content=clean_content,
                     keywords=kw_list,
+                    embedding=vec,
                 )
                 session.add(mem_item)
                 await session.commit()
@@ -436,6 +505,7 @@ def wiki_memory(
             )
             return f"沉淀长期记忆失败: {exc}"
 
+        has_vec = saved_item.embedding is not None
         emit_live_event(
             event_type="tool.summary",
             source_type="tool",
@@ -445,13 +515,15 @@ def wiki_memory(
                 "action": "save",
                 "category": cat,
                 "id": str(saved_item.id),
+                "has_embedding": has_vec,
                 "status": "ok",
                 "result_preview": f"成功持久化记忆词条: {saved_item.content[:100]}",
             },
         )
 
+        vec_notice = " (已构建语义向量)" if has_vec else ""
         return (
-            f"【长期记忆中枢 (LLM-Wiki) 持久化成功】\n"
+            f"【长期记忆中枢 (LLM-Wiki) 持久化成功{vec_notice}】\n"
             f"- 词条类别: {cat}\n"
             f"- 核心内容: {saved_item.content}\n"
             f"- 标签索引: {', '.join(saved_item.keywords)}\n"

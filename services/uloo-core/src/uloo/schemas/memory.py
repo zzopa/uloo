@@ -29,6 +29,7 @@ class MemoryResponse(BaseModel):
     category: str
     content: str
     keywords: list[str]
+    has_embedding: bool = False
     source_run_id: uuid.UUID | None = None
     created_at: datetime
     updated_at: datetime
