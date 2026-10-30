@@ -6,6 +6,7 @@
   <title>ULOO 智能体协同工作台 · 指挥舱 (AI Studio)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -699,9 +700,9 @@
           <div class="pt-2 flex items-center justify-between gap-2 border-t border-white/[0.05]">
             <!-- Team Selector Dropdown & Post Config Shortcut -->
             <div class="flex items-center gap-1.5 min-w-0">
-              <i class="fa-solid fa-users-gear text-indigo-400 text-xs shrink-0"></i>
-              <select id="prompt-team-select" class="bg-black/50 border border-white/[0.08] text-slate-200 text-[11px] rounded-lg px-2 py-1 outline-none font-medium truncate max-w-[130px]">
-                <option value="" disabled selected>选择协同团队...</option>
+              <i class="fa-solid fa-wand-magic-sparkles text-purple-400 text-xs shrink-0" title="智能调度中枢"></i>
+              <select id="prompt-team-select" class="bg-black/50 border border-white/[0.08] text-slate-200 text-[11px] rounded-lg px-2 py-1 outline-none font-medium truncate max-w-[220px]" title="选择特定团队，或保持默认的【智能中枢全域自适应调度】">
+                <option value="" selected class="text-purple-300 font-semibold">✨ 智能中枢全域调度 (自动匹配)</option>
               </select>
               <button type="button" onclick="switchStudioMode('swarm')" class="px-2 py-1 rounded-lg bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 hover:text-white hover:bg-indigo-600/30 text-[10px] font-medium flex items-center gap-1 transition shrink-0" title="打开团队岗位配置界面">
                 <i class="fa-solid fa-sliders text-[9px]"></i>
@@ -1257,6 +1258,15 @@
           </div>
         </div>
         <div class="flex items-center gap-2">
+          <!-- 视图模式切换 -->
+          <div class="flex items-center p-1 bg-slate-900/80 border border-white/[0.08] rounded-xl shadow-inner mr-1">
+            <button id="cortex-btn-card" onclick="setCortexDisplayMode('card')" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition bg-purple-500/20 text-purple-200 border border-purple-500/30 shadow-sm">
+              <i class="fa-solid fa-table-cells-large"></i> <span>卡片网格</span>
+            </button>
+            <button id="cortex-btn-graph" onclick="setCortexDisplayMode('graph')" class="px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition text-slate-400 hover:text-white">
+              <i class="fa-solid fa-circle-nodes"></i> <span>关联知识图谱</span>
+            </button>
+          </div>
           <button onclick="backfillEmbeddings()" class="px-3 py-2 rounded-xl text-xs font-semibold text-violet-300 bg-violet-500/10 border border-violet-500/20 hover:bg-violet-500/20 flex items-center gap-1.5 transition" title="为存量未向量化的记忆生成 pgvector 嵌入向量">
             <i class="fa-solid fa-arrows-rotate"></i> 向量补全
           </button>
@@ -1274,9 +1284,93 @@
         <button onclick="fetchCortexMemories()" class="px-2.5 py-1.5 text-xs text-slate-400 hover:text-slate-200 transition"><i class="fa-solid fa-rotate-right"></i> 重置</button>
       </div>
 
-      <!-- 记忆条目 Bento 栅格 -->
+      <!-- 视图 1: 记忆条目 Bento 栅格 -->
       <div id="cortex-memories-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         <!-- 动态记忆卡片 -->
+      </div>
+
+      <!-- 视图 2: 关联知识图谱画布与交互抽屉 -->
+      <div id="cortex-graph-container" class="studio-panel rounded-2xl border border-white/[0.08] relative overflow-hidden hidden shadow-2xl">
+        <!-- 图谱统计与操作工具栏 -->
+        <div class="p-4 border-b border-white/[0.06] bg-slate-900/70 backdrop-blur flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5 flex-wrap text-xs">
+            <span class="text-slate-300 flex items-center gap-1.5 font-semibold">
+              <i class="fa-solid fa-circle-nodes text-purple-400"></i>
+              <span>LLM-Wiki 知识图谱拓扑</span>
+            </span>
+            <div class="h-3 w-px bg-white/10 mx-1"></div>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 font-mono text-[11px]" title="客观事实沉淀">
+              <span class="size-2 rounded-full bg-purple-400 inline-block"></span> 事实: <b id="stat-graph-facts">0</b>
+            </span>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-mono text-[11px]" title="用户/系统偏好">
+              <span class="size-2 rounded-full bg-cyan-400 inline-block"></span> 偏好: <b id="stat-graph-prefs">0</b>
+            </span>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono text-[11px]" title="行动准则规程">
+              <span class="size-2 rounded-full bg-emerald-400 inline-block"></span> 规范: <b id="stat-graph-guides">0</b>
+            </span>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono text-[11px]" title="共现与索引实体">
+              <span class="size-2 rounded-full bg-amber-400 inline-block"></span> 实体/标签: <b id="stat-graph-entities">0</b>
+            </span>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 font-mono text-[11px]" title="实体共现与语义关系边">
+              <span class="size-2 rounded-full bg-indigo-400 inline-block"></span> 关联边: <b id="stat-graph-edges">0</b>
+            </span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button onclick="toggleCortexGraphPhysics()" id="btn-graph-physics" class="px-2.5 py-1.5 rounded-lg text-xs text-slate-300 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] flex items-center gap-1.5 transition" title="切换力导向物理引擎模拟/静止锁定">
+              <i class="fa-solid fa-atom text-indigo-400"></i>
+              <span id="label-graph-physics">锁定布局</span>
+            </button>
+            <button onclick="resetCortexGraphZoom()" class="px-2.5 py-1.5 rounded-lg text-xs text-slate-300 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] flex items-center gap-1.5 transition" title="复位缩放与居中显示">
+              <i class="fa-solid fa-compress text-slate-400"></i>
+              <span>视口居中</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ECharts 渲染画布 -->
+        <div id="cortex-echarts-canvas" style="width: 100%; height: 640px; background: radial-gradient(circle at 50% 50%, #0d1222 0%, #05070d 100%);" class="relative"></div>
+
+        <!-- 节点详情侧抽屉 (Drawer) -->
+        <div id="cortex-node-drawer" class="absolute top-0 right-0 bottom-0 w-96 max-w-[90%] bg-slate-950/95 backdrop-blur-xl border-l border-white/[0.1] shadow-2xl p-6 flex flex-col justify-between transform translate-x-full transition-transform duration-300 z-20">
+          <div>
+            <div class="flex items-center justify-between pb-3.5 border-b border-white/[0.08]">
+              <div class="flex items-center gap-2" id="cortex-drawer-badge">
+                <span class="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40">NODE</span>
+              </div>
+              <button onclick="closeCortexDrawer()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/[0.06] transition text-sm">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <!-- 抽屉内容主体 -->
+            <div class="mt-4 space-y-4 overflow-y-auto max-h-[calc(100vh-420px)] pr-1">
+              <div>
+                <label class="text-[10px] font-mono uppercase text-slate-500 tracking-wider">节点标识 / 实体名称</label>
+                <h3 id="cortex-drawer-title" class="text-sm font-bold text-white mt-1 leading-snug"></h3>
+              </div>
+
+              <div>
+                <label class="text-[10px] font-mono uppercase text-slate-500 tracking-wider">沉淀内容 / 知识详情</label>
+                <div id="cortex-drawer-content" class="text-xs text-slate-300 mt-1 leading-relaxed bg-white/[0.03] p-3 rounded-xl border border-white/[0.06] max-h-44 overflow-y-auto font-sans whitespace-pre-wrap"></div>
+              </div>
+
+              <div>
+                <label class="text-[10px] font-mono uppercase text-slate-500 tracking-wider">萃取实体与标签</label>
+                <div id="cortex-drawer-tags" class="flex flex-wrap gap-1.5 mt-1.5"></div>
+              </div>
+
+              <div>
+                <label class="text-[10px] font-mono uppercase text-slate-500 tracking-wider">拓扑一度关联网络 (<span id="cortex-drawer-neighbor-count">0</span>)</label>
+                <div id="cortex-drawer-neighbors" class="space-y-1.5 mt-1.5 max-h-40 overflow-y-auto"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 抽屉底部操作 -->
+          <div class="pt-4 border-t border-white/[0.08] flex items-center justify-between gap-2" id="cortex-drawer-actions">
+          </div>
+        </div>
       </div>
 
     </div>
@@ -1977,7 +2071,12 @@
 
       if (mode === 'studio') fetchTasks();
       if (mode === 'swarm') fetchSwarmData();
-      if (mode === 'cortex') fetchCortexMemories();
+      if (mode === 'cortex') {
+        fetchCortexMemories();
+        if (typeof cortexDisplayMode !== 'undefined' && cortexDisplayMode === 'graph') {
+          setTimeout(() => { if (cortexChartInstance) cortexChartInstance.resize(); }, 100);
+        }
+      }
       if (mode === 'tools') fetchToolsViewData();
     }
 
@@ -2034,16 +2133,9 @@
           const data = await apiRequest('/teams?limit=100');
           cachedTeams = data.items || [];
         }
-        // 优先将具备搜索与核验的互联网调研团队置顶并设为默认
-        cachedTeams.sort((a, b) => {
-          const aMarket = (a.key || '').includes('market') || (a.name || '').includes('调研');
-          const bMarket = (b.key || '').includes('market') || (b.name || '').includes('调研');
-          if (aMarket && !bMarket) return -1;
-          if (!aMarket && bMarket) return 1;
-          return 0;
-        });
         const select = document.getElementById('prompt-team-select');
-        select.innerHTML = cachedTeams.map((t, idx) => `<option value="${t.id}" ${idx === 0 ? 'selected' : ''} class="bg-slate-900 text-slate-200">${t.name} (${t.mode === 'coordinate' ? '分工协同' : t.mode})</option>`).join('');
+        const autoOption = `<option value="" selected class="bg-slate-900 text-purple-300 font-semibold">✨ 智能中枢全域调度 (Master Orchestrator · 自动匹配)</option>`;
+        select.innerHTML = autoOption + cachedTeams.map((t) => `<option value="${t.id}" class="bg-slate-900 text-slate-200">${t.name} (${t.mode === 'coordinate' ? '分工协同' : t.mode})</option>`).join('');
       } catch (err) {
         console.warn('加载团队失败:', err);
       }
@@ -2153,19 +2245,16 @@
         : queryText;
 
       const teamSelect = document.getElementById('prompt-team-select');
-      const teamId = teamSelect.value || (cachedTeams[0]?.id);
-      if (!teamId) {
-        alert('请选择协同团队');
-        return;
-      }
+      const selectedTeamId = teamSelect ? teamSelect.value.trim() : '';
+      const teamId = selectedTeamId ? selectedTeamId : null;
 
       const btn = document.getElementById('btn-launch-prompt');
       btn.disabled = true;
-      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>启动中</span>`;
+      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i><span>${teamId ? '启动中' : '智能调度中'}</span>`;
 
       try {
         const title = rawQuery.length > 25 ? rawQuery.substring(0, 25) + '...' : (rawQuery || `解析: ${currentAttachedFile.file_name}`);
-        // 1. 创建任务
+        // 1. 创建任务 (若 team_id 为 null，由主智能体调度中枢自动决策最佳集群)
         const task = await apiRequest('/tasks', {
           method: 'POST',
           body: JSON.stringify({ title, query, team_id: teamId })
@@ -2324,7 +2413,8 @@
       
       document.getElementById('canvas-mission-title').innerText = currentTask.title;
       document.getElementById('canvas-mission-id').innerText = `ID: ${currentTask.id.substring(0, 8)}`;
-      document.getElementById('canvas-mission-team').innerText = `团队: ${currentTask.team_id ? currentTask.team_id.substring(0, 8) : 'ULOO Squad'}`;
+      const matchedTeam = cachedTeams.find(t => t.id === currentTask.team_id);
+      document.getElementById('canvas-mission-team').innerText = matchedTeam ? `协同集群: ${matchedTeam.name}` : `协同集群: ${currentTask.team_id ? currentTask.team_id.substring(0, 8) : '智能调度'}`;
       
       const badge = document.getElementById('canvas-status-badge');
       badge.innerText = statusMeta.text;
@@ -5071,15 +5161,61 @@
       }
     }
 
-    // 长期经验记忆库加载与检索
+    // ==========================================
+    // 长期经验记忆库加载、图谱拓扑与检索
+    // ==========================================
+    let cortexDisplayMode = 'card'; // 'card' | 'graph'
+    let cortexCachedMemories = [];
+    let cortexChartInstance = null;
+    let cortexPhysicsRunning = true;
+    let cortexActiveNodeData = null;
+
+    function setCortexDisplayMode(mode) {
+      cortexDisplayMode = mode;
+      const btnCard = document.getElementById('cortex-btn-card');
+      const btnGraph = document.getElementById('cortex-btn-graph');
+      const cardView = document.getElementById('cortex-memories-container');
+      const graphView = document.getElementById('cortex-graph-container');
+
+      if (mode === 'card') {
+        if (btnCard) {
+          btnCard.className = "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition bg-purple-500/20 text-purple-200 border border-purple-500/30 shadow-sm";
+        }
+        if (btnGraph) {
+          btnGraph.className = "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition text-slate-400 hover:text-white";
+        }
+        if (cardView) cardView.classList.remove('hidden');
+        if (graphView) graphView.classList.add('hidden');
+        closeCortexDrawer();
+      } else {
+        if (btnCard) {
+          btnCard.className = "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition text-slate-400 hover:text-white";
+        }
+        if (btnGraph) {
+          btnGraph.className = "px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition bg-purple-500/20 text-purple-200 border border-purple-500/30 shadow-sm";
+        }
+        if (cardView) cardView.classList.add('hidden');
+        if (graphView) graphView.classList.remove('hidden');
+        
+        renderCortexGraph(cortexCachedMemories);
+        setTimeout(() => {
+          if (cortexChartInstance) cortexChartInstance.resize();
+        }, 60);
+      }
+    }
+
     async function fetchCortexMemories() {
       const container = document.getElementById('cortex-memories-container');
-      container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500 text-xs">正在连接记忆神经元...</div>`;
+      container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500 text-xs"><i class="fa-solid fa-spinner animate-spin mr-2"></i>正在连接记忆神经元并构建拓扑...</div>`;
       try {
-        const data = await apiRequest('/memories?limit=50');
-        renderCortexList(data.items || []);
+        const data = await apiRequest('/memories?limit=100');
+        cortexCachedMemories = data.items || [];
+        renderCortexList(cortexCachedMemories);
+        if (cortexDisplayMode === 'graph' || cortexChartInstance) {
+          renderCortexGraph(cortexCachedMemories);
+        }
       } catch (err) {
-        container.innerHTML = `<div class="col-span-full text-rose-400 text-xs text-center">加载异常: ${err.message}</div>`;
+        container.innerHTML = `<div class="col-span-full text-rose-400 text-xs text-center">加载异常: ${escapeHtml(err.message)}</div>`;
       }
     }
 
@@ -5094,7 +5230,7 @@
         return;
       }
       container.innerHTML = items.map(mem => `
-        <div class="studio-panel p-5 rounded-2xl space-y-3 flex flex-col justify-between border border-white/[0.08] hover:border-white/[0.18] transition">
+        <div id="memory-card-${mem.id}" class="studio-panel p-5 rounded-2xl space-y-3 flex flex-col justify-between border border-white/[0.08] hover:border-white/[0.18] transition duration-300">
           <div class="space-y-2">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
@@ -5112,7 +5248,7 @@
             <p class="text-xs text-slate-200 leading-relaxed font-sans">${escapeHtml(mem.content)}</p>
           </div>
           <div class="pt-2.5 border-t border-white/[0.06] flex flex-wrap gap-1">
-            ${(mem.keywords || []).map(kw => `<span class="text-[10px] bg-white/[0.04] border border-white/[0.08] text-slate-400 px-1.5 py-0.5 rounded font-mono">#${escapeHtml(kw)}</span>`).join('')}
+            ${(mem.keywords || []).map(kw => `<button onclick="filterByGraphTag('${escapeHtml(kw)}')" class="text-[10px] bg-white/[0.04] hover:bg-white/[0.1] border border-white/[0.08] hover:border-amber-400/40 text-slate-400 hover:text-amber-300 px-1.5 py-0.5 rounded font-mono transition">#${escapeHtml(kw)}</button>`).join('')}
           </div>
         </div>
       `).join('');
@@ -5122,19 +5258,475 @@
       const q = document.getElementById('cortex-search-input').value.trim();
       if (!q) return fetchCortexMemories();
       const container = document.getElementById('cortex-memories-container');
-      container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500 text-xs">正在执行向量语义召回...</div>`;
+      container.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500 text-xs"><i class="fa-solid fa-spinner animate-spin mr-2"></i>正在执行向量语义召回与拓扑重组...</div>`;
       try {
-        const data = await apiRequest(`/memories?query=${encodeURIComponent(q)}&limit=10`);
-        renderCortexList(data.items || []);
+        const data = await apiRequest(`/memories?query=${encodeURIComponent(q)}&limit=25`);
+        cortexCachedMemories = data.items || [];
+        renderCortexList(cortexCachedMemories);
+        if (cortexDisplayMode === 'graph' || cortexChartInstance) {
+          renderCortexGraph(cortexCachedMemories);
+        }
       } catch (err) {
-        container.innerHTML = `<div class="col-span-full text-rose-400 text-xs text-center">检索异常: ${err.message}</div>`;
+        container.innerHTML = `<div class="col-span-full text-rose-400 text-xs text-center">检索异常: ${escapeHtml(err.message)}</div>`;
       }
+    }
+
+    // 渲染 ECharts 知识图谱 (力导向)
+    function renderCortexGraph(items) {
+      const chartDom = document.getElementById('cortex-echarts-canvas');
+      if (!chartDom) return;
+
+      // 统计指标
+      const factsCount = (items || []).filter(m => m.category === 'fact').length;
+      const prefsCount = (items || []).filter(m => m.category === 'preference').length;
+      const guidesCount = (items || []).filter(m => m.category === 'guideline').length;
+
+      // 实体映射 (Keyword -> Set of Mem IDs)
+      const keywordMap = new Map();
+      (items || []).forEach(m => {
+        (m.keywords || []).forEach(kw => {
+          const t = kw.trim();
+          if (!t) return;
+          if (!keywordMap.has(t)) keywordMap.set(t, new Set());
+          keywordMap.get(t).add(m.id);
+        });
+      });
+
+      // 更新顶部统计面板
+      const elFacts = document.getElementById('stat-graph-facts');
+      const elPrefs = document.getElementById('stat-graph-prefs');
+      const elGuides = document.getElementById('stat-graph-guides');
+      const elEntities = document.getElementById('stat-graph-entities');
+      const elEdges = document.getElementById('stat-graph-edges');
+      if (elFacts) elFacts.innerText = factsCount;
+      if (elPrefs) elPrefs.innerText = prefsCount;
+      if (elGuides) elGuides.innerText = guidesCount;
+      if (elEntities) elEntities.innerText = keywordMap.size;
+
+      const nodes = [];
+      const edges = [];
+      const edgeKeySet = new Set();
+
+      // 1. 记忆节点
+      (items || []).forEach(mem => {
+        let catIndex = 0;
+        let catColor = '#8B5CF6'; // 默认 fact
+        let catBorder = '#C4B5FD';
+        if (mem.category === 'preference') {
+          catIndex = 1;
+          catColor = '#06B6D4';
+          catBorder = '#A5F3FC';
+        } else if (mem.category === 'guideline') {
+          catIndex = 2;
+          catColor = '#10B981';
+          catBorder = '#A7F3D0';
+        }
+
+        const rawSnippet = (mem.content || '').replace(/\s+/g, ' ').trim();
+        const shortName = rawSnippet.length > 14 ? rawSnippet.substring(0, 13) + '…' : (rawSnippet || '记忆');
+
+        nodes.push({
+          id: mem.id,
+          name: shortName,
+          category: catIndex,
+          symbolSize: 32,
+          value: mem.content,
+          nodeType: 'memory',
+          memoryData: mem,
+          itemStyle: {
+            color: catColor,
+            borderColor: catBorder,
+            borderWidth: 2,
+            shadowBlur: 14,
+            shadowColor: catColor
+          },
+          label: {
+            show: true,
+            position: 'bottom',
+            color: '#E2E8F0',
+            fontSize: 10,
+            distance: 6,
+            formatter: shortName
+          }
+        });
+
+        // 连接至关联实体节点
+        (mem.keywords || []).forEach(kw => {
+          const t = kw.trim();
+          if (!t) return;
+          const edgeId = `${mem.id}__kw_${t}`;
+          if (!edgeKeySet.has(edgeId)) {
+            edgeKeySet.add(edgeId);
+            edges.push({
+              source: mem.id,
+              target: 'kw_' + t,
+              lineStyle: {
+                color: 'rgba(168, 85, 247, 0.35)',
+                width: 1.2,
+                curveness: 0.06
+              }
+            });
+          }
+        });
+      });
+
+      // 2. 实体/标签枢纽节点
+      keywordMap.forEach((memSet, kw) => {
+        const degree = memSet.size;
+        const size = Math.min(50, 20 + degree * 6);
+        nodes.push({
+          id: 'kw_' + kw,
+          name: '#' + kw,
+          category: 3,
+          symbolSize: size,
+          value: `共关联 ${degree} 条记忆`,
+          nodeType: 'entity',
+          kwName: kw,
+          degree: degree,
+          connectedMemoryIds: Array.from(memSet),
+          itemStyle: {
+            color: '#F59E0B',
+            borderColor: '#FEF3C7',
+            borderWidth: 2,
+            shadowBlur: 12,
+            shadowColor: 'rgba(245, 158, 11, 0.7)'
+          },
+          label: {
+            show: true,
+            position: 'top',
+            color: '#FDE68A',
+            fontSize: 11,
+            fontWeight: 'bold',
+            distance: 6,
+            formatter: '#' + kw
+          }
+        });
+      });
+
+      // 3. 记忆与记忆间的语义共现关系 (共享关键词产生直连)
+      const memList = items || [];
+      for (let i = 0; i < memList.length; i++) {
+        for (let j = i + 1; j < memList.length; j++) {
+          const kwA = memList[i].keywords || [];
+          const kwB = memList[j].keywords || [];
+          const common = kwA.filter(k => kwB.includes(k));
+          if (common.length >= 1) {
+            const edgeId = `${memList[i].id}__${memList[j].id}`;
+            if (!edgeKeySet.has(edgeId)) {
+              edgeKeySet.add(edgeId);
+              edges.push({
+                source: memList[i].id,
+                target: memList[j].id,
+                lineStyle: {
+                  color: 'rgba(99, 102, 241, 0.45)',
+                  type: 'dashed',
+                  width: Math.min(3.5, 1.2 + common.length * 0.8),
+                  curveness: 0.12
+                }
+              });
+            }
+          }
+        }
+      }
+
+      if (elEdges) elEdges.innerText = edges.length;
+
+      // 初始化或更新 ECharts 实例
+      if (!cortexChartInstance) {
+        cortexChartInstance = echarts.init(chartDom);
+        cortexChartInstance.on('click', handleCortexGraphClick);
+        cortexChartInstance.getZr().on('click', function(event) {
+          if (!event.target) closeCortexDrawer();
+        });
+        window.addEventListener('resize', () => {
+          if (cortexChartInstance) cortexChartInstance.resize();
+        });
+      }
+
+      const option = {
+        backgroundColor: 'transparent',
+        animationDuration: 1200,
+        animationEasingUpdate: 'quinticInOut',
+        tooltip: {
+          trigger: 'item',
+          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+          borderColor: 'rgba(255, 255, 255, 0.12)',
+          textStyle: { color: '#f1f5f9', fontSize: 12 },
+          padding: [8, 12],
+          formatter: function(params) {
+            if (params.dataType === 'node') {
+              const d = params.data;
+              if (d.nodeType === 'memory') {
+                const mem = d.memoryData;
+                return `
+                  <div style="max-width:280px;white-space:normal;line-height:1.4;">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                      <span style="font-size:10px;font-weight:bold;padding:1px 6px;border-radius:999px;background:${d.itemStyle.color}25;color:${d.itemStyle.color};border:1px solid ${d.itemStyle.color}50;">
+                        ${(mem.category || 'fact').toUpperCase()}
+                      </span>
+                      <span style="font-size:10px;color:#94a3b8;">${new Date(mem.created_at).toLocaleDateString()}</span>
+                    </div>
+                    <div style="font-size:11px;color:#e2e8f0;margin-bottom:6px;">
+                      ${escapeHtml(mem.content)}
+                    </div>
+                    <div style="font-size:10px;color:#cbd5e1;border-top:1px solid rgba(255,255,255,0.08);padding-top:4px;">
+                      ${(mem.keywords || []).map(k => '#' + escapeHtml(k)).join(' ')}
+                    </div>
+                    <div style="font-size:10px;color:#a855f7;margin-top:4px;">👆 点击在侧抽屉查看全景关联</div>
+                  </div>
+                `;
+              } else {
+                return `
+                  <div style="padding:2px 4px;">
+                    <div style="font-weight:bold;color:#f59e0b;font-size:13px;margin-bottom:3px;">${escapeHtml(d.name)}</div>
+                    <div style="font-size:11px;color:#cbd5e1;">拓扑枢纽：共关联 ${d.degree} 条沉淀记忆</div>
+                    <div style="font-size:10px;color:#fbbf24;margin-top:4px;">👆 点击展开包含此实体的记忆清单</div>
+                  </div>
+                `;
+              }
+            } else if (params.dataType === 'edge') {
+              return `<div style="font-size:11px;color:#94a3b8;">拓扑关联边</div>`;
+            }
+          }
+        },
+        legend: {
+          data: ['事实知识 (Fact)', '用户偏好 (Preference)', '行动准则 (Guideline)', '萃取实体 (Entity/Tag)'],
+          textStyle: { color: '#94a3b8', fontSize: 11 },
+          top: 14,
+          left: 18,
+          icon: 'circle',
+          itemWidth: 10,
+          itemHeight: 10
+        },
+        series: [
+          {
+            name: 'LLM-Wiki 知识图谱',
+            type: 'graph',
+            layout: 'force',
+            data: nodes,
+            links: edges,
+            categories: [
+              { name: '事实知识 (Fact)', itemStyle: { color: '#8B5CF6' } },
+              { name: '用户偏好 (Preference)', itemStyle: { color: '#06B6D4' } },
+              { name: '行动准则 (Guideline)', itemStyle: { color: '#10B981' } },
+              { name: '萃取实体 (Entity/Tag)', itemStyle: { color: '#F59E0B' } }
+            ],
+            roam: true,
+            draggable: true,
+            edgeSymbol: ['none', 'none'],
+            force: {
+              repulsion: 260,
+              edgeLength: [60, 160],
+              gravity: 0.07,
+              friction: 0.6,
+              layoutAnimation: cortexPhysicsRunning
+            },
+            emphasis: {
+              focus: 'adjacency',
+              lineStyle: {
+                width: 3.5,
+                color: '#A855F7'
+              }
+            }
+          }
+        ]
+      };
+
+      cortexChartInstance.setOption(option, true);
+    }
+
+    // 处理图谱节点点击交互 (侧抽屉)
+    function handleCortexGraphClick(params) {
+      if (params.dataType !== 'node') return;
+      const d = params.data;
+      cortexActiveNodeData = d;
+
+      const drawer = document.getElementById('cortex-node-drawer');
+      const badgeContainer = document.getElementById('cortex-drawer-badge');
+      const titleEl = document.getElementById('cortex-drawer-title');
+      const contentEl = document.getElementById('cortex-drawer-content');
+      const tagsEl = document.getElementById('cortex-drawer-tags');
+      const neighborCountEl = document.getElementById('cortex-drawer-neighbor-count');
+      const neighborsEl = document.getElementById('cortex-drawer-neighbors');
+      const actionsEl = document.getElementById('cortex-drawer-actions');
+
+      if (!drawer) return;
+
+      if (d.nodeType === 'memory') {
+        const mem = d.memoryData;
+        badgeContainer.innerHTML = `
+          <span class="text-xs font-mono font-bold px-2 py-0.5 rounded-full ${mem.category === 'fact' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40' : mem.category === 'preference' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40' : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'}">${(mem.category || 'fact').toUpperCase()}</span>
+          ${mem.source_run_id ? `<span class="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"><i class="fa-solid fa-wand-magic-sparkles text-[9px]"></i>LLM-Wiki 萃取</span>` : `<span class="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">✍️ 手动沉淀</span>`}
+          ${mem.has_embedding ? `<span class="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-300 border border-violet-500/30"><i class="fa-solid fa-bolt text-[9px]"></i>已向量化</span>` : ''}
+        `;
+        titleEl.innerText = `Wiki 记忆条目 #${mem.id.substring(0, 8)}`;
+        contentEl.innerText = mem.content;
+
+        // 标签渲染
+        if (mem.keywords && mem.keywords.length > 0) {
+          tagsEl.innerHTML = mem.keywords.map(kw => `
+            <button onclick="filterByGraphTag('${escapeHtml(kw)}')" class="text-xs px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/25 font-mono transition flex items-center gap-1">
+              <i class="fa-solid fa-tag text-[10px] text-amber-400"></i> #${escapeHtml(kw)}
+            </button>
+          `).join('');
+        } else {
+          tagsEl.innerHTML = `<span class="text-xs text-slate-500">未提取标签</span>`;
+        }
+
+        // 查找一度关联的其他记忆 (共享关键词)
+        const relatedMemories = cortexCachedMemories.filter(other => {
+          if (other.id === mem.id) return false;
+          const otherKw = other.keywords || [];
+          return (mem.keywords || []).some(k => otherKw.includes(k));
+        });
+
+        neighborCountEl.innerText = relatedMemories.length;
+        if (relatedMemories.length > 0) {
+          neighborsEl.innerHTML = relatedMemories.map(rel => `
+            <div onclick="openMemoryInDrawer('${rel.id}')" class="p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.06] cursor-pointer transition space-y-1">
+              <div class="flex items-center justify-between text-[10px]">
+                <span class="font-mono text-purple-300">${(rel.category || 'fact').toUpperCase()}</span>
+                <span class="text-slate-500">${new Date(rel.created_at).toLocaleDateString()}</span>
+              </div>
+              <p class="text-xs text-slate-300 line-clamp-2">${escapeHtml(rel.content)}</p>
+            </div>
+          `).join('');
+        } else {
+          neighborsEl.innerHTML = `<div class="text-xs text-slate-500 py-1">暂无一度关联记忆节点</div>`;
+        }
+
+        // 底部动作按钮
+        actionsEl.innerHTML = `
+          <button onclick="highlightMemoryInCards('${mem.id}')" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-purple-300 bg-purple-500/15 border border-purple-500/30 hover:bg-purple-500/25 flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-table-cells-large"></i> 卡片定位
+          </button>
+          <div class="flex items-center gap-1.5">
+            <button onclick="navigator.clipboard.writeText('${escapeHtml(mem.content)}'); alert('已复制记忆内容');" class="px-3 py-1.5 rounded-xl text-xs font-medium text-slate-300 bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] transition" title="复制内容">
+              <i class="fa-regular fa-copy"></i>
+            </button>
+            <button onclick="deleteMemoryItem('${mem.id}')" class="px-3 py-1.5 rounded-xl text-xs font-medium text-rose-300 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 transition" title="删除该条记忆">
+              <i class="fa-solid fa-trash-can"></i> 删除
+            </button>
+          </div>
+        `;
+
+      } else if (d.nodeType === 'entity') {
+        const kw = d.kwName;
+        badgeContainer.innerHTML = `
+          <span class="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">ENTITY TAG</span>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">拓扑枢纽</span>
+        `;
+        titleEl.innerText = `#${kw}`;
+        contentEl.innerText = `萃取自智能体执行链路与事实分析的核心实体。当前在全域记忆网络中共连接 ${d.degree} 条记忆条目，构成关键认知枢纽。`;
+
+        tagsEl.innerHTML = `
+          <span class="text-xs px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 font-mono font-semibold">
+            #${escapeHtml(kw)}
+          </span>
+        `;
+
+        // 关联此实体的记忆清单
+        const connectedMemories = cortexCachedMemories.filter(m => (m.keywords || []).includes(kw));
+        neighborCountEl.innerText = connectedMemories.length;
+
+        if (connectedMemories.length > 0) {
+          neighborsEl.innerHTML = connectedMemories.map(m => `
+            <div onclick="openMemoryInDrawer('${m.id}')" class="p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.06] cursor-pointer transition space-y-1">
+              <div class="flex items-center justify-between text-[10px]">
+                <span class="font-mono text-purple-300">${(m.category || 'fact').toUpperCase()}</span>
+                <span class="text-slate-500">${new Date(m.created_at).toLocaleDateString()}</span>
+              </div>
+              <p class="text-xs text-slate-300 line-clamp-2">${escapeHtml(m.content)}</p>
+            </div>
+          `).join('');
+        } else {
+          neighborsEl.innerHTML = `<div class="text-xs text-slate-500 py-1">暂无关联记忆条目</div>`;
+        }
+
+        // 底部动作
+        actionsEl.innerHTML = `
+          <button onclick="filterByGraphTag('${escapeHtml(kw)}')" class="w-full py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 shadow-lg flex items-center justify-center gap-1.5 transition">
+            <i class="fa-solid fa-magnifying-glass"></i> 以该实体进行全域语义召回
+          </button>
+        `;
+      }
+
+      // 打开抽屉
+      drawer.classList.remove('translate-x-full');
+    }
+
+    function openMemoryInDrawer(memId) {
+      const target = cortexCachedMemories.find(m => m.id === memId);
+      if (!target) return;
+      handleCortexGraphClick({
+        dataType: 'node',
+        data: {
+          nodeType: 'memory',
+          memoryData: target,
+          itemStyle: {
+            color: target.category === 'preference' ? '#06B6D4' : target.category === 'guideline' ? '#10B981' : '#8B5CF6'
+          }
+        }
+      });
+    }
+
+    function closeCortexDrawer() {
+      const drawer = document.getElementById('cortex-node-drawer');
+      if (drawer) drawer.classList.add('translate-x-full');
+    }
+
+    function resetCortexGraphZoom() {
+      if (cortexChartInstance) {
+        cortexChartInstance.dispatchAction({
+          type: 'restore'
+        });
+      }
+    }
+
+    function toggleCortexGraphPhysics() {
+      cortexPhysicsRunning = !cortexPhysicsRunning;
+      const label = document.getElementById('label-graph-physics');
+      if (label) {
+        label.innerText = cortexPhysicsRunning ? '锁定布局' : '开启动力';
+      }
+      if (cortexChartInstance) {
+        cortexChartInstance.setOption({
+          series: [{
+            force: {
+              layoutAnimation: cortexPhysicsRunning
+            }
+          }]
+        });
+      }
+    }
+
+    function filterByGraphTag(tag) {
+      const input = document.getElementById('cortex-search-input');
+      if (input) {
+        input.value = tag;
+        searchCortexMemories();
+      }
+    }
+
+    function highlightMemoryInCards(memId) {
+      setCortexDisplayMode('card');
+      setTimeout(() => {
+        const el = document.getElementById(`memory-card-${memId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.classList.add('ring-2', 'ring-purple-400', 'shadow-[0_0_25px_rgba(168,85,247,0.5)]');
+          setTimeout(() => {
+            el.classList.remove('ring-2', 'ring-purple-400', 'shadow-[0_0_25px_rgba(168,85,247,0.5)]');
+          }, 3500);
+        }
+      }, 120);
     }
 
     async function deleteMemoryItem(id) {
       if (!confirm('确定要删除这条长期记忆吗？')) return;
       try {
         await apiRequest(`/memories/${id}`, { method: 'DELETE' });
+        closeCortexDrawer();
         fetchCortexMemories();
       } catch (err) {
         alert('删除失败: ' + err.message);
