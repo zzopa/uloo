@@ -1,8 +1,5 @@
-# AI生成
 # ULOO Standalone Multi-Agent Platform (Pure Clean Mode)
-# 一键拉起纯净独立模式：PostgreSQL + Redis + ULOO Core (含内置极速 UI)
-
-version: "3.9"
+# 一键拉起纯净独立模式：PostgreSQL (pgvector) + Redis + ULOO Core (含内置极速 UI)
 
 services:
   uloo-db:
@@ -10,7 +7,7 @@ services:
     container_name: uloo-postgres
     restart: always
     environment:
-      POSTGRES_DB: ${ULOO_DB_NAME:-dify}
+      POSTGRES_DB: ${ULOO_DB_NAME:-uloo}
       POSTGRES_USER: ${ULOO_DB_USER:-postgres}
       POSTGRES_PASSWORD: ${ULOO_DB_PASSWORD:-difyai123456}
       PGDATA: /var/lib/postgresql/data/pgdata
@@ -19,7 +16,7 @@ services:
     ports:
       - "${ULOO_DB_PORT:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d dify"]
+      test: ["CMD-SHELL", "pg_isready -U ${ULOO_DB_USER:-postgres} -d ${ULOO_DB_NAME:-uloo}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -53,12 +50,18 @@ services:
       - "8200:8200"
     environment:
       - PORT=8200
-      - ULOO_DATABASE_URL=postgresql+asyncpg://${ULOO_DB_USER:-postgres}:${ULOO_DB_PASSWORD:-difyai123456}@uloo-db:5432/${ULOO_DB_NAME:-dify}
+      - ULOO_DB_HOST=uloo-db
+      - ULOO_DB_PORT=5432
+      - ULOO_DB_USERNAME=${ULOO_DB_USER:-postgres}
+      - ULOO_DB_PASSWORD=${ULOO_DB_PASSWORD:-difyai123456}
+      - ULOO_DB_DATABASE=${ULOO_DB_NAME:-uloo}
+      - ULOO_REDIS_HOST=uloo-redis
+      - ULOO_REDIS_PORT=6379
       - ULOO_API_TOKEN=${ULOO_API_TOKEN:-uloo-dev-service-token-2026-local}
-      - ULOO_DIFY_INTERNAL_URL=http://localhost:5001
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
-      - DEEPSEEK_API_BASE=${DEEPSEEK_API_BASE:-http://172.26.197.154:3000/v1}
-      - MODEL_DEFAULT=${MODEL_DEFAULT:-deepseek-chat}
+      - ULOO_DIFY_API_URL=${ULOO_DIFY_API_URL:-http://localhost:5001}
+      - ULOO_LLM_BASE_URL=${ULOO_LLM_BASE_URL:-${DEEPSEEK_API_BASE:-http://172.26.197.154:3000/v1}}
+      - ULOO_LLM_API_KEY=${ULOO_LLM_API_KEY:-${DEEPSEEK_API_KEY:-}}
+      - ULOO_LLM_MODEL=${ULOO_LLM_MODEL:-${MODEL_DEFAULT:-deepseek-chat}}
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8200/api/v1/health/live || exit 1"]
       interval: 10s

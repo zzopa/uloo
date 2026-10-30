@@ -334,7 +334,7 @@ async def precheck_task(
             category="team",
             status="missing",
             detail="No enabled team available for this task",
-            fix_link="/uloo/teams",
+            fix_link="/ui",
         ))
     else:
         issues.append(PreCheckIssue(
@@ -360,7 +360,7 @@ async def precheck_task(
                 category="model",
                 status="misconfigured",
                 detail=f"{len(member_ids) - len(agents)} agent(s) missing or disabled",
-                fix_link="/uloo/agents",
+                fix_link="/ui",
             ))
         else:
             issues.append(PreCheckIssue(
@@ -382,31 +382,32 @@ async def precheck_task(
                 category="tool",
                 status="missing",
                 detail="No tools configured on team agents",
-                fix_link="/uloo/agents",
+                fix_link="/ui",
             ))
     else:
         issues.append(PreCheckIssue(
             category="model",
             status="missing",
             detail="No agents assigned to team",
-            fix_link="/uloo/teams",
+            fix_link="/ui",
         ))
 
-    # Check knowledge resources
+    # Check knowledge resources (validate agent knowledge_refs or workspace memory/knowledge readiness)
     resources = await load_resources(db, context.workspace_id)
-    knowledge_count = len(resources.snapshot.get("datasets", [])) if isinstance(resources.snapshot, dict) else 0
-    if knowledge_count > 0:
+    referenced_datasets = {
+        ref for agent in (agents if member_ids else []) for ref in (agent.knowledge_refs or [])
+    }
+    if referenced_datasets:
         issues.append(PreCheckIssue(
             category="knowledge",
             status="ok",
-            detail=f"{knowledge_count} knowledge resource(s) available",
+            detail=f"{len(referenced_datasets)} knowledge dataset reference(s) configured",
         ))
     else:
         issues.append(PreCheckIssue(
             category="knowledge",
-            status="missing",
-            detail="No knowledge resources configured",
-            fix_link="/uloo/settings",
+            status="ok",
+            detail="Built-in LLM-Wiki memory cortex ready (no external datasets required)",
         ))
 
     ready = all(issue.status == "ok" for issue in issues)

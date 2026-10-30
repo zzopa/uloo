@@ -40,12 +40,33 @@ def _format_table_to_markdown(rows: list[list[Any]]) -> str:
     return "\n".join(lines)
 
 
+def _is_within_allowed_roots(resolved: Path) -> bool:
+    """Ensure resolved path stays within allowed storage/tmp roots (blocks path traversal to system files)."""
+    import tempfile
+
+    cwd = Path.cwd().resolve()
+    allowed_roots = (
+        cwd / "storage",
+        cwd / "tmp",
+        cwd.parent / "storage",
+        cwd.parent / "tmp",
+        Path(tempfile.gettempdir()).resolve(),
+    )
+    return any(resolved == root or root in resolved.parents for root in allowed_roots)
+
+
 def _resolve_file_path(file_path: str) -> Path | None:
-    """Safely resolve file path against cwd, storage, or tmp folders."""
+    """Safely resolve file path against allowed storage or tmp folders."""
     clean = file_path.strip().replace("\\", "/")
     p = Path(clean)
+    # Block explicit parent traversal segments
+    if ".." in p.parts:
+        return None
     if p.is_file():
-        return p.resolve()
+        resolved = p.resolve()
+        if _is_within_allowed_roots(resolved):
+            return resolved
+        return None
 
     cwd = Path.cwd()
     candidates = [

@@ -41,6 +41,7 @@ from ..runtime import (
     should_execute_dag_pipeline,
 )
 from ..runtime.live_events import (
+    cleanup_run_state,
     clear_active_run,
     get_run_sequence_lock,
     set_active_run,
@@ -1021,6 +1022,7 @@ async def _execute_owned_run(
         return await _execute_run(db, run, task, plan, team_definition, member_definitions, resources, context)
     finally:
         clear_active_run()
+        cleanup_run_state(run.id)
         _active_runs.pop(str(run.id), None)
         # P0/S3-5: If the run was paused awaiting input and is now leaving
         # the executor (success, failure, or cancellation), release any

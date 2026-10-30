@@ -12,9 +12,13 @@ from datetime import UTC, datetime
 from ddgs import DDGS
 from ddgs.exceptions import DDGSException
 
-# In-memory query cache: query -> (timestamp, json_string_result)
-_SEARCH_CACHE: dict[str, tuple[float, str]] = {}
+from collections import OrderedDict
+
+# Bounded LRU query cache: query -> (timestamp, json_string_result)
+_SEARCH_CACHE: OrderedDict[str, tuple[float, str]] = OrderedDict()
 _CACHE_TTL_SECONDS = 3600.0  # 1 hour cache to avoid repeat queries within multi-agent verification
+_MAX_CACHE_ENTRIES = 256
+_URL_RESOLVE_POOL = ThreadPoolExecutor(max_workers=8)
 
 # Authoritative & Official Domain Registry
 OFFICIAL_DOMAINS = [
@@ -214,8 +218,7 @@ def _search_baidu(query: str, max_results: int = 8) -> list[dict]:
                 candidates.append((href, title, snippet))
 
         urls_to_resolve = [c[0] for c in candidates]
-        with ThreadPoolExecutor(max_workers=min(len(urls_to_resolve), 8)) as ex:
-            resolved_urls = list(ex.map(resolve_single_baidu_url, urls_to_resolve))
+        resolved_urls = list(_URL_RESOLVE_POOL.map(resolve_single_baidu_url, urls_to_resolve))
 
         results = []
         for (orig_url, title, snippet), real_url in zip(candidates, resolved_urls):
@@ -305,8 +308,7 @@ def _search_sogou(query: str, max_results: int = 5) -> list[dict]:
 
         # Concurrently resolve Sogou tracking redirects to the REAL official target URLs
         urls_to_resolve = [item[0] for item in candidates]
-        with ThreadPoolExecutor(max_workers=min(len(urls_to_resolve), 8)) as ex:
-            resolved_urls = list(ex.map(resolve_single_sogou_url, urls_to_resolve))
+        resolved_urls = list(_URL_RESOLVE_POOL.map(resolve_single_sogou_url, urls_to_resolve))
 
         results = []
         for (orig_url, title, snippet), real_url in zip(candidates, resolved_urls):
@@ -469,8 +471,12 @@ def web_search(query: str, max_results: int = 8) -> str:
 
     def _save_cache(val: str) -> str:
         _SEARCH_CACHE[cache_key] = (now, val)
+        _SEARCH_CACHE.move_to_end(cache_key)
         if entity_cache_key:
             _SEARCH_CACHE[entity_cache_key] = (now, val)
+            _SEARCH_CACHE.move_to_end(entity_cache_key)
+        while len(_SEARCH_CACHE) > _MAX_CACHE_ENTRIES:
+            _SEARCH_CACHE.popitem(last=False)
         return val
 
     sources = []

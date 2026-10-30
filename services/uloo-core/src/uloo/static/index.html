@@ -1908,13 +1908,38 @@
   <!-- 核心逻辑与 API 交互 (保持 100% 后端接口兼容) -->
   <script>
     const API_BASE = '/api/v1';
-    const TOKEN = 'uloo-dev-service-token-2026-local';
-    const WORKSPACE = '39dc2f4f-2dc3-4cc5-af5f-daad8ee83b6b';
+    const _urlParams = new URLSearchParams(window.location.search);
+    const TOKEN = _urlParams.get('token') || localStorage.getItem('uloo_api_token') || 'uloo-dev-service-token-2026-local';
+    const WORKSPACE = _urlParams.get('workspace') || localStorage.getItem('uloo_workspace_id') || '39dc2f4f-2dc3-4cc5-af5f-daad8ee83b6b';
     const HEADERS = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${TOKEN}`,
       'X-ULOO-Workspace': WORKSPACE
     };
+
+    function sanitizeUrl(rawUrl) {
+      if (!rawUrl || typeof rawUrl !== 'string') return '#';
+      const trimmed = rawUrl.trim();
+      if (/^(https?:\/\/|\/|#)/i.test(trimmed)) return escapeHtml(trimmed);
+      return '#';
+    }
+
+    function sanitizeRenderedHtml(dirtyHtml) {
+      if (!dirtyHtml) return '';
+      const tpl = document.createElement('template');
+      tpl.innerHTML = dirtyHtml;
+      tpl.content.querySelectorAll('script, iframe, object, embed, form, meta, link').forEach(el => el.remove());
+      tpl.content.querySelectorAll('*').forEach(el => {
+        Array.from(el.attributes).forEach(attr => {
+          const name = attr.name.toLowerCase();
+          const val = (attr.value || '').trim().toLowerCase();
+          if (name.startsWith('on') || ((name === 'href' || name === 'src') && (val.startsWith('javascript:') || val.startsWith('vbscript:') || val.startsWith('data:text/html')))) {
+            el.removeAttribute(attr.name);
+          }
+        });
+      });
+      return tpl.innerHTML;
+    }
 
     let allTasks = [];
     let currentFilter = 'all';
@@ -1937,7 +1962,9 @@
         linkText = href.text;
         linkTitle = href.title;
       }
-      return `<a href="${linkHref}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-300 underline font-semibold transition px-1 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20" title="${linkTitle || linkHref}">${linkText} <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i></a>`;
+      const safeHref = sanitizeUrl(linkHref);
+      const safeTitle = escapeHtml(linkTitle || linkHref || '');
+      return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-indigo-400 hover:text-indigo-300 underline font-semibold transition px-1 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20" title="${safeTitle}">${linkText} <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i></a>`;
     };
     marked.setOptions({ renderer: customRenderer, gfm: true, breaks: true });
 
@@ -3059,7 +3086,7 @@
       if (latestSuccessRun && latestSuccessRun.output) {
         readyDot.classList.remove('hidden');
         let content = typeof latestSuccessRun.output === 'string' ? latestSuccessRun.output : (latestSuccessRun.output.content || JSON.stringify(latestSuccessRun.output, null, 2));
-        markdownContainer.innerHTML = marked.parse(content);
+        markdownContainer.innerHTML = sanitizeRenderedHtml(marked.parse(content));
         window._currentDeliverableText = content;
 
         // 抽取真实跳转链接

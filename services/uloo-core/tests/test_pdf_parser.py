@@ -158,3 +158,9 @@ def test_configured_pdf_parser_wrapper(sample_pdf: Path):
     res = json.loads(out_str)
     assert res["status"] == "ok"
     assert res["metadata"]["total_pages"] == 2
+
+
+def test_pdf_parser_rejects_parent_directory_traversal():
+    res = json.loads(pdf_parser("../../etc/passwd"))
+    assert res["status"] == "error"
+    assert res["error_type"] == "FileNotFoundError"

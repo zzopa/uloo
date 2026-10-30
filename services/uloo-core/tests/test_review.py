@@ -299,3 +299,25 @@ class TestBuildReviewFeedback:
         )
         feedback = build_review_feedback(evaluation, 3)
         assert "Review round 3" in feedback
+
+
+    def test_substantive_report_mentioning_no_data_passes(self):
+        """A detailed multi-paragraph report (>240 chars) noting 'no data' for one sub-item is not a failure."""
+        long_report = (
+            "Comprehensive corporate due diligence completed across 5 authoritative registries [1] [2]. "
+            "Business registration, paid-in capital, and executive credentials are fully verified. "
+            "Regarding historical environmental penalties, there is no data indicating any administrative "
+            "violations between 2021 and 2026 [3]. Overall compliance posture is satisfactory."
+        )
+        result = _result(
+            member_results=[
+                {"agent_id": "agent-1", "name": "Auditor", "output": {"content": long_report}, "usage": None},
+            ],
+        )
+        evaluation = evaluate_completion(
+            result,
+            assigned_agent_ids={"agent-1"},
+            completion_config={"all_members_executed": True, "no_unresolved_errors": True},
+            review_policy={},
+        )
+        assert evaluation.satisfied

@@ -33,13 +33,12 @@ router = APIRouter(tags=["resources"])
 _TOOL_CONFIG_MODELS: dict[str, type] = {
     "dify": DifyToolConfig,
     "builtin": SearchConfig,
-    "mcp_sse":标志 if False else McpSseToolConfig,
+    "mcp_sse": McpSseToolConfig,
     "mcp_stdio": McpStdioToolConfig,
     "wiki_memory": WikiMemoryConfig,
     "pdf_parser": PdfParserConfig,
     "code_interpreter": CodeInterpreterConfig,
 }
-_TOOL_CONFIG_MODELS["mcp_sse"] = McpSseToolConfig
 
 
 def validate_config(kind: str, config: dict) -> dict:

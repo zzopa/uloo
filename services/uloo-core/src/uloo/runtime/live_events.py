@@ -159,3 +159,10 @@ def emit_live_event(
             asyncio.run_coroutine_threadsafe(coro, _main_event_loop)
         else:
             logger.warning("no_event_loop_for_live_event", event_type=event_type)
+
+
+def cleanup_run_state(run_id: str | uuid.UUID) -> None:
+    """Release per-run lock and pending task references to prevent memory leaks."""
+    run_id_str = str(run_id)
+    _run_sequence_locks.pop(run_id_str, None)
+    _pending_tasks.pop(run_id_str, None)

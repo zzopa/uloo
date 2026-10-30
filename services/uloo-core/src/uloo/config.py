@@ -38,6 +38,7 @@ class Settings(BaseSettings):
 
     # API
     api_prefix: str = "/api/v1"
+    cors_origins: list[str] = ["*"]
     api_token: str = ""
     dify_api_url: str = "http://localhost:5001"
     dify_inner_api_key: SecretStr = SecretStr("")

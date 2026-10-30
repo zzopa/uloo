@@ -88,17 +88,18 @@ def _detect_member_error(output: Any) -> bool:
         content = output.get("content", output.get("items", output))
         if not _has_output(content):
             return True
-        # Check failure markers in content string
+        # Check failure markers in content string (only treat as fatal error when output is brief
+        # rather than a comprehensive multi-paragraph report mentioning 'no data' for one sub-item)
         if isinstance(content, str):
             stripped = content.strip().lower()
-            if any(marker in stripped for marker in _FAILURE_MARKERS):
+            if len(stripped) < 240 and any(marker in stripped for marker in _FAILURE_MARKERS):
                 return True
         return False
     if isinstance(output, str):
         stripped = output.strip().lower()
         if not stripped:
             return True
-        return any(marker in stripped for marker in _FAILURE_MARKERS)
+        return len(stripped) < 240 and any(marker in stripped for marker in _FAILURE_MARKERS)
     return False
 
 

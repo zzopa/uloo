@@ -58,3 +58,15 @@ def test_tool_registry_resolves_code_interpreter():
     resolved = registry.resolve_many(["code-interpreter", "web-search"])
     assert len(resolved) == 2
     assert resolved[0] == code_interpreter
+
+
+def test_code_interpreter_blocks_ast_dunder_and_private_traversal():
+    output = json.loads(code_interpreter("import re\nx = re._compiler"))
+    assert output["status"] == "error"
+    assert "unsafe pattern" in output["message"]
+
+
+def test_code_interpreter_blocks_dangerous_builtin_calls():
+    output = json.loads(code_interpreter("result = eval('1 + 1')"))
+    assert output["status"] == "error"
+    assert "unsafe pattern" in output["message"]
