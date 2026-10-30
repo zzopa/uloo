@@ -14,7 +14,7 @@ from ..models.task import TaskPlan
 from ..models.team import TeamDefinition
 from .execution import AgentExecutionResult, execute_agent
 from .factory import build_agent
-from .live_events import emit_live_event
+from .live_events import emit_live_event, get_active_run, wait_pending_live_events
 from .resources import ResourceRegistry
 
 logger = get_logger("uloo.runtime.pipeline")
@@ -172,7 +172,17 @@ async def execute_dag_pipeline(
 
             emit_live_event(
                 "agent.completed",
-                {"name": m_def.name, "step": step.get("title", ""), "stage": stage_idx},
+                {
+                    "agent_id": str(m_def.id),
+                    "name": m_def.name,
+                    "run_id": res.run_id or f"dag-{step.get('id')}",
+                    "output": res.output,
+                    "usage": res.usage,
+                    "message": f"{m_def.name} completed its assigned work",
+                    "step": step.get("title", ""),
+                    "stage": stage_idx,
+                    "round": "initial",
+                },
                 source_type="agent",
                 source_id=str(m_def.id),
             )
@@ -215,6 +225,10 @@ async def execute_dag_pipeline(
 
     run_id = last_res.run_id if last_res else str(uuid.uuid4())
     logger.info("dag_pipeline_completed", total_members=len(member_results), stages=len(stages))
+
+    active_ctx = get_active_run()
+    if active_ctx and active_ctx.get("run_id"):
+        await wait_pending_live_events(active_ctx["run_id"])
 
     return AgentExecutionResult(
         run_id=run_id,

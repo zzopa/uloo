@@ -19,10 +19,32 @@ _active_run_context: ContextVar[dict[str, Any] | None] = ContextVar("uloo_active
 
 # In-memory per-run lock to guarantee strictly sequential sequence numbers without DB collisions
 _run_sequence_locks: dict[str, asyncio.Lock] = {}
+# Track pending in-flight persistence tasks per run_id
+_pending_tasks: dict[str, set[asyncio.Task]] = {}
 
 # Reference to the main asyncio event loop to allow worker threads (e.g. sync tools in threadpool)
 # to safely schedule event persistence coroutines
 _main_event_loop: asyncio.AbstractEventLoop | None = None
+
+
+def get_run_sequence_lock(run_id: str | uuid.UUID) -> asyncio.Lock:
+    """Return the sequential lock for a run."""
+    run_id_str = str(run_id)
+    if run_id_str not in _run_sequence_locks:
+        _run_sequence_locks[run_id_str] = asyncio.Lock()
+    return _run_sequence_locks[run_id_str]
+
+
+async def wait_pending_live_events(run_id: str | uuid.UUID, timeout: float = 10.0) -> None:
+    """Wait for all outstanding live event persistence tasks to commit."""
+    run_id_str = str(run_id)
+    tasks = list(_pending_tasks.get(run_id_str, set()))
+    if tasks:
+        try:
+            await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=timeout)
+        except Exception as exc:
+            logger.warning("wait_pending_live_events_error", error=str(exc))
+        _pending_tasks.pop(run_id_str, None)
 
 
 def set_active_run(run_id: str | uuid.UUID, workspace_id: str | uuid.UUID) -> None:
@@ -61,10 +83,9 @@ async def _persist_live_event_async(
     status: str,
 ) -> None:
     run_id_str = str(run_id)
-    if run_id_str not in _run_sequence_locks:
-        _run_sequence_locks[run_id_str] = asyncio.Lock()
+    lock = get_run_sequence_lock(run_id)
 
-    async with _run_sequence_locks[run_id_str]:
+    async with lock:
         try:
             async with async_session_factory() as session:
                 max_seq = await session.scalar(
@@ -113,6 +134,7 @@ def emit_live_event(
 
     workspace_id = ctx["workspace_id"]
     run_id = ctx["run_id"]
+    run_id_str = str(run_id)
 
     coro = _persist_live_event_async(
         workspace_id=workspace_id,
@@ -126,7 +148,11 @@ def emit_live_event(
 
     try:
         loop = asyncio.get_running_loop()
-        loop.create_task(coro)
+        task = loop.create_task(coro)
+        if run_id_str not in _pending_tasks:
+            _pending_tasks[run_id_str] = set()
+        _pending_tasks[run_id_str].add(task)
+        task.add_done_callback(lambda t: _pending_tasks.get(run_id_str, set()).discard(t))
     except RuntimeError:
         # Worker thread (e.g. synchronous tool execution via asyncio.to_thread)
         if _main_event_loop and _main_event_loop.is_running():

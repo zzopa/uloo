@@ -40,7 +40,12 @@ from ..runtime import (
     execute_dag_pipeline,
     should_execute_dag_pipeline,
 )
-from ..runtime.live_events import clear_active_run, set_active_run
+from ..runtime.live_events import (
+    clear_active_run,
+    get_run_sequence_lock,
+    set_active_run,
+    wait_pending_live_events,
+)
 from ..runtime.dify_tools import clear_runtime_caller, set_runtime_caller
 from ..runtime.memory import distill_run_memories, format_memories_for_prompt, recall_memories
 from ..runtime.models import RuntimeConfigurationError
@@ -743,64 +748,66 @@ async def _persist_round_events(
     round_label: str = "initial",
 ) -> int:
     """S5-补3: Persist tool.summary and agent.completed events for one execution round."""
-    max_seq = await db.scalar(
-        select(func.max(RunEvent.sequence)).where(RunEvent.run_id == run.id)
-    )
-    seq = max(next_seq, (max_seq or 0) + 1)
+    await wait_pending_live_events(run.id)
+    async with get_run_sequence_lock(run.id):
+        max_seq = await db.scalar(
+            select(func.max(RunEvent.sequence)).where(RunEvent.run_id == run.id)
+        )
+        seq = max(next_seq, (max_seq or 0) + 1)
 
-    existing_events = (
-        await db.execute(
-            select(RunEvent.event_type, RunEvent.source_id, RunEvent.payload)
-            .where(RunEvent.run_id == run.id)
-        )
-    ).all()
-    existing_tool_calls = {
-        row[2].get("tool_call_id")
-        for row in existing_events
-        if row[0] == "tool.summary" and isinstance(row[2], dict) and row[2].get("tool_call_id")
-    }
-    existing_members_in_round = {
-        (row[1], row[2].get("round"))
-        for row in existing_events
-        if row[0] == "agent.completed" and isinstance(row[2], dict)
-    }
+        existing_events = (
+            await db.execute(
+                select(RunEvent.event_type, RunEvent.source_id, RunEvent.payload)
+                .where(RunEvent.run_id == run.id)
+            )
+        ).all()
+        existing_tool_calls = {
+            row[2].get("tool_call_id")
+            for row in existing_events
+            if row[0] == "tool.summary" and isinstance(row[2], dict) and row[2].get("tool_call_id")
+        }
+        existing_members_in_round = {
+            (row[1], row[2].get("round"))
+            for row in existing_events
+            if row[0] == "agent.completed" and isinstance(row[2], dict)
+        }
 
-    for tool_summary in result.tool_summaries:
-        cid = tool_summary.get("tool_call_id")
-        if cid and cid in existing_tool_calls:
-            continue
-        db.add(
-            RunEvent(
-                workspace_id=workspace_id,
-                run_id=run.id,
-                sequence=seq,
-                event_type="tool.summary",
-                source_type="tool",
-                source_id=tool_summary.get("tool_name"),
-                status="failed" if tool_summary.get("error") else "succeeded",
-                payload={**tool_summary, "round": round_label},
+        for tool_summary in result.tool_summaries:
+            cid = tool_summary.get("tool_call_id")
+            if cid and cid in existing_tool_calls:
+                continue
+            db.add(
+                RunEvent(
+                    workspace_id=workspace_id,
+                    run_id=run.id,
+                    sequence=seq,
+                    event_type="tool.summary",
+                    source_type="tool",
+                    source_id=tool_summary.get("tool_name"),
+                    status="failed" if tool_summary.get("error") else "succeeded",
+                    payload={**tool_summary, "round": round_label},
+                )
             )
-        )
-        seq += 1
-    for member_result in result.member_results:
-        agent_id = member_result["agent_id"]
-        if (agent_id, round_label) in existing_members_in_round:
-            continue
-        db.add(
-            RunEvent(
-                workspace_id=workspace_id,
-                run_id=run.id,
-                sequence=seq,
-                event_type="agent.completed",
-                source_type="agent",
-                source_id=agent_id,
-                status="succeeded",
-                payload={**member_result, "message": f"{member_result['name']} completed its assigned work", "round": round_label},
+            seq += 1
+        for member_result in result.member_results:
+            agent_id = member_result["agent_id"]
+            if (agent_id, round_label) in existing_members_in_round:
+                continue
+            db.add(
+                RunEvent(
+                    workspace_id=workspace_id,
+                    run_id=run.id,
+                    sequence=seq,
+                    event_type="agent.completed",
+                    source_type="agent",
+                    source_id=agent_id,
+                    status="succeeded",
+                    payload={**member_result, "message": f"{member_result['name']} completed its assigned work", "round": round_label},
+                )
             )
-        )
-        seq += 1
-    await db.commit()
-    return seq
+            seq += 1
+        await db.commit()
+        return seq
 
 
 async def _get_task(task_id: uuid.UUID, workspace_id: uuid.UUID, db: AsyncSession, *, for_update: bool = False) -> Task:
@@ -1220,6 +1227,7 @@ async def _execute_run(
 
         # S5-补3: Persist tool summaries and agent events immediately so that
         # clients polling /runs/{id}/events can observe progress in real time.
+        await wait_pending_live_events(run.id)
         max_seq = await db.scalar(
             select(func.max(RunEvent.sequence)).where(RunEvent.run_id == run.id)
         )
@@ -1386,66 +1394,71 @@ async def _execute_run(
     ]
     # S5-补3: agent.completed events were already persisted during execution.
     # Only the final run.completed event is added here.
-    max_seq = await db.scalar(
-        select(func.max(RunEvent.sequence)).where(RunEvent.run_id == run.id)
-    )
-    db.add(
-        RunEvent(
-            workspace_id=context.workspace_id,
-            run_id=run.id,
-            sequence=(max_seq or 0) + 1,
-            event_type="run.completed",
-            source_type="team",
-            source_id=str(team_definition.id),
-            status="succeeded",
-            payload={
-                "output": result.output,
-                # P1: cumulative usage across initial + all rework rounds.
-                "usage": accumulated_usage or (result.usage or {}),
-                # P1: actual rework rounds executed, not the configured max.
-                "review_rounds": actual_review_rounds,
-                "completion_satisfied": evaluation.satisfied,
-            },
+    await wait_pending_live_events(run.id)
+    async with get_run_sequence_lock(run.id):
+        max_seq = await db.scalar(
+            select(func.max(RunEvent.sequence)).where(RunEvent.run_id == run.id)
         )
-    )
-
-    # LLM-Wiki: Automatically distill core entity memories from the completed deliverable
-    deliverable_text = ""
-    if isinstance(result.output, dict):
-        deliverable_text = str(result.output.get("content") or result.output.get("final_report") or "")
-    elif isinstance(result.output, str):
-        deliverable_text = result.output
-
-    if deliverable_text and len(deliverable_text.strip()) >= 50:
-        try:
-            distilled_memories = await distill_run_memories(
-                db,
-                context.workspace_id,
-                run.id,
-                query=query_text,
-                deliverable_text=deliverable_text,
+        final_seq = (max_seq or 0) + 1
+        db.add(
+            RunEvent(
+                workspace_id=context.workspace_id,
+                run_id=run.id,
+                sequence=final_seq,
+                event_type="run.completed",
+                source_type="team",
+                source_id=str(team_definition.id),
+                status="succeeded",
+                payload={
+                    "output": result.output,
+                    # P1: cumulative usage across initial + all rework rounds.
+                    "usage": accumulated_usage or (result.usage or {}),
+                    # P1: actual rework rounds executed, not the configured max.
+                    "review_rounds": actual_review_rounds,
+                    "completion_satisfied": evaluation.satisfied,
+                },
             )
-            if distilled_memories:
-                db.add(
-                    RunEvent(
-                        workspace_id=context.workspace_id,
-                        run_id=run.id,
-                        sequence=(max_seq or 0) + 2,
-                        event_type="memory.consolidated",
-                        source_type="system",
-                        source_id="wiki-distiller",
-                        status="succeeded",
-                        payload={
-                            "count": len(distilled_memories),
-                            "items": [m.to_dict() for m in distilled_memories],
-                            "message": f"已从本次交付成果中提炼萃取 {len(distilled_memories)} 条 LLM-Wiki 实体记忆并沉淀入库",
-                        },
-                    )
-                )
-        except Exception as exc:
-            logger.warning("wiki_distillation_skipped", run_id=str(run.id), error=str(exc))
+        )
+        final_seq += 1
 
-    await db.commit()
+        # LLM-Wiki: Automatically distill core entity memories from the completed deliverable
+        deliverable_text = ""
+        if isinstance(result.output, dict):
+            deliverable_text = str(result.output.get("content") or result.output.get("final_report") or "")
+        elif isinstance(result.output, str):
+            deliverable_text = result.output
+
+        if deliverable_text and len(deliverable_text.strip()) >= 50:
+            try:
+                distilled_memories = await distill_run_memories(
+                    db,
+                    context.workspace_id,
+                    run.id,
+                    query=query_text,
+                    deliverable_text=deliverable_text,
+                )
+                if distilled_memories:
+                    db.add(
+                        RunEvent(
+                            workspace_id=context.workspace_id,
+                            run_id=run.id,
+                            sequence=final_seq,
+                            event_type="memory.consolidated",
+                            source_type="system",
+                            source_id="wiki-distiller",
+                            status="succeeded",
+                            payload={
+                                "count": len(distilled_memories),
+                                "items": [m.to_dict() for m in distilled_memories],
+                                "message": f"已从本次交付成果中提炼萃取 {len(distilled_memories)} 条 LLM-Wiki 实体记忆并沉淀入库",
+                            },
+                        )
+                    )
+                    final_seq += 1
+            except Exception as exc:
+                logger.warning("wiki_distillation_skipped", run_id=str(run.id), error=str(exc))
+
+        await db.commit()
     await db.refresh(run)
     await db.refresh(run, attribute_names=["events"])
     logger.info("team_run_succeeded", run_id=str(run.id), task_id=str(task.id))
